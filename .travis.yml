@@ -12,6 +12,7 @@ before_install:
 script:
   - cd $TRAVIS_BUILD_DIR
   - cmake -DCMAKE_BUILD_TYPE=Release .
+  - cmake --build . --config Release
   - ls
   - ./flatjson
   - eval $CXX -O2 parsetest.cpp -o parsetest
