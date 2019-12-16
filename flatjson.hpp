@@ -1302,7 +1302,7 @@ public:
         assert(strlen == details::fj_tokens_to_buf(
                  storage_type::begin()
                 ,m_used
-                ,const_cast<char *>(res.c_str())
+                ,&res[0]
                 ,res.size()
                 ,indent
             )
@@ -1427,7 +1427,7 @@ public:
         assert(strlen == details::fj_tokens_to_buf(
                  &(*storage_type::begin())
                 ,storage_type::size_()
-                ,const_cast<char *>(res.c_str())
+                ,&res[0]
                 ,res.size()
                 ,indent
             )
