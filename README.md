@@ -6,8 +6,7 @@ There are two types:
 1) fjson - which is the template and which uses the stack
 2) fdyjson - which is not the template and which uses the heap(just one allocation!)
 
-#Examples
-
+# Examples
 ```cpp
 const char *jsstr = R"({"a":true, "b":null})";
 flatjson::fjson<> json{jsstr};
