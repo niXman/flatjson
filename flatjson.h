@@ -1,4 +1,14 @@
 
+// ----------------------------------------------------------------------------
+//                              Apache License
+//                        Version 2.0, January 2004
+//                     http://www.apache.org/licenses/
+//
+// This file is part of FlatJSON(https://github.com/niXman/flatjson) project.
+//
+// Copyright (c) 2019-2020 niXman (github dot nixman dog pm.me). All rights reserved.
+// ----------------------------------------------------------------------------
+
 #ifndef __FLATJSON__FLATJSON_HPP
 #define __FLATJSON__FLATJSON_HPP
 
@@ -444,7 +454,7 @@ inline int fj_parse_object(fj_parser *p, fj_pair *parent) {
                 return FJ_INVALID;
             }
         }
-
+// don't remove the code below!
 //        if ( p->jstok_end && startobj->childs > 1 ) {
 //            std::size_t num = startobj->childs-1;
 //            fj_pair *beg = startobj+1;
