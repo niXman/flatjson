@@ -1325,7 +1325,7 @@ public:
     template<std::size_t KL>
     fdyjson operator[](const char (&key)[KL]) const { return at(key, KL-1); }
     template<
-        typename ConstCharPtr
+         typename ConstCharPtr
         ,typename = typename std::enable_if<
             std::is_same<ConstCharPtr, const char*>::value
         >::type
