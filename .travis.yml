@@ -12,4 +12,5 @@ before_install:
 script:
   - cd $TRAVIS_BUILD_DIR
   - cmake -DCMAKE_BUILD_TYPE=Release .
-  
+  - eval $CXX -O2 parsetest.cpp -o parsetest
+  - ./flatjson && ./parsetest canada.json && ./parsetest citm_catalog.json && ./parsetest jeopardy.json && ./parsetest twitter.json
