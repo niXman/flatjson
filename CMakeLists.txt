@@ -9,7 +9,7 @@ add_definitions(
 )
 
 set(SOURCES
-	flatjson.h
+	flatjson.hpp
 	main.cpp
 )
 

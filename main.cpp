@@ -9,7 +9,7 @@
 // Copyright (c) 2019-2020 niXman (github dot nixman dog pm.me). All rights reserved.
 // ----------------------------------------------------------------------------
 
-#include "flatjson.h"
+#include "flatjson.hpp"
 
 #include <iostream>
 #include <fstream>

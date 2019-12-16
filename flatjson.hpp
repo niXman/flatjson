@@ -224,20 +224,20 @@ inline int fj_escape_len(const char *s, std::ptrdiff_t len) {
 
 /*************************************************************************************************/
 
-template<bool RO>
-inline int fj_expect(fj_parser *p, const char *s, std::size_t len, const char **ptr, std::size_t *size) {
-    if ( p->js_cur + len > p->js_end )
+template<bool RO, std::size_t ExLen>
+inline int fj_expect(fj_parser *p, const char *s, const char **ptr, std::size_t *size) {
+    if ( p->js_cur + ExLen > p->js_end )
         return FJ_INCOMPLETE;
 
-    if ( std::memcmp(p->js_cur, s, len) != 0 )
+    if ( std::memcmp(p->js_cur, s, ExLen) != 0 )
         return FJ_INVALID;
 
     if ( !RO ) {
         *ptr = p->js_cur;
-        *size = len;
+        *size = ExLen;
     }
 
-    p->js_cur += len;
+    p->js_cur += ExLen;
 
     return FJ_OK;
 }
@@ -515,7 +515,7 @@ inline int fj_parse_value(fj_parser *p, const char **ptr, std::size_t *size, e_f
             break;
         }
         case 'n': {
-            int ec = fj_expect<RO>(p, "null", 4, ptr, size);
+            int ec = fj_expect<RO, 4>(p, "null", ptr, size);
             if ( ec ) return ec;
             // on root token
             if ( p->jstok_cur == p->jstok_beg ) {
@@ -525,7 +525,7 @@ inline int fj_parse_value(fj_parser *p, const char **ptr, std::size_t *size, e_f
             break;
         }
         case 't': {
-            int ec = fj_expect<RO>(p, "true", 4, ptr, size);
+            int ec = fj_expect<RO, 4>(p, "true", ptr, size);
             if ( ec ) return ec;
             // on root token
             if ( p->jstok_cur == p->jstok_beg ) {
@@ -535,7 +535,7 @@ inline int fj_parse_value(fj_parser *p, const char **ptr, std::size_t *size, e_f
             break;
         }
         case 'f': {
-            int ec = fj_expect<RO>(p, "false", 5, ptr, size);
+            int ec = fj_expect<RO, 5>(p, "false", ptr, size);
             if ( ec ) return ec;
             // on root token
             if ( p->jstok_cur == p->jstok_beg ) {
