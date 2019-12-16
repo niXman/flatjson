@@ -87,11 +87,12 @@ namespace details {
 #define __FLATJSON__MAKE_ERROR_MESSAGE(msg)\
     __FILE__ "(" __FLATJSON__STRINGIZE(__LINE__) "): " msg
 
-#ifdef __FLATJSON__SHOULD_CHECK_OVERFLOW
-#   define __FLATJSON__CHECK_OVERFLOW(expr, type) \
-        assert((expr) < std::numeric_limits<type>::max())
-#else
+#ifdef __FLATJSON__DONT_CHECK_OVERFLOW
 #   define __FLATJSON__CHECK_OVERFLOW(expr, type)
+#else
+#   define __FLATJSON__CHECK_OVERFLOW(expr, type) \
+        if ( (expr) >= std::numeric_limits<type>::max() ) \
+            throw std::overflow_error(__FLATJSON__MAKE_ERROR_MESSAGE("overflow detected!"))
 #endif //__FLATJSON__SHOULD_CHECK_OVERFLOW
 
 #ifndef __FLATJSON__KLEN_TYPE

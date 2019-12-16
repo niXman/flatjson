@@ -5,7 +5,6 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -Wextra -fsanitize=addr
 
 add_definitions(
 	-UNDEBUG
-	-D__FLATJSON__SHOULD_CHECK_OVERFLOW
 )
 
 set(SOURCES
