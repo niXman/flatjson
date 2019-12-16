@@ -1315,7 +1315,6 @@ public:
 
         return os;
     }
-
     friend std::ostream& operator<< (std::ostream &os, const fjson &fj) {
         details::fj_tokens_to_stream(os, fj.m_tokens, fj.m_used);
         return os;
@@ -1440,7 +1439,6 @@ public:
 
         return os;
     }
-
     friend std::ostream& operator<< (std::ostream &os, const fdyjson &fj) {
         details::fj_tokens_to_stream(os, &(*fj.begin()), static_cast<const storage_type &>(fj).size_());
         return os;
