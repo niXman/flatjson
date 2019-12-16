@@ -11,7 +11,7 @@ script:
   - cmake -DCMAKE_BUILD_TYPE=Release .
   - cmake --build . --config Release
   - ./flatjson
-  - eval $CXX -O2 parsetest.cpp -o parsetest
+  - eval $CXX -O2 -UNDEBUG parsetest.cpp -o parsetest
   - ./parsetest canada.json
   - ./parsetest citm_catalog.json
   - ./parsetest jeopardy.json
