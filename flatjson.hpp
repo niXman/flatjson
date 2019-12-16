@@ -73,6 +73,9 @@ enum e_fj_error_code {
     ,FJ_INVALID = -1
     ,FJ_INCOMPLETE = -2
     ,FJ_NO_FREE_TOKENS = -3
+    ,FJ_KLEN_OVERFLOW = -4
+    ,FJ_VLEN_OVERFLOW = -5
+    ,FJ_CHILDS_OVERFLOW = -6
 };
 
 /*************************************************************************************************/
@@ -88,11 +91,10 @@ namespace details {
     __FILE__ "(" __FLATJSON__STRINGIZE(__LINE__) "): " msg
 
 #ifdef __FLATJSON__DONT_CHECK_OVERFLOW
-#   define __FLATJSON__CHECK_OVERFLOW(expr, type)
+#   define __FLATJSON__CHECK_OVERFLOW(expr, type, err)
 #else
-#   define __FLATJSON__CHECK_OVERFLOW(expr, type) \
-        if ( (expr) >= std::numeric_limits<type>::max() ) \
-            throw std::overflow_error(__FLATJSON__MAKE_ERROR_MESSAGE("overflow detected!"))
+#   define __FLATJSON__CHECK_OVERFLOW(expr, type, err) \
+        if ( (expr) >= std::numeric_limits<type>::max() ) return err
 #endif //__FLATJSON__SHOULD_CHECK_OVERFLOW
 
 #ifndef __FLATJSON__KLEN_TYPE
@@ -344,7 +346,7 @@ inline int fj_parse_array(fj_parser *p, fj_pair *parent) {
         startarr->type = FJ_TYPE_ARRAY;
         startarr->parent = parent;
         if ( startarr->parent ) {
-            __FLATJSON__CHECK_OVERFLOW(startarr->parent->childs, __FLATJSON__CHILDS_TYPE);
+            __FLATJSON__CHECK_OVERFLOW(startarr->parent->childs, __FLATJSON__CHILDS_TYPE, FJ_CHILDS_OVERFLOW);
             ++startarr->parent->childs;
         }
     }
@@ -360,7 +362,7 @@ inline int fj_parse_array(fj_parser *p, fj_pair *parent) {
             if ( !RO ) {
                 pair->parent = startarr;
 
-                __FLATJSON__CHECK_OVERFLOW(startarr->childs, __FLATJSON__CHILDS_TYPE);
+                __FLATJSON__CHECK_OVERFLOW(startarr->childs, __FLATJSON__CHILDS_TYPE, FJ_CHILDS_OVERFLOW);
                 ++startarr->childs;
             }
         }
@@ -368,7 +370,7 @@ inline int fj_parse_array(fj_parser *p, fj_pair *parent) {
         std::size_t size = 0;
         ec = fj_parse_value<RO>(p, &(pair->v), &size, &(pair->type), startarr);
         if ( ec ) return ec;
-        __FLATJSON__CHECK_OVERFLOW(size, __FLATJSON__VLEN_TYPE);
+        __FLATJSON__CHECK_OVERFLOW(size, __FLATJSON__VLEN_TYPE, FJ_VLEN_OVERFLOW);
         if ( !RO ) pair->vlen = size;
 
         if (__FLATJSON__CUR_CHAR(p) == ',') {
@@ -387,7 +389,7 @@ inline int fj_parse_array(fj_parser *p, fj_pair *parent) {
         fj_pair *endarr = p->jstok_cur++;
         endarr->type = FJ_TYPE_ARRAY_END;
         endarr->parent = startarr;
-        __FLATJSON__CHECK_OVERFLOW(endarr->parent->childs, __FLATJSON__CHILDS_TYPE);
+        __FLATJSON__CHECK_OVERFLOW(endarr->parent->childs, __FLATJSON__CHILDS_TYPE, FJ_CHILDS_OVERFLOW);
         ++endarr->parent->childs;
         startarr->end = endarr;
     } else {
@@ -408,7 +410,7 @@ inline int fj_parse_object(fj_parser *p, fj_pair *parent) {
         startobj->type = FJ_TYPE_OBJECT;
         startobj->parent = parent;
         if ( startobj->parent ) {
-            __FLATJSON__CHECK_OVERFLOW(startobj->parent->childs, __FLATJSON__CHILDS_TYPE);
+            __FLATJSON__CHECK_OVERFLOW(startobj->parent->childs, __FLATJSON__CHILDS_TYPE, FJ_CHILDS_OVERFLOW);
             ++startobj->parent->childs;
         }
     }
@@ -423,7 +425,7 @@ inline int fj_parse_object(fj_parser *p, fj_pair *parent) {
         std::size_t size = 0;
         ec = fj_parse_value<RO>(p, &(pair->k), &size, &(pair->type), startobj);
         if ( ec ) return ec;
-        __FLATJSON__CHECK_OVERFLOW(size, __FLATJSON__KLEN_TYPE);
+        __FLATJSON__CHECK_OVERFLOW(size, __FLATJSON__KLEN_TYPE, FJ_KLEN_OVERFLOW);
         if ( !RO ) pair->klen = size;
 
         ec = fj_check_and_skip(p, ':');
@@ -438,12 +440,12 @@ inline int fj_parse_object(fj_parser *p, fj_pair *parent) {
         } else {
             if ( !RO ) {
                 pair->parent = startobj;
-                __FLATJSON__CHECK_OVERFLOW(startobj->childs, __FLATJSON__CHILDS_TYPE);
+                __FLATJSON__CHECK_OVERFLOW(startobj->childs, __FLATJSON__CHILDS_TYPE, FJ_CHILDS_OVERFLOW);
                 ++startobj->childs;
             }
 
             ec = fj_parse_value<RO>(p, &(pair->v), &size, &(pair->type), startobj);
-            __FLATJSON__CHECK_OVERFLOW(size, __FLATJSON__VLEN_TYPE);
+            __FLATJSON__CHECK_OVERFLOW(size, __FLATJSON__VLEN_TYPE, FJ_VLEN_OVERFLOW);
             if ( !RO ) pair->vlen = size;
         }
 
@@ -489,7 +491,7 @@ inline int fj_parse_object(fj_parser *p, fj_pair *parent) {
         fj_pair *endobj = p->jstok_cur++;
         endobj->type = FJ_TYPE_OBJECT_END;
         endobj->parent = startobj;
-        __FLATJSON__CHECK_OVERFLOW(endobj->parent->childs, __FLATJSON__CHILDS_TYPE);
+        __FLATJSON__CHECK_OVERFLOW(endobj->parent->childs, __FLATJSON__CHILDS_TYPE, FJ_CHILDS_OVERFLOW);
         ++endobj->parent->childs;
         startobj->end = endobj;
     } else {
@@ -605,7 +607,7 @@ inline parse_result fj_parse(fj_parser *parser) {
 
     std::size_t vlen = 0;
     res.ec = static_cast<e_fj_error_code>(fj_parse_value<false>(parser, &(parser->jstok_beg->v), &vlen, &(parser->jstok_beg->type), nullptr));
-    __FLATJSON__CHECK_OVERFLOW(vlen, __FLATJSON__VLEN_TYPE);
+    assert(vlen <= std::numeric_limits<__FLATJSON__VLEN_TYPE>::max());
     parser->jstok_beg->vlen = static_cast<__FLATJSON__VLEN_TYPE>(vlen);
 
     if ( res.ec ) {
@@ -638,7 +640,7 @@ inline parse_result fj_num_tokens(const char *jsstr, std::size_t jslen) {
         }
     }
 
-    __FLATJSON__CHECK_OVERFLOW(vlen, __FLATJSON__VLEN_TYPE);
+    assert(vlen <= std::numeric_limits<__FLATJSON__VLEN_TYPE>::max());
     parser.jstok_beg->vlen = static_cast<__FLATJSON__VLEN_TYPE>(vlen);
 
     res.toknum = parser.jstok_cur - parser.jstok_beg;
