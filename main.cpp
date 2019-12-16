@@ -13,6 +13,7 @@
 
 #include <iostream>
 #include <fstream>
+#include <sstream>
 #include <string>
 
 #include <cassert>
@@ -421,6 +422,35 @@ void unit_12() {
     assert(j0[2].to_int() == 2);
 }
 
+template<typename JT>
+void unit_13() {
+    static const char jsstr[] = R"({"a":true, "b":{"c":{"d":1, "e":2}}, "c":[0,1,2,3]})";
+    JT json{jsstr};
+    auto str = json.dump(4);
+
+    static const char *expected =
+R"({
+    "a":true,
+    "b":{
+        "c":{
+            "d":1,
+            "e":2
+        }
+    },
+    "c":[
+        0,
+        1,
+        2,
+        3
+    ]
+})";
+    assert(str == expected);
+
+    std::ostringstream ss;
+    json.dump(ss, 4);
+    assert(ss.str() == expected);
+}
+
 /*************************************************************************************************/
 
 template<typename JT>
@@ -445,6 +475,7 @@ void all_units() {
     unit_10<JT>();
     unit_11<JT>();
     unit_12<JT>();
+    unit_13<JT>();
 }
 
 /*************************************************************************************************/
@@ -452,4 +483,6 @@ void all_units() {
 int main() {
     all_units<flatjson::fjson<>>();
     all_units<flatjson::fdyjson>();
+
+    return EXIT_SUCCESS;
 }

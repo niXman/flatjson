@@ -663,9 +663,11 @@ inline void fj_dump_tokens(std::FILE *stream, fj_pair *toks, std::size_t num) {
 }
 
 using fj_gather_cb_t = void(*)(void *userdata, const char *ptr, std::size_t len);
-template<bool CalcSize = false>
-inline std::size_t fj_get_tokens(const fj_pair *toks, std::size_t num, void *userdata, fj_gather_cb_t cb) {
-    std::size_t res = 0;
+template<bool CalcLength = false>
+inline std::size_t fj_get_tokens(const fj_pair *toks, std::size_t num, std::size_t indent, void *userdata, fj_gather_cb_t cb) {
+    static const char indent_str[] = "                                                                                ";
+    std::size_t indent_scope = 0;
+    std::size_t length = 0;
     for ( auto *it = toks; it != toks+num; ++it ) {
         if ( it != toks ) {
             e_fj_token_type ctype = it->type;
@@ -673,48 +675,92 @@ inline std::size_t fj_get_tokens(const fj_pair *toks, std::size_t num, void *use
             if ( (ctype != FJ_TYPE_ARRAY_END && ctype != FJ_TYPE_OBJECT_END ) &&
                  (ptype != FJ_TYPE_OBJECT && ptype != FJ_TYPE_ARRAY) )
             {
-                if ( !CalcSize ) cb(userdata, ",", 1);
-                res += 1;
+                if ( !CalcLength ) {
+                    cb(userdata, ",", 1);
+                    if ( indent ) cb(userdata, "\n", 1);
+                }
+                length += 1;
+                if ( indent ) length += 1;
             }
         }
 
         switch ( it->type ) {
             case FJ_TYPE_OBJECT: {
                 if ( it->k ) {
-                    if ( !CalcSize ) {
+                    if ( !CalcLength ) {
+                        if ( indent ) cb(userdata, indent_str, indent_scope);
                         cb(userdata, "\"", 1);
                         cb(userdata, it->k, it->klen);
                         cb(userdata, "\":", 2);
                     }
-                    res += 1+2;
-                    res += it->klen;
+                    length += 1+2;
+                    length += it->klen;
+                    if ( indent ) length += indent_scope;
                 }
-                if ( !CalcSize ) cb(userdata, "{", 1);
-                res += 1;
+                if ( !CalcLength ) {
+                    cb(userdata, "{", 1);
+                    if ( indent ) cb(userdata, "\n", 1);
+                }
+                length += 1;
+                if ( indent ) {
+                    length += 1;
+                    indent_scope += indent;
+                }
                 break;
             }
             case FJ_TYPE_OBJECT_END: {
-                if ( !CalcSize ) cb(userdata, "}", 1);
-                res += 1;
+                if ( !CalcLength ) {
+                    if ( indent ) {
+                        cb(userdata, "\n", 1);
+                        cb(userdata, indent_str, indent_scope-indent);
+                    }
+                    cb(userdata, "}", 1);
+                }
+                length += 1;
+                if ( indent ) {
+                    length += 1;
+                    indent_scope -= indent;
+                    length += indent_scope;
+                }
                 break;
             }
             case FJ_TYPE_ARRAY: {
                 if ( it->k ) {
-                    if ( !CalcSize ) {
+                    if ( !CalcLength ) {
+                        if ( indent ) cb(userdata, indent_str, indent_scope);
                         cb(userdata, "\"", 1);
                         cb(userdata, it->k, it->klen);
                         cb(userdata, "\":", 2);
                     }
-                    res += 1+2;
-                    res += it->klen;
+                    length += 1+2;
+                    length += it->klen;
+                    if ( indent ) length += indent_scope;
                 }
-                res += 1;
-                if ( !CalcSize ) cb(userdata, "[", 1);
+                if ( !CalcLength ) {
+                    cb(userdata, "[", 1);
+                    if ( indent ) cb(userdata, "\n", 1);
+                }
+                length += 1;
+                if ( indent ) {
+                    length += 1;
+                    indent_scope += indent;
+                }
                 break;
             }
             case FJ_TYPE_ARRAY_END: {
-                if ( !CalcSize ) cb(userdata, "]", 1);
-                res += 1;
+                if ( !CalcLength ) {
+                    if ( indent ) {
+                        cb(userdata, "\n", 1);
+                        cb(userdata, indent_str, indent_scope-indent);
+                    }
+                    cb(userdata, "]", 1);
+                }
+                length += 1;
+                if ( indent ) {
+                    length += 1;
+                    indent_scope -= indent;
+                    length += indent_scope;
+                }
                 break;
             }
             case FJ_TYPE_NULL:
@@ -722,30 +768,37 @@ inline std::size_t fj_get_tokens(const fj_pair *toks, std::size_t num, void *use
             case FJ_TYPE_NUMBER:
             case FJ_TYPE_STRING: {
                 if ( it->parent->type != FJ_TYPE_ARRAY ) {
-                    if ( !CalcSize ) {
+                    if ( !CalcLength ) {
+                        if ( indent ) cb(userdata, indent_str, indent_scope);
                         cb(userdata, "\"", 1);
                         cb(userdata, it->k, it->klen);
                         cb(userdata, "\":", 2);
                     }
-                    res += 1+2;
-                    res += it->klen;
+                    length += 1+2;
+                    length += it->klen;
+                    if ( indent ) length += indent_scope;
+                } else if ( it->parent->type == FJ_TYPE_ARRAY ) {
+                    if ( !CalcLength ) {
+                        if ( indent ) cb(userdata, indent_str, indent_scope);
+                    }
+                    if ( indent ) length += indent_scope;
                 }
                 switch ( it->type ) {
                     case FJ_TYPE_NULL:
                     case FJ_TYPE_BOOL:
                     case FJ_TYPE_NUMBER: {
-                        if ( !CalcSize ) cb(userdata, it->v, it->vlen);
-                        res += it->vlen;
+                        if ( !CalcLength ) cb(userdata, it->v, it->vlen);
+                        length += it->vlen;
                         break;
                     }
                     case FJ_TYPE_STRING: {
-                        if ( !CalcSize ) {
+                        if ( !CalcLength ) {
                             cb(userdata, "\"", 1);
                             cb(userdata, it->v, it->vlen);
                             cb(userdata, "\"", 1);
                         }
-                        res += 2;
-                        res += it->vlen;
+                        length += 2;
+                        length += it->vlen;
                         break;
                     }
                     default: break;
@@ -757,7 +810,7 @@ inline std::size_t fj_get_tokens(const fj_pair *toks, std::size_t num, void *use
         }
     }
 
-    return res;
+    return length;
 }
 
 /*************************************************************************************************/
@@ -767,8 +820,8 @@ static void tokens_to_stream_cb_0(void *userdata, const char *ptr, std::size_t l
     std::fwrite(ptr, len, 1, stream);
 }
 
-inline std::size_t fj_tokens_to_stream(std::FILE *stream, const fj_pair *toks, std::size_t num) {
-    return fj_get_tokens(toks, num, stream, tokens_to_stream_cb_0);
+inline std::size_t fj_tokens_to_stream(std::FILE *stream, const fj_pair *toks, std::size_t num, std::size_t indent = 0) {
+    return fj_get_tokens(toks, num, indent, stream, tokens_to_stream_cb_0);
 }
 
 /*************************************************************************************************/
@@ -778,8 +831,8 @@ static void tokens_to_stream_cb_1(void *userdata, const char *ptr, std::size_t l
     stream->write(ptr, len);
 }
 
-inline std::size_t fj_tokens_to_stream(std::ostream &stream, const fj_pair *toks, std::size_t num) {
-    return fj_get_tokens(toks, num, &stream, tokens_to_stream_cb_1);
+inline std::size_t fj_tokens_to_stream(std::ostream &stream, const fj_pair *toks, std::size_t num, std::size_t indent = 0) {
+    return fj_get_tokens(toks, num, indent, &stream, tokens_to_stream_cb_1);
 }
 
 /*************************************************************************************************/
@@ -796,15 +849,15 @@ static void tokens_to_buf_cb(void *userdata, const char *ptr, std::size_t len) {
     p->ptr += len;
 }
 
-inline std::size_t fj_tokens_to_buf(const fj_pair *toks, std::size_t num, char *buf, std::size_t size) {
+inline std::size_t fj_tokens_to_buf(const fj_pair *toks, std::size_t num, char *buf, std::size_t size, std::size_t indent = 0) {
     tokens_to_buf_userdata userdata{buf, buf+size};
-    return fj_get_tokens(toks, num, &userdata, tokens_to_buf_cb);
+    return fj_get_tokens(toks, num, indent, &userdata, tokens_to_buf_cb);
 }
 
 /*************************************************************************************************/
 
-inline std::size_t fj_str_length(const fj_pair *toks, std::size_t num) {
-    return fj_get_tokens<true>(toks, num, nullptr, nullptr);
+inline std::size_t fj_str_length(const fj_pair *toks, std::size_t num, std::size_t indent = 0) {
+    return fj_get_tokens<true>(toks, num, indent, nullptr, nullptr);
 }
 
 /*************************************************************************************************/
@@ -1241,18 +1294,24 @@ public:
         return true;
     }
 
-    std::string dump_to_string() const {
-        std::size_t strlen = details::fj_str_length(storage_type::begin(), m_used);
+    std::string dump(std::size_t indent = 0) const {
+        std::size_t strlen = details::fj_str_length(storage_type::begin(), m_used, indent);
         std::string res(strlen, 0);
         assert(strlen == details::fj_tokens_to_buf(
                  storage_type::begin()
                 ,m_used
                 ,const_cast<char *>(res.c_str())
                 ,res.size()
+                ,indent
             )
         );
 
         return res;
+    }
+    std::ostream& dump(std::ostream &os, std::size_t indent = 0) const {
+        details::fj_tokens_to_stream(os, storage_type::begin(), m_used, indent);
+
+        return os;
     }
 
     friend std::ostream& operator<< (std::ostream &os, const fjson &fj) {
@@ -1360,18 +1419,24 @@ public:
         return true;
     }
 
-    std::string dump_to_string() const {
-        std::size_t strlen = details::fj_str_length(&(*storage_type::begin()), storage_type::size_());
+    std::string dump(std::size_t indent = 0) const {
+        std::size_t strlen = details::fj_str_length(&(*storage_type::begin()), storage_type::size_(), indent);
         std::string res(strlen, 0);
         assert(strlen == details::fj_tokens_to_buf(
                  &(*storage_type::begin())
                 ,storage_type::size_()
                 ,const_cast<char *>(res.c_str())
                 ,res.size()
+                ,indent
             )
         );
 
         return res;
+    }
+    std::ostream& dump(std::ostream &os, std::size_t indent = 0) const {
+        details::fj_tokens_to_stream(os, storage_type::begin(), size_(), indent);
+
+        return os;
     }
 
     friend std::ostream& operator<< (std::ostream &os, const fdyjson &fj) {
