@@ -1,0 +1,15 @@
+dist: bionic
+language: cpp
+sudo: required
+compiler:
+  - gcc
+  - clang
+os:
+  - linux
+before_install:
+  - echo "CC=$CC"
+  - echo "CXX=$CXX"
+script:
+  - cd $TRAVIS_BUILD_DIR
+  - cmake -DCMAKE_BUILD_TYPE=Release .
+  
