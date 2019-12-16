@@ -1,5 +1,5 @@
 # flatjson
-Very fast zero allocation and zero copy JSON parser
+The [header-only implementation](https://github.com/niXman/flatjson/blob/master/flatjson.h) of very fast zero allocation and zero copy JSON parser
 
 # Intro
 There are two types:
