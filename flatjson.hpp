@@ -1389,6 +1389,7 @@ private:
 
 /*************************************************************************************************/
 
+// undef internally used macro-vars
 #undef __FLATJSON__FALLTHROUGH
 #undef __FLATJSON__STRINGIZE_I
 #undef __FLATJSON__STRINGIZE
