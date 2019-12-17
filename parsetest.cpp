@@ -40,7 +40,7 @@ int main(int argc, char **argv) {
 	auto t2 = std::chrono::high_resolution_clock::now();
 	auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count();
 
-	std::cout << "parse time: " << duration << " ms" << std::endl;
+	std::cout << "tokens: " << json.tokens() << ", parse time: " << duration << " ms" << std::endl;
 
 	return EXIT_SUCCESS;
 }

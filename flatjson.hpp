@@ -199,7 +199,11 @@ inline int fj_check_and_skip(fj_parser *p, char expected) {
         return FJ_OK;
     }
 
-    return ch == ((char)-1) ? FJ_INCOMPLETE : FJ_INVALID;
+    if ( ch == ((char)-1) ) {
+        return FJ_INCOMPLETE;
+    }
+
+    return FJ_INVALID;
 }
 
 inline int fj_escape_len(const char *s, std::ptrdiff_t len) {
@@ -232,8 +236,9 @@ inline int fj_expect(fj_parser *p, const char *s, const char **ptr, std::size_t 
     if ( p->js_cur + ExLen > p->js_end )
         return FJ_INCOMPLETE;
 
-    if ( std::memcmp(p->js_cur, s, ExLen) != 0 )
+    if ( std::strncmp(p->js_cur, s, ExLen) != 0 ) {
         return FJ_INVALID;
+    }
 
     if ( !RO ) {
         *ptr = p->js_cur;
@@ -316,12 +321,12 @@ inline int fj_parse_number(fj_parser *p, const char **ptr, std::size_t *size) {
             if ( p->js_cur >= p->js_end ) return FJ_INCOMPLETE;
             if ( !__FLATJSON__IS_DIGIT(*(p->js_cur)) ) return FJ_INVALID;
 
-            for ( ; p->js_cur < p->js_end && __FLATJSON__IS_DIGIT(p->js_cur[0]); ++p->js_cur )
+            for ( ; p->js_cur < p->js_end && __FLATJSON__IS_DIGIT(*(p->js_cur)); ++p->js_cur )
                 ;
         }
     }
 
-    if ( (p->js_cur - start) > 1 && *start == '0') {
+    if ( (p->js_cur - start) > 1 && (start[0] == '0' && start[1] != '.') ) {
         return FJ_INVALID;
     }
 
@@ -375,9 +380,7 @@ inline int fj_parse_array(fj_parser *p, fj_pair *parent) {
 
         if (__FLATJSON__CUR_CHAR(p) == ',') {
             p->js_cur++;
-            if ( *(p->js_cur) == ']' ) {
-                return FJ_INVALID;
-            }
+            if ( *(p->js_cur) == ']' ) return FJ_INVALID;
         }
     }
 
@@ -417,7 +420,13 @@ inline int fj_parse_object(fj_parser *p, fj_pair *parent) {
 
     while ( __FLATJSON__CUR_CHAR(p) != '}' ) {
         char ch = __FLATJSON__CUR_CHAR(p);
-        if ( ch != '"' ) return ch == ((char)-1) ? FJ_INCOMPLETE : FJ_INVALID;
+        if ( ch != '"' ) {
+            if ( ch == ((char)-1) ) {
+                return FJ_INCOMPLETE;
+            }
+
+            return FJ_INVALID;
+        }
 
         if ( !RO && p->jstok_cur == p->jstok_end ) return FJ_NO_FREE_TOKENS;
         fj_pair *pair = p->jstok_cur++;
@@ -453,9 +462,7 @@ inline int fj_parse_object(fj_parser *p, fj_pair *parent) {
 
         if ( __FLATJSON__CUR_CHAR(p) == ',' ) {
             p->js_cur++;
-            if ( *(p->js_cur) == '}' ) {
-                return FJ_INVALID;
-            }
+            if ( *(p->js_cur) == '}' ) return FJ_INVALID;
         }
 // don't remove the code below!
 //        if ( p->jstok_end && startobj->childs > 1 ) {
@@ -578,7 +585,11 @@ inline int fj_parse_value(fj_parser *p, const char **ptr, std::size_t *size, e_f
             break;
         }
         default:
-            return ch == ((char)-1) ? FJ_INCOMPLETE : FJ_INVALID;
+            if ( ch == ((char)-1) ) {
+                return FJ_INCOMPLETE;
+            } else {
+                return FJ_INVALID;
+            }
     }
 
     return FJ_OK;
@@ -1206,6 +1217,7 @@ private:
     using ro_base_type = details::fjson_ro_base<fjson<N>, storage_type>;
 
     friend ro_base_type;
+
 public:
     fjson()
         :storage_type{}
@@ -1251,8 +1263,10 @@ private:
     
 public:
 
-    bool valid() const { return m_used != 0; }
+    bool valid() const { return m_used > 0 && m_err == FJ_OK; }
     e_fj_error_code error() const { return m_err; }
+
+    std::size_t tokens() const { return m_used; }
 
     // for arrays
     fjson operator[](std::size_t idx) const { return ro_base_type::at(idx);}
@@ -1376,8 +1390,10 @@ private:
     { assign_(tokens, num); }
 
 public:
-    bool valid() const { return storage_type::size_() != 0 && m_err == FJ_OK; }
+    bool valid() const { return storage_type::size_() > 0 && m_err == FJ_OK; }
     e_fj_error_code error() const { return m_err; }
+
+    std::size_t tokens() const { return size_(); }
 
     // for arrays
     fdyjson operator[](std::size_t idx) const { return ro_base_type::at(idx);}
