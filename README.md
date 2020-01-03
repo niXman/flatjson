@@ -1,12 +1,12 @@
 [![Build Status](https://travis-ci.org/niXman/flatjson.svg?branch=master)](https://travis-ci.org/niXman/flatjson)
 
 # flatjson
-The [header-only implementation](https://github.com/niXman/flatjson/blob/master/flatjson.h) of very fast zero allocation and zero copy JSON parser
+The [header-only implementation](https://github.com/niXman/flatjson/blob/master/flatjson.hpp) of extremely fast zero allocation and zero copy JSON parser
 
 # Intro
-There are two types:
-1) fjson - which is template and which uses the stack
-2) fdyjson - which is not template and which uses the heap(just one allocation!)
+There are two classes:
+1) `fjson` - is template which uses the stack to store tokens
+2) `fdyjson` - is not template and which uses the heap(just one allocation!)
 
 # Examples
 ```cpp

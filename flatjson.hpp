@@ -659,6 +659,7 @@ inline parse_result fj_num_tokens(const char *jsstr, std::size_t jslen) {
     return res;
 }
 
+// for debugging purposes
 inline void fj_dump_tokens(std::FILE *stream, fj_pair *toks, std::size_t num) {
     for ( auto *it = toks; it != toks+num; ++it ) {
         std::fprintf(stream, "%2d: type=%12s, parent=%p, addr=%p, end=%p, childs=%d, key=%.*s, val=%.*s\n"
@@ -676,6 +677,7 @@ inline void fj_dump_tokens(std::FILE *stream, fj_pair *toks, std::size_t num) {
 }
 
 using fj_gather_cb_t = void(*)(void *userdata, const char *ptr, std::size_t len);
+
 template<bool CalcLength = false>
 inline std::size_t fj_get_tokens(const fj_pair *toks, std::size_t num, std::size_t indent, void *userdata, fj_gather_cb_t cb) {
     static const char indent_str[] = "                                                                                ";
