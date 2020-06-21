@@ -30,9 +30,9 @@ int main(int argc, char **argv) {
 
 	auto t1 = std::chrono::high_resolution_clock::now();
 	
-	flatjson::fdyjson json(body.c_str());
+	flatjson::fjson json(body.c_str(), body.size(), 0);
 	if ( !json.valid() ) {
-	    std::cout << "parse error: " << json.error() << std::endl;
+	    std::cout << "parse error: " << json.error() << ", msg=" << json.error_string() << std::endl;
 
 	    return EXIT_FAILURE;
 	}

@@ -93,6 +93,42 @@ test_result test_conformance() {
 
 /*************************************************************************************************/
 
+void unit_00() {
+    flatjson::fjson json;
+
+    assert(json.valid() == false);
+}
+
+void unit_01() {
+    static const char str[] = R"({"a":true, "b":false, "c":null, "d":0, "e":"e"})";
+    flatjson::fjson json;
+    json.load(str);
+
+    assert(json.valid());
+    assert(json.size() == 5);
+    assert(json.is_object());
+    assert(!json.is_array());
+    assert(!json.is_number());
+    assert(!json.is_string());
+    assert(!json.is_null());
+    assert(!json.is_bool());
+}
+
+void unit_02() {
+    static const char str[] = R"({"a":true, "b":false, "c":null, "d":0, "e":"e"})";
+    flatjson::fjson json(str, sizeof(str)-1, 0);
+    json.load(str);
+
+    assert(json.valid());
+    assert(json.size() == 5);
+    assert(json.is_object());
+    assert(!json.is_array());
+    assert(!json.is_number());
+    assert(!json.is_string());
+    assert(!json.is_null());
+    assert(!json.is_bool());
+}
+
 void unit_0() {
     static const char str[] = R"({})";
     flatjson::fjson json(str);
@@ -470,7 +506,10 @@ int main() {
     if ( res.ec ) {
         std::cout << "test \"" << res.name << "\" FAILED!" << std::endl;
     }
-    
+
+    unit_00();
+    unit_01();
+    unit_02();
     unit_0();
     unit_1();
     unit_2();

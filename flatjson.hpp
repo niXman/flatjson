@@ -84,6 +84,19 @@ enum e_fj_error_code {
     ,FJ_CHILDS_OVERFLOW = -6
 };
 
+inline const char* fj_error_string(e_fj_error_code e) {
+    switch ( e ) {
+        case FJ_OK: return "OK";
+        case FJ_INVALID: return "INVALID";
+        case FJ_INCOMPLETE: return "INCOMPLETE";
+        case FJ_NO_FREE_TOKENS: return "NO_FREE_TOKENS";
+        case FJ_KLEN_OVERFLOW: return "KLEN_OVERFLOW";
+        case FJ_VLEN_OVERFLOW: return "VLEN_OVERFLOW";
+        case FJ_CHILDS_OVERFLOW: return "CHILDS_OVERFLOW";
+        default: return nullptr;
+    }
+}
+
 /*************************************************************************************************/
 
 namespace details {
@@ -1027,12 +1040,16 @@ struct fjson {
 
     explicit fjson(std::size_t reserved = 32)
         :m_storage{std::make_shared<storage_type>(reserved)}
+        ,m_beg{nullptr}
+        ,m_end{nullptr}
         ,m_err{}
     {}
 
     template<std::size_t L>
     fjson(const char (&str)[L], std::size_t reserved = 32)
         :m_storage{std::make_shared<storage_type>(reserved)}
+        ,m_beg{nullptr}
+        ,m_end{nullptr}
         ,m_err{}
     {
         load(str, L-1);
@@ -1046,6 +1063,8 @@ struct fjson {
     >
     fjson(ConstCharPtr str, std::size_t reserved = 32)
         :m_storage{std::make_shared<storage_type>(reserved)}
+        ,m_beg{nullptr}
+        ,m_end{nullptr}
         ,m_err{}
     {
         load(str, std::strlen(str));
@@ -1053,6 +1072,8 @@ struct fjson {
 
     fjson(const char *ptr, std::size_t size, std::size_t reserved = 32)
         :m_storage{std::make_shared<storage_type>(reserved)}
+        ,m_beg{nullptr}
+        ,m_end{nullptr}
         ,m_err{}
     {
         load(ptr, size);
@@ -1069,17 +1090,22 @@ private:
     {}
     
 public:
-    bool valid() const { return std::distance(m_beg, m_end) > 0 && m_err == FJ_OK; }
+    bool valid() const { return m_beg && m_end && m_storage->size() > 0 && m_err == FJ_OK; }
     e_fj_error_code error() const { return m_err; }
+    const char* error_string() const { return fj_error_string(m_err); }
 
     std::size_t size() const {
-        const auto *beg = m_beg;
-        return (!__FLATJSON__IS_SIMPLE_TYPE(beg->type))
-           ? beg->childs-1
-           : static_cast<std::size_t>(beg->type != FJ_TYPE_INVALID)
+        return (!__FLATJSON__IS_SIMPLE_TYPE(m_beg->type))
+           ? m_beg->childs-1
+           : static_cast<std::size_t>(m_beg->type != FJ_TYPE_INVALID)
         ;
     }
+    std::size_t tokens() const { return m_storage->size(); }
     bool empty() const { return size() == 0; }
+    void clear() {
+        m_storage->clear();
+        m_beg = m_end = nullptr;
+    }
 
     e_fj_token_type type() const { return m_beg->type; }
     const char* type_name() const { return fj_token_type_name(type()); }
@@ -1168,20 +1194,22 @@ public:
     >
     fjson operator[](ConstCharPtr key) const { return at(key, std::strlen(key)); }
 
+    template<std::size_t N>
+    bool load(const char (&str)[N]) { return load(str, N-1); }
     bool load(const char *ptr, std::size_t size) {
-        if ( m_storage->capacity() == 0 ) {
+        if ( m_storage->empty() ) {
             auto res = details::fj_num_tokens(ptr, size);
             if ( res.ec ) {
                 m_err = res.ec;
 
                 return false;
             } else {
-                m_storage->reserve(res.toknum);
+                m_storage->resize(res.toknum);
             }
         }
 
         details::fj_parser parser{};
-        details::fj_init(&parser, ptr, size, m_storage->data(), m_storage->capacity());
+        details::fj_init(&parser, ptr, size, m_storage->data(), m_storage->size());
         details::parse_result res = details::fj_parse(&parser);
         if ( res.ec ) {
             m_err = res.ec;
