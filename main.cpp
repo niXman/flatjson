@@ -9,6 +9,8 @@
 // Copyright (c) 2019-2020 niXman (github dot nixman dog pm.me). All rights reserved.
 // ----------------------------------------------------------------------------
 
+#include <iostream>
+
 #include "flatjson.hpp"
 
 #include <iostream>
@@ -451,6 +453,33 @@ R"({
     assert(ss.str() == expected);
 }
 
+template<typename JT>
+void unit_14() {
+    static const char jsstr[] = R"({"a":[4,3,2,1], "b":[{"a":0,"b":0,"c":1},{"b":1,"a":0,"c":0},{"c":2,"b":0,"a":0}], "c":[0,1,2,3]})";
+    JT json{jsstr};
+    assert(json.valid());
+    assert(json.is_object());
+
+    const auto a = json.at("b");
+    assert(a.is_array());
+    for ( auto idx = 0u; idx < a.size(); ++idx ) {
+        const auto o = a.at(idx);
+        assert(o.valid());
+        assert(o.is_object());
+        char key[] = {static_cast<char>('a'+idx), '\0'};
+        const auto v = o.at(key);
+        assert(v.valid());
+        assert(v.is_number());
+        assert(v.to_uint() == idx);
+    }
+
+    const auto b = json.at("b");
+    assert(b.is_array());
+
+    const auto c = json.at("c");
+    assert(c.is_array());
+}
+
 /*************************************************************************************************/
 
 template<typename JT>
@@ -476,13 +505,13 @@ void all_units() {
     unit_11<JT>();
     unit_12<JT>();
     unit_13<JT>();
+    unit_14<JT>();
 }
 
 /*************************************************************************************************/
 
 int main() {
-    all_units<flatjson::fjson<>>();
-    all_units<flatjson::fdyjson>();
+    all_units<flatjson::fjson>();
 
     return EXIT_SUCCESS;
 }

@@ -17,6 +17,7 @@
 #include <iterator>
 #include <vector>
 #include <string>
+#include <memory>
 #if __cplusplus >= 201703L
 #   include <string_view>
 #endif // __cplusplus >= 201703L
@@ -53,16 +54,21 @@ enum e_fj_token_type: std::uint8_t {
 };
 
 inline const char *fj_token_type_name(e_fj_token_type t) {
-    switch ( t ) {
-        case FJ_TYPE_INVALID: return "INVALID";
-        case FJ_TYPE_STRING: return "STRING";
-        case FJ_TYPE_NUMBER: return "NUMBER";
-        case FJ_TYPE_BOOL: return "BOOL";
-        case FJ_TYPE_NULL: return "NULL";
-        case FJ_TYPE_OBJECT: return "OBJECT";
-        case FJ_TYPE_OBJECT_END: return "OBJECT_END";
-        case FJ_TYPE_ARRAY: return "ARRAY";
-        case FJ_TYPE_ARRAY_END: return "ARRAY_END";
+    static const char* strs[] = {
+        "INVALID",
+        "STRING",
+        "NUMBER",
+        "BOOL",
+        "NULL",
+        "OBJECT",
+        "OBJECT_END",
+        "ARRAY",
+        "ARRAY_END"
+    };
+
+    std::size_t idx = static_cast<std::size_t>(t);
+    if ( idx < sizeof(strs)/sizeof(const char *) ) {
+        return strs[idx];
     }
 
     return "UNKNOWN TYPE";
@@ -1010,23 +1016,72 @@ conv_to(const char *ptr, std::size_t len) { return {ptr, len}; }
 
 /*************************************************************************************************/
 
-template<typename JS, typename Storage>
-struct fjson_ro_base {
-    fjson_ro_base(const Storage &storage)
-        :m_storage{storage}
+} // ns details
+
+/*************************************************************************************************/
+
+struct fjson {
+    using element_type = details::fj_pair;
+    using storage_type = std::vector<element_type>;
+    using storage_ptr = std::shared_ptr<storage_type>;
+
+    explicit fjson(std::size_t reserved = 32)
+        :m_storage{std::make_shared<storage_type>(reserved)}
+        ,m_err{}
     {}
-    virtual ~fjson_ro_base() = default;
+
+    template<std::size_t L>
+    fjson(const char (&str)[L], std::size_t reserved = 32)
+        :m_storage{std::make_shared<storage_type>(reserved)}
+        ,m_err{}
+    {
+        load(str, L-1);
+    }
+
+    template<
+         typename ConstCharPtr
+        ,typename = typename std::enable_if<
+            std::is_same<ConstCharPtr, const char*>::value
+        >::type
+    >
+    fjson(ConstCharPtr str, std::size_t reserved = 32)
+        :m_storage{std::make_shared<storage_type>(reserved)}
+        ,m_err{}
+    {
+        load(str, std::strlen(str));
+    }
+
+    fjson(const char *ptr, std::size_t size, std::size_t reserved = 32)
+        :m_storage{std::make_shared<storage_type>(reserved)}
+        ,m_err{}
+    {
+        load(ptr, size);
+    }
+
+    virtual ~fjson() = default;
+
+private:
+    fjson(storage_ptr storage, const element_type *beg, const element_type *end)
+        :m_storage{std::move(storage)}
+        ,m_beg{beg}
+        ,m_end{end}
+        ,m_err{}
+    {}
+    
+public:
+    bool valid() const { return std::distance(m_beg, m_end) > 0 && m_err == FJ_OK; }
+    e_fj_error_code error() const { return m_err; }
 
     std::size_t size() const {
-        const auto *beg = m_storage.begin();
-        return (!__FLATJSON__IS_SIMPLE_TYPE(type()))
-            ? beg->childs-1
-            : static_cast<std::size_t>(beg->type != FJ_TYPE_INVALID)
+        const auto *beg = m_beg;
+        return (!__FLATJSON__IS_SIMPLE_TYPE(beg->type))
+           ? beg->childs-1
+           : static_cast<std::size_t>(beg->type != FJ_TYPE_INVALID)
         ;
     }
     bool empty() const { return size() == 0; }
 
-    e_fj_token_type type() const { return m_storage.begin()->type; }
+    e_fj_token_type type() const { return m_beg->type; }
     const char* type_name() const { return fj_token_type_name(type()); }
 
     bool is_array() const { return type() == FJ_TYPE_ARRAY; }
@@ -1036,48 +1091,8 @@ struct fjson_ro_base {
     bool is_number() const { return type() == FJ_TYPE_NUMBER; }
     bool is_string() const { return type() == FJ_TYPE_STRING; }
 
-    template<std::size_t KL>
-    bool contains(const char (&key)[KL]) const { return contains(key, KL-1); }
-    template<
-         typename ConstCharPtr
-        ,typename = typename std::enable_if<
-            std::is_same<ConstCharPtr, const char*>::value
-        >::type
-    >
-    bool contains(ConstCharPtr key) { return contains(key, std::strlen(key)); }
-    bool contains(const char *key, std::size_t len) const {
-        auto res = find(key, len);
-        return res.first != nullptr;
-    }
-
-    // for objects
-    template<std::size_t KL>
-    JS at(const char (&key)[KL]) const { return at(key, KL-1); }
-    template<
-         typename ConstCharPtr
-        ,typename = typename std::enable_if<
-            std::is_same<ConstCharPtr, const char*>::value
-        >::type
-    >
-    JS at(ConstCharPtr key) const { return at(key, std::strlen(key)); }
-    JS at(const char *key, std::size_t len) const {
-        auto res = find(key, len);
-        if ( !res.first )
-            throw std::runtime_error(__FLATJSON__MAKE_ERROR_MESSAGE("key not found"));
-
-        return {res.first, res.second};
-    }
-    // for arrays
-    JS at(std::size_t idx) const {
-        auto res = find(idx);
-        if ( !res.first )
-            throw std::out_of_range(__FLATJSON__MAKE_ERROR_MESSAGE("out of range"));
-
-        return {res.first, res.second};
-    }
-
     static_string to_sstring() const {
-        const auto *beg = m_storage.begin();
+        const auto *beg = m_beg;
         if ( __FLATJSON__IS_SIMPLE_TYPE(type()) || type() == FJ_TYPE_NULL ) {
             if ( !is_null() ) {
                 return {beg->v, beg->vlen};
@@ -1097,181 +1112,50 @@ struct fjson_ro_base {
     double to_double() const { return to<double>(); }
     float to_float() const { return to<float>(); }
 
-    std::pair<const details::fj_pair *, std::size_t>
-    find(const char *key, std::size_t len) const {
-        if ( type() != FJ_TYPE_OBJECT )
-            throw std::logic_error(__FLATJSON__MAKE_ERROR_MESSAGE("not OBJECT type"));
-
-        const details::fj_pair *parent = m_storage.begin();
-        const details::fj_pair *beg = parent+1;
-        const details::fj_pair *end = parent->end;
-        while ( beg != end ) {
-            if ( beg->type == FJ_TYPE_OBJECT_END ) {
-                return {nullptr, 0};
-            }
-            if ( std::strncmp(beg->k, key, len) == 0 ) {
-                break;
-            }
-
-            beg = __FLATJSON__IS_SIMPLE_TYPE(beg->type) ? beg+1 : beg->end+1;
-        }
-
-        auto type = beg->type;
-        if ( __FLATJSON__IS_SIMPLE_TYPE(type) ) {
-            return {beg, 1};
-        } else if ( type == FJ_TYPE_OBJECT || type == FJ_TYPE_ARRAY ) {
-            return {beg, static_cast<__FLATJSON__CHILDS_TYPE>(beg->childs+1)};
-        }
-
-        throw std::logic_error(__FLATJSON__MAKE_ERROR_MESSAGE("unreachable!"));
-    }
-    std::pair<const details::fj_pair *, std::size_t>
-    find(std::size_t idx) const {
-        if ( type() != FJ_TYPE_ARRAY )
-            throw std::logic_error(__FLATJSON__MAKE_ERROR_MESSAGE("not ARRAY type"));
-
-        if ( idx >= static_cast<__FLATJSON__CHILDS_TYPE>(m_storage.begin()->childs - 1) ) // one for END token
-            return {nullptr, 0};
-
-        const details::fj_pair *parent = m_storage.begin();
-        const details::fj_pair *beg = parent+1;
-        const details::fj_pair *end = parent->end;
-        for ( ; beg != end && idx; --idx ) {
-            beg = __FLATJSON__IS_SIMPLE_TYPE(beg->type) ? beg+1 : beg->end+1;
-        }
-
-        auto type = beg->type;
-        if ( __FLATJSON__IS_SIMPLE_TYPE(type) ) {
-            return {beg, 1};
-        } else if ( type == FJ_TYPE_OBJECT || type == FJ_TYPE_ARRAY ) {
-            return {beg, static_cast<__FLATJSON__CHILDS_TYPE>(beg->childs+1)};
-        }
-
-        throw std::logic_error(__FLATJSON__MAKE_ERROR_MESSAGE("unreachable!"));
-    }
-
-private:
-    const Storage &m_storage;
-};
-
-/*************************************************************************************************/
-
-struct fjson_rw_base {
-};
-
-/*************************************************************************************************/
-
-template<std::size_t N = 32>
-struct fjson_static_storage {
-    virtual ~fjson_static_storage() = default;
-
-    const fj_pair* begin() const { return &m_tokens[0]; }
-    const fj_pair* end() const { return &m_tokens[0] + N; }
-    fj_pair* begin() { return &m_tokens[0]; }
-    fj_pair* end() { return &m_tokens[0] + N; }
-
-    std::size_t size_() const { return N; }
-    void resize_(std::size_t /*new_size*/) { assert(!"unimplemented"); }
-    fj_pair* insert(const fj_pair */*after*/) { assert(!"unimplemented"); }
-    void assign_(const fj_pair */*ptr*/, std::size_t /*num*/) { assert(!"unimplemented"); }
-
-private:
-    fj_pair m_tokens[N];
-};
-
-/*************************************************************************************************/
-
-struct fjson_dynamic_storage {
-    virtual ~fjson_dynamic_storage() = default;
-
-    const fj_pair* begin() const { return &(*m_tokens.begin()); }
-    const fj_pair* end() const { return &(*m_tokens.end()); }
-    fj_pair* begin() { return &(*m_tokens.begin()); }
-    fj_pair* end() { return &(*m_tokens.end()); }
-
-    std::size_t size_() const { return m_tokens.size(); }
-    void resize_(std::size_t new_size) { m_tokens.resize(new_size); }
-    fj_pair* insert(const fj_pair *after) {
-        auto it = m_tokens.begin() + std::distance(static_cast<const fj_pair *>(m_tokens.data()), after);
-        static const fj_pair tmp{};
-        it = m_tokens.insert(std::next(it), tmp);
-        return &(*it);
-    }
-    void assign_(const fj_pair *ptr, std::size_t num) { m_tokens.assign(ptr, ptr+num); }
-
-private:
-    std::vector<fj_pair> m_tokens;
-};
-
-/*************************************************************************************************/
-
-} // ns details
-
-/*************************************************************************************************/
-
-template<std::size_t N = 32, bool CheckNumTokens = true>
-struct fjson
-    :private details::fjson_static_storage<N>
-    ,public details::fjson_ro_base<fjson<N>, details::fjson_static_storage<N>>
-{
-private:
-    using storage_type = details::fjson_static_storage<N>;
-    using ro_base_type = details::fjson_ro_base<fjson<N>, storage_type>;
-
-    friend ro_base_type;
-
-public:
-    fjson()
-        :storage_type{}
-        ,ro_base_type{*static_cast<storage_type *>(this)}
-        ,m_used{0}
-        ,m_err{}
-    {}
-    template<std::size_t L>
-    explicit fjson(const char (&str)[L])
-        :storage_type{}
-        ,ro_base_type{*static_cast<storage_type *>(this)}
-        ,m_used{0}
-        ,m_err{}
-    { load(str, L-1); }
+    template<std::size_t KL>
+    bool contains(const char (&key)[KL]) const { return contains(key, KL-1); }
     template<
-         typename ConstCharPtr
+        typename ConstCharPtr
         ,typename = typename std::enable_if<
             std::is_same<ConstCharPtr, const char*>::value
         >::type
     >
-    explicit fjson(ConstCharPtr str)
-        :storage_type{}
-        ,ro_base_type{*static_cast<storage_type *>(this)}
-        ,m_used{0}
-        ,m_err{}
-    { load(str, std::strlen(str)); }
-    fjson(const char *ptr, std::size_t size)
-        :storage_type{}
-        ,ro_base_type{*static_cast<storage_type *>(this)}
-        ,m_used{0}
-        ,m_err{}
-    { load(ptr, size); }
+    bool contains(ConstCharPtr key) { return contains(key, std::strlen(key)); }
+    bool contains(const char *key, std::size_t len) const {
+        auto res = find(key, len);
+        return res.first != nullptr;
+    }
 
-    virtual ~fjson() = default;
+    // for objects
+    template<std::size_t KL>
+    fjson at(const char (&key)[KL]) const { return at(key, KL-1); }
+    template<
+        typename ConstCharPtr
+        ,typename = typename std::enable_if<
+            std::is_same<ConstCharPtr, const char*>::value
+        >::type
+    >
+    fjson at(ConstCharPtr key) const { return at(key, std::strlen(key)); }
+    fjson at(const char *key, std::size_t len) const {
+        auto res = find(key, len);
+        if ( res.first ) {
+            return {m_storage, res.first, res.second};
+        }
 
-private:
-    fjson(const details::fj_pair *tokens, std::size_t num)
-        :storage_type{}
-        ,ro_base_type{*static_cast<storage_type *>(this)}
-        ,m_used{num}
-        ,m_err{}
-    { std::memcpy(storage_type::begin(), tokens, sizeof(details::fj_pair) * num); }
-    
-public:
+        throw std::runtime_error(__FLATJSON__MAKE_ERROR_MESSAGE("key not found"));
+    }
+    // for arrays
+    fjson at(std::size_t idx) const {
+        auto res = find(idx);
+        if ( res.first ) {
+            return {m_storage, res.first, res.second};
+        }
 
-    bool valid() const { return m_used > 0 && m_err == FJ_OK; }
-    e_fj_error_code error() const { return m_err; }
-
-    std::size_t tokens() const { return m_used; }
+        throw std::out_of_range(__FLATJSON__MAKE_ERROR_MESSAGE("out of range"));
+    }
 
     // for arrays
-    fjson operator[](std::size_t idx) const { return ro_base_type::at(idx);}
+    fjson operator[](std::size_t idx) const { return at(idx); }
 
     // for objects
     template<std::size_t KL>
@@ -1285,39 +1169,38 @@ public:
     fjson operator[](ConstCharPtr key) const { return at(key, std::strlen(key)); }
 
     bool load(const char *ptr, std::size_t size) {
-        if ( CheckNumTokens ) {
+        if ( m_storage->capacity() == 0 ) {
             auto res = details::fj_num_tokens(ptr, size);
             if ( res.ec ) {
-                m_used = 0;
                 m_err = res.ec;
+
+                return false;
             } else {
-                if ( res.toknum > N ) {
-                    m_used = 0;
-                    m_err = FJ_NO_FREE_TOKENS;
-                }
+                m_storage->reserve(res.toknum);
             }
         }
 
         details::fj_parser parser{};
-        details::fj_init(&parser, ptr, size, storage_type::begin(), N);
+        details::fj_init(&parser, ptr, size, m_storage->data(), m_storage->capacity());
         details::parse_result res = details::fj_parse(&parser);
         if ( res.ec ) {
-            m_used = 0;
             m_err = res.ec;
             return false;
         }
 
-        m_used = res.toknum;
+        m_storage->resize(res.toknum);
+        m_beg = std::addressof(*m_storage->begin());
+        m_end = std::addressof(*m_storage->end());
 
         return true;
     }
 
     std::string dump(std::size_t indent = 0) const {
-        std::size_t strlen = details::fj_str_length(storage_type::begin(), m_used, indent);
+        std::size_t strlen = details::fj_str_length(m_beg, m_storage->size(), indent);
         std::string res(strlen, 0);
         assert(strlen == details::fj_tokens_to_buf(
-                 storage_type::begin()
-                ,m_used
+                 m_beg
+                ,m_storage->size()
                 ,&res[0]
                 ,res.size()
                 ,indent
@@ -1327,142 +1210,73 @@ public:
         return res;
     }
     std::ostream& dump(std::ostream &os, std::size_t indent = 0) const {
-        details::fj_tokens_to_stream(os, storage_type::begin(), m_used, indent);
+        details::fj_tokens_to_stream(os, m_beg, m_storage->size(), indent);
 
         return os;
     }
     friend std::ostream& operator<< (std::ostream &os, const fjson &fj) {
-        details::fj_tokens_to_stream(os, fj.m_tokens, fj.m_used);
+        details::fj_tokens_to_stream(os, fj.m_beg, fj.m_storage->size());
         return os;
     }
 
 private:
-    std::size_t m_used;
-    e_fj_error_code m_err;
-};
+    std::pair<const element_type *, const element_type *>
+    find(const char *key, std::size_t len) const {
+        if ( type() != FJ_TYPE_OBJECT )
+            throw std::logic_error(__FLATJSON__MAKE_ERROR_MESSAGE("not OBJECT type"));
 
-/*************************************************************************************************/
+        const element_type *parent = m_beg;
+        const element_type *beg = parent+1;
+        const element_type *end = parent->end;
+        while ( beg != end ) {
+            if ( beg->type == FJ_TYPE_OBJECT_END ) {
+                return {nullptr, nullptr};
+            }
+            if ( std::strncmp(beg->k, key, len) == 0 ) {
+                break;
+            }
 
-struct fdyjson
-    :private details::fjson_dynamic_storage
-    ,public details::fjson_ro_base<fdyjson, details::fjson_dynamic_storage>
-{
-private:
-    using storage_type = details::fjson_dynamic_storage;
-    using ro_base_type = details::fjson_ro_base<fdyjson, storage_type>;
-
-    friend ro_base_type;
-
-public:
-    fdyjson()
-        :storage_type{}
-        ,ro_base_type{*static_cast<storage_type *>(this)}
-        ,m_err{}
-    {}
-    template<std::size_t L>
-    explicit fdyjson(const char (&str)[L])
-        :storage_type{}
-        ,ro_base_type{*static_cast<storage_type *>(this)}
-        ,m_err{}
-    { load(str, L-1); }
-    template<
-         typename ConstCharPtr
-        ,typename = typename std::enable_if<
-            std::is_same<ConstCharPtr, const char*>::value
-        >::type
-    >
-    explicit fdyjson(ConstCharPtr str)
-        :storage_type{}
-        ,ro_base_type{*static_cast<storage_type *>(this)}
-        ,m_err{}
-    { load(str, std::strlen(str)); }
-    fdyjson(const char *ptr, std::size_t size)
-        :storage_type{}
-        ,ro_base_type{*static_cast<storage_type *>(this)}
-        ,m_err{}
-    { load(ptr, size); }
-
-    virtual ~fdyjson() = default;
-
-private:
-    fdyjson(const details::fj_pair *tokens, std::size_t num)
-        :storage_type{}
-        ,ro_base_type{*static_cast<storage_type *>(this)}
-        ,m_err{}
-    { assign_(tokens, num); }
-
-public:
-    bool valid() const { return storage_type::size_() > 0 && m_err == FJ_OK; }
-    e_fj_error_code error() const { return m_err; }
-
-    std::size_t tokens() const { return size_(); }
-
-    // for arrays
-    fdyjson operator[](std::size_t idx) const { return ro_base_type::at(idx);}
-
-    // for objects
-    template<std::size_t KL>
-    fdyjson operator[](const char (&key)[KL]) const { return at(key, KL-1); }
-    template<
-         typename ConstCharPtr
-        ,typename = typename std::enable_if<
-            std::is_same<ConstCharPtr, const char*>::value
-        >::type
-    >
-    fdyjson operator[](ConstCharPtr key) const { return at(key, std::strlen(key)); }
-
-    bool load(const char *ptr, std::size_t size) {
-        auto res = details::fj_num_tokens(ptr, size);
-        if ( res.ec ) {
-            m_err = res.ec;
-
-            return false;
+            beg = __FLATJSON__IS_SIMPLE_TYPE(beg->type) ? beg+1 : beg->end+1;
         }
 
-        storage_type::resize_(res.toknum);
-        details::fj_parser parser{};
-        details::fj_init(&parser, ptr, size, &(*storage_type::begin()), res.toknum);
-        res = details::fj_parse(&parser);
-        if ( res.ec ) {
-            m_err = res.ec;
-
-            return false;
+        const auto type = beg->type;
+        if ( __FLATJSON__IS_SIMPLE_TYPE(type) ) {
+            return {beg, beg+1};
+        } else if ( type == FJ_TYPE_OBJECT || type == FJ_TYPE_ARRAY ) {
+            return {beg, beg->end};
         }
 
-        if ( res.toknum != storage_type::size_() ) {
-            m_err = FJ_NO_FREE_TOKENS;
+        throw std::logic_error(__FLATJSON__MAKE_ERROR_MESSAGE("unreachable!"));
+    }
+    std::pair<const element_type *, const element_type *>
+    find(std::size_t idx) const {
+        if ( type() != FJ_TYPE_ARRAY )
+            throw std::logic_error(__FLATJSON__MAKE_ERROR_MESSAGE("not ARRAY type"));
 
-            return false;
+        if ( idx >= static_cast<__FLATJSON__CHILDS_TYPE>(m_beg->childs - 1) ) // one for END token
+            return {nullptr, nullptr};
+
+        const element_type *parent = m_beg;
+        const element_type *beg = parent+1;
+        const element_type *end = parent->end;
+        for ( ; beg != end && idx; --idx ) {
+            beg = __FLATJSON__IS_SIMPLE_TYPE(beg->type) ? beg+1 : beg->end+1;
         }
 
-        return true;
-    }
+        auto type = beg->type;
+        if ( __FLATJSON__IS_SIMPLE_TYPE(type) ) {
+            return {beg, beg+1};
+        } else if ( type == FJ_TYPE_OBJECT || type == FJ_TYPE_ARRAY ) {
+            return {beg, beg->end};
+        }
 
-    std::string dump(std::size_t indent = 0) const {
-        std::size_t strlen = details::fj_str_length(&(*storage_type::begin()), storage_type::size_(), indent);
-        std::string res(strlen, 0);
-        assert(strlen == details::fj_tokens_to_buf(
-                 &(*storage_type::begin())
-                ,storage_type::size_()
-                ,&res[0]
-                ,res.size()
-                ,indent
-            )
-        );
-
-        return res;
-    }
-    std::ostream& dump(std::ostream &os, std::size_t indent = 0) const {
-        details::fj_tokens_to_stream(os, storage_type::begin(), size_(), indent);
-
-        return os;
-    }
-    friend std::ostream& operator<< (std::ostream &os, const fdyjson &fj) {
-        details::fj_tokens_to_stream(os, &(*fj.begin()), static_cast<const storage_type &>(fj).size_());
-        return os;
+        throw std::logic_error(__FLATJSON__MAKE_ERROR_MESSAGE("unreachable!"));
     }
 
 private:
+    storage_ptr m_storage;
+    const element_type *m_beg;
+    const element_type *m_end;
     e_fj_error_code m_err;
 };
 
