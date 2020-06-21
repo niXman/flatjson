@@ -9,8 +9,6 @@
 // Copyright (c) 2019-2020 niXman (github dot nixman dog pm.me). All rights reserved.
 // ----------------------------------------------------------------------------
 
-#include <iostream>
-
 #include "flatjson.hpp"
 
 #include <iostream>
@@ -95,10 +93,9 @@ test_result test_conformance() {
 
 /*************************************************************************************************/
 
-template<typename JT>
 void unit_0() {
     static const char str[] = R"({})";
-    JT json(str);
+    flatjson::fjson json(str);
 
     assert(json.valid());
     assert(json.size() == 0);
@@ -111,10 +108,9 @@ void unit_0() {
     assert(!json.is_number());
 }
 
-template<typename JT>
 void unit_1() {
     static const char str[] = R"([])";
-    JT json(str);
+    flatjson::fjson json(str);
 
     assert(json.valid());
     assert(json.size() == 0);
@@ -127,10 +123,9 @@ void unit_1() {
     assert(!json.is_number());
 }
 
-template<typename JT>
 void unit_2() {
     static const char str[] = R"(true)";
-    JT json(str);
+    flatjson::fjson json(str);
 
     assert(json.valid());
     assert(json.size() == 1);
@@ -144,10 +139,9 @@ void unit_2() {
     assert(!json.is_number());
 }
 
-template<typename JT>
 void unit_3() {
     static const char str[] = R"(false)";
-    JT json(str);
+    flatjson::fjson json(str);
 
     assert(json.valid());
     assert(json.size() == 1);
@@ -161,10 +155,9 @@ void unit_3() {
     assert(!json.is_number());
 }
 
-template<typename JT>
 void unit_4() {
     static const char str[] = R"(null)";
-    JT json(str);
+    flatjson::fjson json(str);
 
     assert(json.valid());
     assert(json.size() == 1);
@@ -177,10 +170,9 @@ void unit_4() {
     assert(!json.is_number());
 }
 
-template<typename JT>
 void unit_5() {
     static const char str[] = R"("")";
-    JT json(str);
+    flatjson::fjson json(str);
 
     assert(json.valid());
     assert(json.size() == 1);
@@ -195,10 +187,9 @@ void unit_5() {
     assert(!json.is_number());
 }
 
-template<typename JT>
 void unit_6() {
     static const char str[] = R"("string")";
-    JT json(str);
+    flatjson::fjson json(str);
 
     assert(json.valid());
     assert(json.size() == 1);
@@ -213,10 +204,9 @@ void unit_6() {
     assert(!json.is_number());
 }
 
-template<typename JT>
 void unit_7() {
     static const char str[] = R"(1234)";
-    JT json(str);
+    flatjson::fjson json(str);
 
     assert(json.valid());
     assert(json.size() == 1);
@@ -230,10 +220,9 @@ void unit_7() {
     assert(!json.is_object());
 }
 
-template<typename JT>
 void unit_8() {
     static const char str[] = R"(3.14)";
-    JT json(str);
+    flatjson::fjson json(str);
 
     assert(json.valid());
     assert(json.size() == 1);
@@ -247,10 +236,9 @@ void unit_8() {
     assert(!json.is_object());
 }
 
-template<typename JT>
 void unit_9() {
     static const char str[] = R"([0, "1", 3.14])";
-    JT json(str);
+    flatjson::fjson json(str);
 
     assert(json.valid());
     assert(json.size() == 3);
@@ -272,10 +260,9 @@ void unit_9() {
     assert(json.at(2).to_double() == 3.14);
 }
 
-template<typename JT>
 void unit_10() {
     static const char str[] = R"({"a":true, "b":false, "c":null, "d":0, "e":"e"})";
-    JT json(str);
+    flatjson::fjson json(str);
 
     assert(json.valid());
     assert(json.size() == 5);
@@ -348,10 +335,9 @@ void unit_10() {
     assert(!j4.is_null());
 }
 
-template<typename JT>
 void unit_11() {
     static const char str[] = R"({"a":{"b":true, "c":1234}})";
-    JT json(str);
+    flatjson::fjson json(str);
 
     assert(json.valid());
     assert(json.size() == 1);
@@ -395,10 +381,9 @@ void unit_11() {
     assert(!j2.is_bool());
 }
 
-template<typename JT>
 void unit_12() {
     static const char str[] = R"({"a":[0,1,2]})";
-    JT json(str);
+    flatjson::fjson json(str);
 
     assert(json.valid());
     assert(json.size() == 1);
@@ -424,10 +409,9 @@ void unit_12() {
     assert(j0[2].to_int() == 2);
 }
 
-template<typename JT>
 void unit_13() {
     static const char jsstr[] = R"({"a":true, "b":{"c":{"d":1, "e":2}}, "c":[0,1,2,3]})";
-    JT json{jsstr};
+    flatjson::fjson json{jsstr};
     auto str = json.dump(4);
 
     static const char *expected =
@@ -453,10 +437,9 @@ R"({
     assert(ss.str() == expected);
 }
 
-template<typename JT>
 void unit_14() {
     static const char jsstr[] = R"({"a":[4,3,2,1], "b":[{"a":0,"b":0,"c":1},{"b":1,"a":0,"c":0},{"c":2,"b":0,"a":0}], "c":[0,1,2,3]})";
-    JT json{jsstr};
+    flatjson::fjson json{jsstr};
     assert(json.valid());
     assert(json.is_object());
 
@@ -482,36 +465,27 @@ void unit_14() {
 
 /*************************************************************************************************/
 
-template<typename JT>
-void all_units() {
+int main() {
     auto res = test_conformance();
     if ( res.ec ) {
         std::cout << "test \"" << res.name << "\" FAILED!" << std::endl;
-    } else {
-        std::cout << "conformance test passed!" << std::endl;
     }
-
-    unit_0<JT>();
-    unit_1<JT>();
-    unit_2<JT>();
-    unit_3<JT>();
-    unit_4<JT>();
-    unit_5<JT>();
-    unit_6<JT>();
-    unit_7<JT>();
-    unit_8<JT>();
-    unit_9<JT>();
-    unit_10<JT>();
-    unit_11<JT>();
-    unit_12<JT>();
-    unit_13<JT>();
-    unit_14<JT>();
-}
-
-/*************************************************************************************************/
-
-int main() {
-    all_units<flatjson::fjson>();
+    
+    unit_0();
+    unit_1();
+    unit_2();
+    unit_3();
+    unit_4();
+    unit_5();
+    unit_6();
+    unit_7();
+    unit_8();
+    unit_9();
+    unit_10();
+    unit_11();
+    unit_12();
+    unit_13();
+    unit_14();
 
     return EXIT_SUCCESS;
 }
