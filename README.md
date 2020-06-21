@@ -4,16 +4,11 @@
 
 The [header-only implementation](https://github.com/niXman/flatjson/blob/master/flatjson.hpp) of extremely fast zero allocation and zero copy JSON parser
 
+# Example
 
-# Intro
-There are two classes:
-1) `fjson` - is template which uses the stack to store tokens
-2) `fdyjson` - is not template and which uses the heap(just one allocation!)
-
-# Examples
 ```cpp
 const char *jsstr = R"({"a":true, "b":null})";
-flatjson::fjson<> json{jsstr};
+flatjson::fjson json{jsstr};
 assert(json.is_valid());
 assert(json.is_object());
 assert(json.size() == 2);
