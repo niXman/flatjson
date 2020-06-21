@@ -1038,6 +1038,12 @@ struct fjson {
     using storage_type = std::vector<element_type>;
     using storage_ptr = std::shared_ptr<storage_type>;
 
+    fjson(const fjson &) = default;
+    fjson(fjson &&) = default;
+
+    fjson& operator= (const fjson &) = default;
+    fjson& operator= (fjson &&) = default;
+
     explicit fjson(std::size_t reserved = 32)
         :m_storage{std::make_shared<storage_type>(reserved)}
         ,m_beg{nullptr}
