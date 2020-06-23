@@ -1080,7 +1080,7 @@ struct fjson {
     fjson& operator= (const fjson &) = default;
     fjson& operator= (fjson &&) = default;
 
-    explicit fjson(std::size_t reserved = 32)
+    explicit fjson(std::size_t reserved = 0)
         :m_storage{std::make_shared<storage_type>(reserved)}
         ,m_beg{nullptr}
         ,m_end{nullptr}
@@ -1088,7 +1088,7 @@ struct fjson {
     {}
 
     template<std::size_t L>
-    fjson(const char (&str)[L], std::size_t reserved = 32)
+    fjson(const char (&str)[L], std::size_t reserved = 0)
         :m_storage{std::make_shared<storage_type>(reserved)}
         ,m_beg{nullptr}
         ,m_end{nullptr}
@@ -1103,7 +1103,7 @@ struct fjson {
             std::is_same<ConstCharPtr, const char*>::value
         >::type
     >
-    fjson(ConstCharPtr str, std::size_t reserved = 32)
+    fjson(ConstCharPtr str, std::size_t reserved = 0)
         :m_storage{std::make_shared<storage_type>(reserved)}
         ,m_beg{nullptr}
         ,m_end{nullptr}
@@ -1112,7 +1112,7 @@ struct fjson {
         load(str, std::strlen(str));
     }
 
-    fjson(const char *ptr, std::size_t size, std::size_t reserved = 32)
+    fjson(const char *ptr, std::size_t size, std::size_t reserved = 0)
         :m_storage{std::make_shared<storage_type>(reserved)}
         ,m_beg{nullptr}
         ,m_end{nullptr}
