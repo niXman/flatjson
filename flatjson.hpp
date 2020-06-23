@@ -106,7 +106,7 @@ namespace details {
 #define __FLATJSON__STRINGIZE_I(x) #x
 #define __FLATJSON__STRINGIZE(x) __FLATJSON__STRINGIZE_I(x)
 
-#define __FLATJSON__MAKE_ERROR_MESSAGE(msg)\
+#define __FLATJSON__MAKE_ERROR_MESSAGE(msg) \
     __FILE__ "(" __FLATJSON__STRINGIZE(__LINE__) "): " msg
 
 #ifdef __FLATJSON__DONT_CHECK_OVERFLOW
@@ -1161,7 +1161,7 @@ public:
 
     static_string to_sstring() const {
         const auto *beg = m_beg;
-        if ( __FLATJSON__IS_SIMPLE_TYPE(type()) || type() == FJ_TYPE_NULL ) {
+        if ( __FLATJSON__IS_SIMPLE_TYPE(type()) ) {
             if ( !is_null() ) {
                 return {beg->v, beg->vlen};
             }
@@ -1251,7 +1251,13 @@ public:
         }
 
         details::fj_parser parser{};
-        details::fj_init(std::addressof(parser), ptr, size, std::addressof(*m_storage->begin()), m_storage->size());
+        details::fj_init(
+             std::addressof(parser)
+            ,ptr
+            ,size
+            ,std::addressof(*m_storage->begin())
+            ,m_storage->size()
+        );
         details::parse_result res = details::fj_parse(std::addressof(parser));
         if ( res.ec ) {
             m_err = res.ec;
