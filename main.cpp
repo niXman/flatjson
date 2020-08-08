@@ -501,6 +501,68 @@ void unit_14() {
 
 /*************************************************************************************************/
 
+void unit_15() {
+    {
+        static const char jsstr[] = R"([0])";
+
+        flatjson::fjson json{jsstr};
+        assert(json.valid());
+        assert(json.is_array());
+        assert(json.size() == 1);
+        auto tok = json.tokens();
+        assert(tok == 3);
+
+        for ( auto idx = 0u; idx < json.size(); ++idx ) {
+            auto item = json.at(idx);
+            assert(item.is_number());
+            assert(item.size() == 1);
+            assert(item.to_uint() == idx);
+        }
+    }
+
+    {
+        static const char jsstr[] = R"([0, 1])";
+
+        flatjson::fjson json{jsstr};
+        assert(json.valid());
+        assert(json.is_array());
+        assert(json.size() == 2);
+        assert(json.tokens() == 4);
+
+        for ( auto idx = 0u; idx < json.size(); ++idx ) {
+            auto item = json.at(idx);
+            assert(item.is_number());
+            assert(item.size() == 1);
+            assert(item.to_uint() == idx);
+        }
+    }
+
+    {
+        static const char jsstr[] = R"([[0, 1]])";
+
+        flatjson::fjson json{jsstr};
+        assert(json.valid());
+        assert(json.is_array());
+        assert(json.size() == 1);
+        assert(json.tokens() == 6);
+
+        auto subarr = json.at(0);
+        assert(subarr.valid());
+        assert(subarr.is_array());
+        assert(subarr.size() == 2);
+        assert(subarr.tokens() == 4);
+
+        for ( auto idx = 0u; idx < subarr.size(); ++idx ) {
+            auto item = subarr.at(idx);
+            assert(item.is_number());
+            assert(item.size() == 1);
+            assert(item.to_uint() == idx);
+        }
+    }
+}
+
+/*************************************************************************************************/
+
 int main() {
     auto res = test_conformance();
     if ( res.ec ) {
@@ -525,6 +587,7 @@ int main() {
     unit_12();
     unit_13();
     unit_14();
+    unit_15();
 
     return EXIT_SUCCESS;
 }
