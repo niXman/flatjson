@@ -2,7 +2,7 @@
 
 # flatjson
 
-The [header-only implementation](https://github.com/niXman/flatjson/blob/master/flatjson.hpp) of extremely fast zero allocation and zero copy JSON parser
+The [header-only implementation](https://github.com/niXman/flatjson/blob/master/flatjson.hpp) of extremely fast just one allocation and zero copy JSON parser
 
 # Example
 
