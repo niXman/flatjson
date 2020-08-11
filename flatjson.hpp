@@ -27,9 +27,6 @@
 #include <cstdio>
 #include <cstring>
 
-//#define __FLATJSON__ADDRESSOF(x) &x
-#define __FLATJSON__ADDRESSOF(x) std::addressof(x)
-
 #if defined(__clang__)
 #   define __FLATJSON__FALLTHROUGH [[clang::fallthrough]]
 #elif defined(__GNUC__)
@@ -449,9 +446,9 @@ inline int fj_parse_array(fj_parser *p, fj_pair *parent) {
         std::size_t size = 0;
         ec = fj_parse_value<M>(
              p
-            ,__FLATJSON__ADDRESSOF(pair->v)
-            ,__FLATJSON__ADDRESSOF(size)
-            ,__FLATJSON__ADDRESSOF(pair->type)
+            ,&(pair->v)
+            ,&size
+            ,&(pair->type)
             ,startarr
         );
         if ( ec ) return ec;
@@ -520,9 +517,9 @@ inline int fj_parse_object(fj_parser *p, fj_pair *parent) {
         std::size_t size = 0;
         ec = fj_parse_value<M>(
              p
-            ,__FLATJSON__ADDRESSOF(pair->k)
-            ,__FLATJSON__ADDRESSOF(size)
-            ,__FLATJSON__ADDRESSOF(pair->type)
+            ,&(pair->k)
+            ,&size
+            ,&(pair->type)
             ,startobj
         );
         if ( ec ) return ec;
@@ -541,9 +538,9 @@ inline int fj_parse_object(fj_parser *p, fj_pair *parent) {
             std::size_t unused_size{};
             ec = fj_parse_value<M>(
                  p
-                ,__FLATJSON__ADDRESSOF(unused_str)
-                ,__FLATJSON__ADDRESSOF(unused_size)
-                ,__FLATJSON__ADDRESSOF(pair->type)
+                ,&unused_str
+                ,&unused_size
+                ,&(pair->type)
                 ,startobj
             );
         } else {
@@ -555,9 +552,9 @@ inline int fj_parse_object(fj_parser *p, fj_pair *parent) {
 
             ec = fj_parse_value<M>(
                  p
-                ,__FLATJSON__ADDRESSOF(pair->v)
-                ,__FLATJSON__ADDRESSOF(size)
-                ,__FLATJSON__ADDRESSOF(pair->type)
+                ,&(pair->v)
+                ,&size
+                ,&(pair->type)
                 ,startobj
             );
             __FLATJSON__CHECK_OVERFLOW(size, __FLATJSON__VLEN_TYPE, FJ_VLEN_OVERFLOW);
@@ -725,9 +722,9 @@ inline parse_result fj_parse(fj_parser *parser) {
     std::size_t vlen = 0;
     res.ec = static_cast<e_fj_error_code>(fj_parse_value<parser_mode::parse>(
          parser
-        ,__FLATJSON__ADDRESSOF(parser->jstok_beg->v)
-        ,__FLATJSON__ADDRESSOF(vlen)
-        ,__FLATJSON__ADDRESSOF(parser->jstok_beg->type)
+        ,&(parser->jstok_beg->v)
+        ,&vlen
+        ,&(parser->jstok_beg->type)
         ,nullptr
     ));
     assert(vlen <= std::numeric_limits<__FLATJSON__VLEN_TYPE>::max());
@@ -749,21 +746,21 @@ inline parse_result fj_num_tokens(const char *jsstr, std::size_t jslen) {
     parser.js_end = jsstr + jslen;
 
     static fj_pair fake;
-    parser.jstok_beg = __FLATJSON__ADDRESSOF(fake);
-    parser.jstok_cur = __FLATJSON__ADDRESSOF(fake);
+    parser.jstok_beg = &fake;
+    parser.jstok_cur = &fake;
     parser.jstok_end = nullptr;
 
     std::size_t vlen = 0;
     e_fj_token_type toktype{};
     res.ec = static_cast<e_fj_error_code>(fj_parse_value<parser_mode::count_tokens>(
-         __FLATJSON__ADDRESSOF(parser)
-        ,__FLATJSON__ADDRESSOF(parser.jstok_beg->v)
-        ,__FLATJSON__ADDRESSOF(vlen)
-        ,__FLATJSON__ADDRESSOF(toktype)
+         &parser
+        ,&(parser.jstok_beg->v)
+        ,&vlen
+        ,&toktype
         ,nullptr
     ));
     if ( !res.ec && parser.js_cur != parser.js_end ) {
-        fj_skip_ws(__FLATJSON__ADDRESSOF(parser));
+        fj_skip_ws(&parser);
         if ( parser.js_cur != parser.js_end ) {
             res.ec = FJ_INVALID;
         }
@@ -965,7 +962,7 @@ static void tokens_to_stream_cb_1(void *userdata, const char *ptr, std::size_t l
 }
 
 inline std::size_t fj_tokens_to_stream(std::ostream &stream, const fj_pair *toks, std::size_t num, std::size_t indent = 0) {
-    return fj_get_tokens(toks, num, indent, __FLATJSON__ADDRESSOF(stream), tokens_to_stream_cb_1);
+    return fj_get_tokens(toks, num, indent, &stream, tokens_to_stream_cb_1);
 }
 
 /*************************************************************************************************/
@@ -984,7 +981,7 @@ static void tokens_to_buf_cb(void *userdata, const char *ptr, std::size_t len) {
 
 inline std::size_t fj_tokens_to_buf(const fj_pair *toks, std::size_t num, char *buf, std::size_t size, std::size_t indent = 0) {
     tokens_to_buf_userdata userdata{buf, buf+size};
-    return fj_get_tokens(toks, num, indent, __FLATJSON__ADDRESSOF(userdata), tokens_to_buf_cb);
+    return fj_get_tokens(toks, num, indent, &userdata, tokens_to_buf_cb);
 }
 
 /*************************************************************************************************/
@@ -1320,21 +1317,21 @@ public:
 
         details::fj_parser parser{};
         details::fj_init(
-             __FLATJSON__ADDRESSOF(parser)
+             &parser
             ,ptr
             ,size
-            ,__FLATJSON__ADDRESSOF(*m_storage->begin())
+            ,&(*m_storage->begin())
             ,m_storage->size()
         );
-        details::parse_result res = details::fj_parse(__FLATJSON__ADDRESSOF(parser));
+        details::parse_result res = details::fj_parse(&parser);
         if ( res.ec ) {
             m_err = res.ec;
             return false;
         }
 
         m_storage->resize(res.toknum);
-        m_beg = __FLATJSON__ADDRESSOF(*m_storage->begin());
-        m_end = __FLATJSON__ADDRESSOF(*m_storage->end());
+        m_beg = &(*m_storage->begin());
+        m_end = &(*m_storage->end());
 
         return true;
     }
@@ -1345,7 +1342,7 @@ public:
         assert(strlen == details::fj_tokens_to_buf(
                  m_beg
                 ,m_storage->size()
-                ,__FLATJSON__ADDRESSOF(res[0])
+                ,&res[0]
                 ,res.size()
                 ,indent
             )
