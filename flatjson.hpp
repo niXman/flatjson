@@ -1436,12 +1436,7 @@ private:
 #undef __FLATJSON__KLEN_TYPE
 #undef __FLATJSON__VLEN_TYPE
 #undef __FLATJSON__CHILDS_TYPE
-#undef __FLATJSON__IS_SIMPLE_TYPE
-#undef __FLATJSON__IS_DIGIT
-#undef __FLATJSON__IS_HEX_DIGIT
-#undef __FLATJSON__IS_HEX_DIGIT4
 #undef __FLATJSON__CUR_CHAR
-#undef __FLATJSON__UTF8_CHAR_LEN
 
 /*************************************************************************************************/
 
