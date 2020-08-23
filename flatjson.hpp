@@ -56,19 +56,19 @@ enum e_fj_token_type: std::uint8_t {
 
 inline const char *fj_token_type_name(e_fj_token_type t) {
     static const char* strs[] = {
-        "INVALID",
-        "STRING",
-        "NUMBER",
-        "BOOL",
-        "NULL",
-        "OBJECT",
-        "OBJECT_END",
-        "ARRAY",
-        "ARRAY_END"
+         "INVALID"
+        ,"STRING"
+        ,"NUMBER"
+        ,"BOOL"
+        ,"NULL"
+        ,"OBJECT"
+        ,"OBJECT_END"
+        ,"ARRAY"
+        ,"ARRAY_END"
     };
 
     std::size_t idx = static_cast<std::size_t>(t);
-    if ( idx < sizeof(strs)/sizeof(const char *) ) {
+    if ( idx < sizeof(strs)/sizeof(strs[0]) ) {
         return strs[idx];
     }
 
@@ -76,26 +76,32 @@ inline const char *fj_token_type_name(e_fj_token_type t) {
 }
 
 enum e_fj_error_code {
-     FJ_OK = 0
-    ,FJ_INVALID = -1
-    ,FJ_INCOMPLETE = -2
-    ,FJ_NO_FREE_TOKENS = -3
-    ,FJ_KLEN_OVERFLOW = -4
-    ,FJ_VLEN_OVERFLOW = -5
-    ,FJ_CHILDS_OVERFLOW = -6
+     FJ_EC_OK = 0
+    ,FJ_EC_INVALID = -1
+    ,FJ_EC_INCOMPLETE = -2
+    ,FJ_EC_NO_FREE_TOKENS = -3
+    ,FJ_EC_KLEN_OVERFLOW = -4
+    ,FJ_EC_VLEN_OVERFLOW = -5
+    ,FJ_EC_CHILDS_OVERFLOW = -6
 };
 
 inline const char* fj_error_string(e_fj_error_code e) {
-    switch ( e ) {
-        case FJ_OK: return "OK";
-        case FJ_INVALID: return "INVALID";
-        case FJ_INCOMPLETE: return "INCOMPLETE";
-        case FJ_NO_FREE_TOKENS: return "NO_FREE_TOKENS";
-        case FJ_KLEN_OVERFLOW: return "KLEN_OVERFLOW";
-        case FJ_VLEN_OVERFLOW: return "VLEN_OVERFLOW";
-        case FJ_CHILDS_OVERFLOW: return "CHILDS_OVERFLOW";
-        default: return nullptr;
+    static const char* strs[] = {
+         "OK"
+        ,"INVALID"
+        ,"INCOMPLETE"
+        ,"NO_FREE_TOKENS"
+        ,"KLEN_OVERFLOW"
+        ,"VLEN_OVERFLOW"
+        ,"CHILDS_OVERFLOW"
+    };
+    int idx = static_cast<int>(e);
+    idx = -idx;
+    if ( static_cast<unsigned>(idx) < sizeof(strs)/sizeof(strs[0]) ) {
+        return strs[idx];
     }
+
+    return "UNKNOWN ERROR";
 }
 
 /*************************************************************************************************/
@@ -257,24 +263,24 @@ inline int fj_check_and_skip(fj_parser *p, char expected) {
     if ( ch == expected ) {
         p->js_cur++;
 
-        return FJ_OK;
+        return FJ_EC_OK;
     }
 
     if ( ch == ((char)-1) ) {
-        return FJ_INCOMPLETE;
+        return FJ_EC_INCOMPLETE;
     }
 
-    return FJ_INVALID;
+    return FJ_EC_INVALID;
 }
 
 inline int fj_escape_len(const char *s, std::ptrdiff_t len) {
     switch ( *s ) {
         case 'u':
             return len < 6
-                ? FJ_INCOMPLETE
+                ? FJ_EC_INCOMPLETE
                 : fj_is_hex_digit4(*(s+1), *(s+2), *(s+3), *(s+4))
                     ? 5
-                    : FJ_INVALID
+                    : FJ_EC_INVALID
             ;
         case '"':
         case '\\':
@@ -284,9 +290,9 @@ inline int fj_escape_len(const char *s, std::ptrdiff_t len) {
         case 'n':
         case 'r':
         case 't':
-            return len < 2 ? FJ_INCOMPLETE : 1;
+            return len < 2 ? FJ_EC_INCOMPLETE : 1;
         default:
-            return FJ_INVALID;
+            return FJ_EC_INVALID;
     }
 }
 
@@ -300,10 +306,10 @@ enum class parser_mode {
 template<parser_mode M, std::size_t ExLen>
 inline int fj_expect(fj_parser *p, const char *s, const char **ptr, std::size_t *size) {
     if ( p->js_cur + ExLen > p->js_end )
-        return FJ_INCOMPLETE;
+        return FJ_EC_INCOMPLETE;
 
     if ( std::strncmp(p->js_cur, s, ExLen) != 0 ) {
-        return FJ_INVALID;
+        return FJ_EC_INVALID;
     }
 
     if ( M == parser_mode::parse ) {
@@ -313,7 +319,7 @@ inline int fj_expect(fj_parser *p, const char *s, const char **ptr, std::size_t 
 
     p->js_cur += ExLen;
 
-    return FJ_OK;
+    return FJ_EC_OK;
 }
 
 template<parser_mode M>
@@ -326,8 +332,8 @@ inline int fj_parse_string(fj_parser *p, const char **ptr, std::size_t *size) {
     for ( std::ptrdiff_t len = 0; p->js_cur < p->js_end; p->js_cur += len ) {
         ch = *(unsigned char *)p->js_cur;
         len = fj_utf8_char_len((unsigned char)ch);
-        if ( !(ch >= 32 && len > 0) ) return FJ_INVALID;
-        if ( len > (p->js_end - p->js_cur) ) return FJ_INCOMPLETE;
+        if ( !(ch >= 32 && len > 0) ) return FJ_EC_INVALID;
+        if ( len > (p->js_end - p->js_cur) ) return FJ_EC_INCOMPLETE;
 
         if (ch == '\\') {
             int n = fj_escape_len(p->js_cur + 1, p->js_end - p->js_cur);
@@ -345,7 +351,7 @@ inline int fj_parse_string(fj_parser *p, const char **ptr, std::size_t *size) {
         }
     }
 
-    return ch == '"' ? FJ_OK : FJ_INCOMPLETE;
+    return ch == '"' ? FJ_EC_OK : FJ_EC_INCOMPLETE;
 }
 
 template<parser_mode M>
@@ -353,25 +359,25 @@ inline int fj_parse_number(fj_parser *p, const char **ptr, std::size_t *size) {
     const char *start = p->js_cur;
     if ( __FLATJSON__CUR_CHAR(p)== '-' ) p->js_cur++;
 
-    if ( p->js_cur >= p->js_end ) return FJ_INCOMPLETE;
+    if ( p->js_cur >= p->js_end ) return FJ_EC_INCOMPLETE;
     if ( p->js_cur + 1 < p->js_end && *(p->js_cur) == '0' && *(p->js_cur+1) == 'x' ) {
         p->js_cur += 2;
 
-        if ( p->js_cur >= p->js_end ) return FJ_INCOMPLETE;
-        if ( !details::fj_is_hex_digit(*(p->js_cur)) ) return FJ_INVALID;
+        if ( p->js_cur >= p->js_end ) return FJ_EC_INCOMPLETE;
+        if ( !details::fj_is_hex_digit(*(p->js_cur)) ) return FJ_EC_INVALID;
 
         for ( ; p->js_cur < p->js_end && details::fj_is_hex_digit(*(p->js_cur)); ++p->js_cur )
             ;
     } else {
-        if ( !details::fj_is_digit(*(p->js_cur)) ) return FJ_INVALID;
+        if ( !details::fj_is_digit(*(p->js_cur)) ) return FJ_EC_INVALID;
         for ( ; p->js_cur < p->js_end && details::fj_is_digit(*(p->js_cur)); ++p->js_cur )
             ;
 
         if ( p->js_cur < p->js_end && *(p->js_cur) == '.' ) {
             p->js_cur++;
 
-            if ( p->js_cur >= p->js_end ) return FJ_INCOMPLETE;
-            if ( !details::fj_is_digit(*(p->js_cur)) ) return FJ_INVALID;
+            if ( p->js_cur >= p->js_end ) return FJ_EC_INCOMPLETE;
+            if ( !details::fj_is_digit(*(p->js_cur)) ) return FJ_EC_INVALID;
 
             for ( ; p->js_cur < p->js_end && details::fj_is_digit(*(p->js_cur)); ++p->js_cur )
                 ;
@@ -379,13 +385,13 @@ inline int fj_parse_number(fj_parser *p, const char **ptr, std::size_t *size) {
         if ( p->js_cur < p->js_end && (*(p->js_cur) == 'e' || *(p->js_cur) == 'E') ) {
             p->js_cur++;
 
-            if ( p->js_cur >= p->js_end ) return FJ_INCOMPLETE;
+            if ( p->js_cur >= p->js_end ) return FJ_EC_INCOMPLETE;
 
             if ( *(p->js_cur) == '+' || *(p->js_cur) == '-' )
                 p->js_cur++;
 
-            if ( p->js_cur >= p->js_end ) return FJ_INCOMPLETE;
-            if ( !details::fj_is_digit(*(p->js_cur)) ) return FJ_INVALID;
+            if ( p->js_cur >= p->js_end ) return FJ_EC_INCOMPLETE;
+            if ( !details::fj_is_digit(*(p->js_cur)) ) return FJ_EC_INVALID;
 
             for ( ; p->js_cur < p->js_end && details::fj_is_digit(*(p->js_cur)); ++p->js_cur )
                 ;
@@ -393,7 +399,7 @@ inline int fj_parse_number(fj_parser *p, const char **ptr, std::size_t *size) {
     }
 
     if ( (p->js_cur - start) > 1 && (start[0] == '0' && start[1] != '.') ) {
-        return FJ_INVALID;
+        return FJ_EC_INVALID;
     }
 
     if ( M == parser_mode::parse ) {
@@ -401,7 +407,7 @@ inline int fj_parse_number(fj_parser *p, const char **ptr, std::size_t *size) {
         *size = p->js_cur - start;
     }
 
-    return FJ_OK;
+    return FJ_EC_OK;
 }
 
 template<parser_mode M>
@@ -413,21 +419,21 @@ inline int fj_parse_array(fj_parser *p, fj_pair *parent) {
     if ( ec ) return ec;
 
     if ( M == parser_mode::parse && p->jstok_cur == p->jstok_end )
-        return FJ_NO_FREE_TOKENS;
+        return FJ_EC_NO_FREE_TOKENS;
 
     fj_pair *startarr = p->jstok_cur++;
     if ( M == parser_mode::parse ) {
         startarr->type = FJ_TYPE_ARRAY;
         startarr->parent = parent;
         if ( startarr->parent ) {
-            __FLATJSON__CHECK_OVERFLOW(startarr->parent->childs, __FLATJSON__CHILDS_TYPE, FJ_CHILDS_OVERFLOW);
+            __FLATJSON__CHECK_OVERFLOW(startarr->parent->childs, __FLATJSON__CHILDS_TYPE, FJ_EC_CHILDS_OVERFLOW);
             ++startarr->parent->childs;
         }
     }
 
     while ( __FLATJSON__CUR_CHAR(p) != ']' ) {
         if ( M == parser_mode::parse && p->jstok_cur == p->jstok_end )
-            return FJ_NO_FREE_TOKENS;
+            return FJ_EC_NO_FREE_TOKENS;
 
         fj_pair *pair = p->jstok_cur++;
 
@@ -438,7 +444,7 @@ inline int fj_parse_array(fj_parser *p, fj_pair *parent) {
             if ( M == parser_mode::parse ) {
                 pair->parent = startarr;
 
-                __FLATJSON__CHECK_OVERFLOW(startarr->childs, __FLATJSON__CHILDS_TYPE, FJ_CHILDS_OVERFLOW);
+                __FLATJSON__CHECK_OVERFLOW(startarr->childs, __FLATJSON__CHILDS_TYPE, FJ_EC_CHILDS_OVERFLOW);
                 ++startarr->childs;
             }
         }
@@ -453,13 +459,13 @@ inline int fj_parse_array(fj_parser *p, fj_pair *parent) {
         );
         if ( ec ) return ec;
         if ( M == parser_mode::parse ) {
-            __FLATJSON__CHECK_OVERFLOW(size, __FLATJSON__VLEN_TYPE, FJ_VLEN_OVERFLOW);
+            __FLATJSON__CHECK_OVERFLOW(size, __FLATJSON__VLEN_TYPE, FJ_EC_VLEN_OVERFLOW);
             pair->vlen = size;
         }
 
         if ( __FLATJSON__CUR_CHAR(p) == ',' ) {
             p->js_cur++;
-            if ( *(p->js_cur) == ']' ) return FJ_INVALID;
+            if ( *(p->js_cur) == ']' ) return FJ_EC_INVALID;
         }
     }
 
@@ -467,11 +473,11 @@ inline int fj_parse_array(fj_parser *p, fj_pair *parent) {
     if ( ec ) return ec;
 
     if ( M == parser_mode::parse ) {
-        if ( p->jstok_cur == p->jstok_end ) return FJ_NO_FREE_TOKENS;
+        if ( p->jstok_cur == p->jstok_end ) return FJ_EC_NO_FREE_TOKENS;
         fj_pair *endarr = p->jstok_cur++;
         endarr->type = FJ_TYPE_ARRAY_END;
         endarr->parent = startarr;
-        __FLATJSON__CHECK_OVERFLOW(endarr->parent->childs, __FLATJSON__CHILDS_TYPE, FJ_CHILDS_OVERFLOW);
+        __FLATJSON__CHECK_OVERFLOW(endarr->parent->childs, __FLATJSON__CHILDS_TYPE, FJ_EC_CHILDS_OVERFLOW);
         ++endarr->parent->childs;
         startarr->end = endarr;
     } else {
@@ -487,14 +493,14 @@ inline int fj_parse_object(fj_parser *p, fj_pair *parent) {
     if ( ec ) return ec;
 
     if ( M == parser_mode::parse && p->jstok_cur == p->jstok_end )
-        return FJ_NO_FREE_TOKENS;
+        return FJ_EC_NO_FREE_TOKENS;
 
     fj_pair *startobj = p->jstok_cur++;
     if ( M == parser_mode::parse ) {
         startobj->type = FJ_TYPE_OBJECT;
         startobj->parent = parent;
         if ( startobj->parent ) {
-            __FLATJSON__CHECK_OVERFLOW(startobj->parent->childs, __FLATJSON__CHILDS_TYPE, FJ_CHILDS_OVERFLOW);
+            __FLATJSON__CHECK_OVERFLOW(startobj->parent->childs, __FLATJSON__CHILDS_TYPE, FJ_EC_CHILDS_OVERFLOW);
             ++startobj->parent->childs;
         }
     }
@@ -503,14 +509,14 @@ inline int fj_parse_object(fj_parser *p, fj_pair *parent) {
         char ch = __FLATJSON__CUR_CHAR(p);
         if ( ch != '"' ) {
             if ( ch == ((char)-1) ) {
-                return FJ_INCOMPLETE;
+                return FJ_EC_INCOMPLETE;
             }
 
-            return FJ_INVALID;
+            return FJ_EC_INVALID;
         }
 
         if ( M == parser_mode::parse && p->jstok_cur == p->jstok_end )
-            return FJ_NO_FREE_TOKENS;
+            return FJ_EC_NO_FREE_TOKENS;
 
         fj_pair *pair = p->jstok_cur++;
 
@@ -524,7 +530,7 @@ inline int fj_parse_object(fj_parser *p, fj_pair *parent) {
         );
         if ( ec ) return ec;
         if ( M == parser_mode::parse ) {
-            __FLATJSON__CHECK_OVERFLOW(size, __FLATJSON__KLEN_TYPE, FJ_KLEN_OVERFLOW);
+            __FLATJSON__CHECK_OVERFLOW(size, __FLATJSON__KLEN_TYPE, FJ_EC_KLEN_OVERFLOW);
             pair->klen = size;
         }
 
@@ -546,7 +552,7 @@ inline int fj_parse_object(fj_parser *p, fj_pair *parent) {
         } else {
             if ( M == parser_mode::parse ) {
                 pair->parent = startobj;
-                __FLATJSON__CHECK_OVERFLOW(startobj->childs, __FLATJSON__CHILDS_TYPE, FJ_CHILDS_OVERFLOW);
+                __FLATJSON__CHECK_OVERFLOW(startobj->childs, __FLATJSON__CHILDS_TYPE, FJ_EC_CHILDS_OVERFLOW);
                 ++startobj->childs;
             }
 
@@ -557,7 +563,7 @@ inline int fj_parse_object(fj_parser *p, fj_pair *parent) {
                 ,&(pair->type)
                 ,startobj
             );
-            __FLATJSON__CHECK_OVERFLOW(size, __FLATJSON__VLEN_TYPE, FJ_VLEN_OVERFLOW);
+            __FLATJSON__CHECK_OVERFLOW(size, __FLATJSON__VLEN_TYPE, FJ_EC_VLEN_OVERFLOW);
             if ( M == parser_mode::parse ) pair->vlen = size;
         }
 
@@ -565,7 +571,7 @@ inline int fj_parse_object(fj_parser *p, fj_pair *parent) {
 
         if ( __FLATJSON__CUR_CHAR(p) == ',' ) {
             p->js_cur++;
-            if ( *(p->js_cur) == '}' ) return FJ_INVALID;
+            if ( *(p->js_cur) == '}' ) return FJ_EC_INVALID;
         }
 // don't remove the code below!
 //        if ( p->jstok_end && startobj->childs > 1 ) {
@@ -597,18 +603,18 @@ inline int fj_parse_object(fj_parser *p, fj_pair *parent) {
     if ( ec ) return ec;
 
     if ( M == parser_mode::parse ) {
-        if ( p->jstok_cur == p->jstok_end ) return FJ_NO_FREE_TOKENS;
+        if ( p->jstok_cur == p->jstok_end ) return FJ_EC_NO_FREE_TOKENS;
         fj_pair *endobj = p->jstok_cur++;
         endobj->type = FJ_TYPE_OBJECT_END;
         endobj->parent = startobj;
-        __FLATJSON__CHECK_OVERFLOW(endobj->parent->childs, __FLATJSON__CHILDS_TYPE, FJ_CHILDS_OVERFLOW);
+        __FLATJSON__CHECK_OVERFLOW(endobj->parent->childs, __FLATJSON__CHILDS_TYPE, FJ_EC_CHILDS_OVERFLOW);
         ++endobj->parent->childs;
         startobj->end = endobj;
     } else {
         ++p->jstok_cur;
     }
 
-    return FJ_OK;
+    return FJ_EC_OK;
 }
 
 template<parser_mode M>
@@ -689,13 +695,13 @@ inline int fj_parse_value(fj_parser *p, const char **ptr, std::size_t *size, e_f
         }
         default:
             if ( ch == ((char)-1) ) {
-                return FJ_INCOMPLETE;
+                return FJ_EC_INCOMPLETE;
             } else {
-                return FJ_INVALID;
+                return FJ_EC_INVALID;
             }
     }
 
-    return FJ_OK;
+    return FJ_EC_OK;
 }
 
 struct parse_result {
@@ -762,7 +768,7 @@ inline parse_result fj_num_tokens(const char *jsstr, std::size_t jslen) {
     if ( !res.ec && parser.js_cur != parser.js_end ) {
         fj_skip_ws(&parser);
         if ( parser.js_cur != parser.js_end ) {
-            res.ec = FJ_INVALID;
+            res.ec = FJ_EC_INVALID;
         }
     }
 
@@ -1192,7 +1198,7 @@ private:
     {}
     
 public:
-    bool valid() const { return m_beg && m_end && !m_storage->empty() && m_err == FJ_OK; }
+    bool valid() const { return m_beg && m_end && !m_storage->empty() && m_err == FJ_EC_OK; }
     e_fj_error_code error() const { return m_err; }
     const char* error_string() const { return fj_error_string(m_err); }
 
