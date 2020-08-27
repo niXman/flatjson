@@ -567,7 +567,7 @@ void unit_15() {
 void unit_16() {
     static const char jsstr[] = R"([0, 1, 2])";
 
-    const flatjson::fjson json{jsstr};
+    const flatjson::fjson json{jsstr, jsstr+sizeof(jsstr)-1};
     assert(json.valid());
     assert(json.is_array());
     assert(json.size() == 3);

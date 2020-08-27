@@ -1271,6 +1271,14 @@ public:
     {
         load(ptr, size);
     }
+    fjson(const char *beg, const char *end, std::size_t reserved = 0)
+        :m_storage{std::make_shared<storage_type>(reserved)}
+        ,m_beg{nullptr}
+        ,m_end{nullptr}
+        ,m_err{}
+    {
+        load(beg, end);
+    }
 
     virtual ~fjson() = default;
 
