@@ -42,8 +42,9 @@ int parse_file(const char *path, const char *fname) {
     std::string p{path};
     p += fname;
 
-    std::string buf = read_file(p.c_str());
-    auto res = flatjson::details::fj_num_tokens(buf.c_str(), buf.size());
+    const std::string buf = read_file(p.c_str());
+    auto res = flatjson::details::fj_num_tokens(buf.c_str(), buf.c_str()+buf.length());
+
     return res.ec;
 }
 
@@ -563,6 +564,33 @@ void unit_15() {
 
 /*************************************************************************************************/
 
+void unit_16() {
+    static const char jsstr[] = R"([0, 1, 2])";
+
+    const flatjson::fjson json{jsstr};
+    assert(json.valid());
+    assert(json.is_array());
+    assert(json.size() == 3);
+    assert(json.tokens() == 5);
+
+    std::ostringstream os;
+    for ( auto it = json.begin(); it != json.end(); ++it ) {
+        auto dist = std::distance(json.begin(), it);
+        os << "i=" << dist << ", " << it->type_name() << std::endl;
+    }
+
+    static const char res[] =
+R"(i=0, ARRAY
+i=1, NUMBER
+i=2, NUMBER
+i=3, NUMBER
+i=4, ARRAY_END
+)";
+    assert(os.str() == res);
+}
+
+/*************************************************************************************************/
+
 int main() {
     auto res = test_conformance();
     if ( res.ec ) {
@@ -588,6 +616,7 @@ int main() {
     unit_13();
     unit_14();
     unit_15();
+    unit_16();
 
     return EXIT_SUCCESS;
 }
