@@ -1348,7 +1348,7 @@ public:
             std::is_same<ConstCharPtr, const char*>::value
         >::type
     >
-    bool contains(ConstCharPtr key) { return contains(key, std::strlen(key)); }
+    bool contains(ConstCharPtr key) const { return contains(key, std::strlen(key)); }
     bool contains(const char *key, std::size_t len) const {
         auto res = find(key, len);
         return res.first != nullptr;
