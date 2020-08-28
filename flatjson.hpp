@@ -73,9 +73,6 @@ private:
 
 /*************************************************************************************************/
 
-template<typename CharT>
-bool fj_is_simple_type(CharT v);
-
 } // ns details
 
 using static_string = details::static_string;
