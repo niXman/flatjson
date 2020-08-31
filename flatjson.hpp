@@ -428,7 +428,7 @@ struct fj_parser {
 
 /*************************************************************************************************/
 
-void fj_skip_ws(fj_parser *p) {
+inline void fj_skip_ws(fj_parser *p) {
     for (
         ;p->js_cur < p->js_end && (*p->js_cur == ' ' || *p->js_cur == '\t' || *p->js_cur == '\r' || *p->js_cur == '\n')
         ;++p->js_cur
@@ -439,7 +439,7 @@ void fj_skip_ws(fj_parser *p) {
 #define __FLATJSON__CUR_CHAR(p) \
     ((fj_skip_ws(p)), (p->js_cur >= p->js_end ? ((char)-1) : *(p->js_cur)))
 
-int fj_check_and_skip(fj_parser *p, char expected) {
+inline int fj_check_and_skip(fj_parser *p, char expected) {
     char ch = __FLATJSON__CUR_CHAR(p);
     if ( ch == expected ) {
         p->js_cur++;
@@ -454,7 +454,7 @@ int fj_check_and_skip(fj_parser *p, char expected) {
     return FJ_EC_INVALID;
 }
 
-int fj_escape_len(const char *s, std::ptrdiff_t len) {
+inline int fj_escape_len(const char *s, std::ptrdiff_t len) {
     switch ( *s ) {
         case 'u':
             return len < 6
@@ -595,7 +595,7 @@ template<parser_mode M>
 int fj_parse_value(fj_parser *p, const char **ptr, std::size_t *size, e_fj_token_type *toktype, fj_token *parent);
 
 template<parser_mode M>
-inline int fj_parse_array(fj_parser *p, fj_token *parent) {
+int fj_parse_array(fj_parser *p, fj_token *parent) {
     int ec = fj_check_and_skip(p, '[');
     if ( ec ) return ec;
 
@@ -890,7 +890,7 @@ struct parse_result {
     std::size_t toknum;
 };
 
-void fj_init(fj_parser *parser, const char *beg, const char *end, fj_token *tokbuf, std::size_t toksize) {
+inline void fj_init(fj_parser *parser, const char *beg, const char *end, fj_token *tokbuf, std::size_t toksize) {
     // root token
     tokbuf[0].__type = FJ_TYPE_INVALID;
     tokbuf[0].__key = nullptr;
@@ -903,7 +903,7 @@ void fj_init(fj_parser *parser, const char *beg, const char *end, fj_token *tokb
     *parser = {beg, end, tokbuf, tokbuf, tokbuf+toksize};
 }
 
-parse_result fj_parse(fj_parser *parser) {
+inline parse_result fj_parse(fj_parser *parser) {
     parse_result res{};
 
     std::size_t vlen = 0;
@@ -926,7 +926,7 @@ parse_result fj_parse(fj_parser *parser) {
     return res;
 }
 
-parse_result fj_num_tokens(const char *beg, const char *end) {
+inline parse_result fj_num_tokens(const char *beg, const char *end) {
     parse_result res{};
     fj_parser parser{};
     parser.js_cur = beg;
@@ -963,7 +963,7 @@ parse_result fj_num_tokens(const char *beg, const char *end) {
 }
 
 // for debugging purposes
-void fj_dump_tokens(std::FILE *stream, fj_token *toks, std::size_t num) {
+inline void fj_dump_tokens(std::FILE *stream, fj_token *toks, std::size_t num) {
     for ( auto *it = toks; it != toks+num; ++it ) {
         std::fprintf(stream, "%2d: __type=%12s, __parent=%p, addr=%p, __end=%p, __childs=%d, key=%.*s, val=%.*s\n"
             ,(int)(it-toks)
@@ -1138,7 +1138,7 @@ static void tokens_to_stream_cb_0(void *userdata, const char *ptr, std::size_t l
     std::fwrite(ptr, len, 1, stream);
 }
 
-std::size_t fj_tokens_to_stream(std::FILE *stream, const fj_token *toks, std::size_t num, std::size_t indent = 0) {
+inline std::size_t fj_tokens_to_stream(std::FILE *stream, const fj_token *toks, std::size_t num, std::size_t indent = 0) {
     return fj_get_tokens(toks, num, indent, stream, tokens_to_stream_cb_0);
 }
 
@@ -1149,7 +1149,7 @@ static void tokens_to_stream_cb_1(void *userdata, const char *ptr, std::size_t l
     stream->write(ptr, len);
 }
 
-std::size_t fj_tokens_to_stream(std::ostream &stream, const fj_token *toks, std::size_t num, std::size_t indent = 0) {
+inline std::size_t fj_tokens_to_stream(std::ostream &stream, const fj_token *toks, std::size_t num, std::size_t indent = 0) {
     return fj_get_tokens(toks, num, indent, &stream, tokens_to_stream_cb_1);
 }
 
@@ -1167,15 +1167,38 @@ static void tokens_to_buf_cb(void *userdata, const char *ptr, std::size_t len) {
     p->ptr += len;
 }
 
-std::size_t fj_tokens_to_buf(const fj_token *toks, std::size_t num, char *buf, std::size_t size, std::size_t indent = 0) {
+inline std::size_t fj_tokens_to_buf(const fj_token *toks, std::size_t num, char *buf, std::size_t size, std::size_t indent = 0) {
     tokens_to_buf_userdata userdata{buf, buf+size};
     return fj_get_tokens(toks, num, indent, &userdata, tokens_to_buf_cb);
 }
 
 /*************************************************************************************************/
 
-std::size_t fj_str_length(const fj_token *toks, std::size_t num, std::size_t indent = 0) {
+inline std::size_t fj_str_length(const fj_token *toks, std::size_t num, std::size_t indent = 0) {
     return fj_get_tokens<true>(toks, num, indent, nullptr, nullptr);
+}
+
+/*************************************************************************************************/
+
+inline std::size_t fj_get_keys(const fj_token *toks, std::size_t num, void *userdata, fj_gather_cb_t cb) {
+    std::size_t cnt{};
+
+    if ( !toks->is_object() ) {
+        return 0;
+    }
+
+    const fj_token *parent = toks;
+    for ( const fj_token *it = toks; it != toks+num; ++it ) {
+        if ( it->parent() != parent || it->type() == FJ_TYPE_OBJECT_END ) {
+            continue;
+        }
+
+        cb(userdata, it->__key, it->__klen);
+
+        ++cnt;
+    }
+
+    return cnt;
 }
 
 /*************************************************************************************************/
@@ -1296,7 +1319,7 @@ public:
     const_iterator cend()   const { return const_iterator{m_end}; }
 
 public:
-    bool valid() const { return m_beg && m_end && !m_storage->empty() && m_err == FJ_EC_OK; }
+    bool is_valid() const { return m_beg && m_end && !m_storage->empty() && m_err == FJ_EC_OK; }
     e_fj_error_code error() const { return m_err; }
     const char* error_string() const { return fj_error_string(m_err); }
 
@@ -1312,7 +1335,7 @@ public:
             : static_cast<std::size_t>(m_beg->__type != FJ_TYPE_INVALID)
         ;
     }
-    bool empty() const { return size() == 0; }
+    bool is_empty() const { return size() == 0; }
     void clear() {
         m_storage->clear();
         m_beg = m_end = nullptr;
@@ -1447,13 +1470,32 @@ public:
         return res;
     }
     std::ostream& dump(std::ostream &os, std::size_t indent = 0) const {
-        details::fj_tokens_to_stream(os, m_beg, m_storage->size(), indent);
+        details::fj_tokens_to_stream(os, m_beg, m_end - m_beg, indent);
 
         return os;
     }
     friend std::ostream& operator<< (std::ostream &os, const fjson &fj) {
-        details::fj_tokens_to_stream(os, fj.m_beg, fj.m_storage->size());
+        details::fj_tokens_to_stream(os, fj.m_beg, fj.m_end - fj.m_beg);
         return os;
+    }
+
+    std::pair<const fj_token*, std::size_t>
+    data() const { return {m_beg, m_end-m_beg}; }
+
+    std::vector<static_string>
+    get_keys() const {
+        std::vector<static_string> res{};
+
+        const auto d = data();
+        details::fj_get_keys(d.first, d.second, &res, &get_keys_cb);
+
+        return res;
+    }
+
+private:
+    static void get_keys_cb(void *userdata, const char *ptr, std::size_t len) {
+        auto *vec = static_cast<std::vector<static_string> *>(userdata);
+        vec->push_back(static_string{ptr, len});
     }
 
 private:
