@@ -102,8 +102,7 @@ void unit_00() {
 
 void unit_01() {
     static const char str[] = R"({"a":true, "b":false, "c":null, "d":0, "e":"e"})";
-    flatjson::fjson json;
-    json.load(str);
+    auto json = flatjson::parse(std::begin(str), std::end(str));
 
     assert(json.is_valid());
     assert(json.size() == 5);
@@ -117,7 +116,7 @@ void unit_01() {
 
 void unit_02() {
     static const char str[] = R"({"a":true, "b":false, "c":null, "d":0, "e":"e"})";
-    flatjson::fjson json(str, sizeof(str)-1, 0);
+    auto json = flatjson::parse(std::begin(str), std::end(str));
     json.load(str);
 
     assert(json.is_valid());

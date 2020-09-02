@@ -184,8 +184,6 @@ inline const char* fj_error_string(e_fj_error_code e) {
 
 /*************************************************************************************************/
 
-struct fj_token;
-
 namespace details {
 
 template<typename CharT>
@@ -350,6 +348,7 @@ conv_to(const char *ptr, std::size_t len) { return {ptr, len}; }
 
 #pragma pack(push, 1)
 
+template<typename Iterator>
 struct fj_token {
     fj_token()
         :__type{}
@@ -402,13 +401,13 @@ struct fj_token {
     const fj_token* end() const { return __end; }
 
     e_fj_token_type __type;
-    const char *__key;
+    Iterator __key;
     __FLATJSON__KLEN_TYPE __klen;
-    const char *__val;
+    Iterator __val;
     __FLATJSON__VLEN_TYPE __vlen;
-    fj_token *__parent;
+    fj_token<Iterator> *__parent;
     __FLATJSON__CHILDS_TYPE __childs;
-    fj_token *__end; // pointing to the last token for arrays and objects
+    fj_token<Iterator> *__end; // pointing to the last token for arrays and objects
 };
 
 #pragma pack(pop)
@@ -417,18 +416,20 @@ struct fj_token {
 
 namespace details {
 
+template<typename Iterator>
 struct fj_parser {
-    const char *js_cur;
-    const char *js_end;
+    Iterator js_cur;
+    Iterator js_end;
 
-    fj_token *jstok_beg;
-    fj_token *jstok_cur;
-    fj_token *jstok_end;
+    fj_token<Iterator> *jstok_beg;
+    fj_token<Iterator> *jstok_cur;
+    fj_token<Iterator> *jstok_end;
 };
 
 /*************************************************************************************************/
 
-inline void fj_skip_ws(fj_parser *p) {
+template<typename Iterator>
+inline void fj_skip_ws(fj_parser<Iterator> *p) {
     for (
         ;p->js_cur < p->js_end && (*p->js_cur == ' ' || *p->js_cur == '\t' || *p->js_cur == '\r' || *p->js_cur == '\n')
         ;++p->js_cur
@@ -439,7 +440,8 @@ inline void fj_skip_ws(fj_parser *p) {
 #define __FLATJSON__CUR_CHAR(p) \
     ((fj_skip_ws(p)), (p->js_cur >= p->js_end ? ((char)-1) : *(p->js_cur)))
 
-inline int fj_check_and_skip(fj_parser *p, char expected) {
+template<typename Iterator>
+inline int fj_check_and_skip(fj_parser<Iterator> *p, char expected) {
     char ch = __FLATJSON__CUR_CHAR(p);
     if ( ch == expected ) {
         p->js_cur++;
@@ -454,7 +456,8 @@ inline int fj_check_and_skip(fj_parser *p, char expected) {
     return FJ_EC_INVALID;
 }
 
-inline int fj_escape_len(const char *s, std::ptrdiff_t len) {
+template<typename Iterator>
+inline int fj_escape_len(Iterator s, std::ptrdiff_t len) {
     switch ( *s ) {
         case 'u':
             return len < 6
@@ -484,8 +487,8 @@ enum class parser_mode {
     ,count_tokens
 };
 
-template<parser_mode M, std::size_t ExLen>
-int fj_expect(fj_parser *p, const char (&s)[ExLen], const char **ptr, std::size_t *size) {
+template<parser_mode M, typename Iterator, std::size_t ExLen>
+inline int fj_expect(fj_parser<Iterator> *p, const char (&s)[ExLen], Iterator *ptr, std::size_t *size) {
     if ( p->js_cur + (ExLen-1) > p->js_end )
         return FJ_EC_INCOMPLETE;
 
@@ -503,13 +506,13 @@ int fj_expect(fj_parser *p, const char (&s)[ExLen], const char **ptr, std::size_
     return FJ_EC_OK;
 }
 
-template<parser_mode M, typename CharT>
-int fj_parse_string(fj_parser *p, CharT *ptr, std::size_t *size) {
+template<parser_mode M, typename Iterator>
+int fj_parse_string(fj_parser<Iterator> *p, Iterator *ptr, std::size_t *size) {
     int ec = fj_check_and_skip(p, '"');
     if ( ec ) return ec;
 
     int ch = 0;
-    CharT start = p->js_cur;
+    Iterator start = p->js_cur;
     for ( std::ptrdiff_t len = 0; p->js_cur < p->js_end; p->js_cur += len ) {
         ch = static_cast<unsigned char>(*(p->js_cur));
         len = fj_utf8_char_len((unsigned char)ch);
@@ -535,9 +538,9 @@ int fj_parse_string(fj_parser *p, CharT *ptr, std::size_t *size) {
     return ch == '"' ? FJ_EC_OK : FJ_EC_INCOMPLETE;
 }
 
-template<parser_mode M>
-int fj_parse_number(fj_parser *p, const char **ptr, std::size_t *size) {
-    const char *start = p->js_cur;
+template<parser_mode M, typename Iterator>
+int fj_parse_number(fj_parser<Iterator> *p, Iterator *ptr, std::size_t *size) {
+    Iterator start = p->js_cur;
     if ( __FLATJSON__CUR_CHAR(p)== '-' ) p->js_cur++;
 
     if ( p->js_cur >= p->js_end ) return FJ_EC_INCOMPLETE;
@@ -591,18 +594,18 @@ int fj_parse_number(fj_parser *p, const char **ptr, std::size_t *size) {
     return FJ_EC_OK;
 }
 
-template<parser_mode M>
-int fj_parse_value(fj_parser *p, const char **ptr, std::size_t *size, e_fj_token_type *toktype, fj_token *parent);
+template<parser_mode M, typename Iterator>
+int fj_parse_value(fj_parser<Iterator> *p, Iterator *ptr, std::size_t *size, e_fj_token_type *toktype, fj_token<Iterator> *parent);
 
-template<parser_mode M>
-int fj_parse_array(fj_parser *p, fj_token *parent) {
+template<parser_mode M, typename Iterator>
+int fj_parse_array(fj_parser<Iterator> *p, fj_token<Iterator> *parent) {
     int ec = fj_check_and_skip(p, '[');
     if ( ec ) return ec;
 
     if ( M == parser_mode::parse && p->jstok_cur == p->jstok_end )
         return FJ_EC_NO_FREE_TOKENS;
 
-    fj_token *startarr = p->jstok_cur++;
+    fj_token<Iterator> *startarr = p->jstok_cur++;
     if ( M == parser_mode::parse ) {
         startarr->__type = FJ_TYPE_ARRAY;
         startarr->__parent = parent;
@@ -616,7 +619,7 @@ int fj_parse_array(fj_parser *p, fj_token *parent) {
         if ( M == parser_mode::parse && p->jstok_cur == p->jstok_end )
             return FJ_EC_NO_FREE_TOKENS;
 
-        fj_token *pair = p->jstok_cur++;
+        fj_token<Iterator> *pair = p->jstok_cur++;
 
         char ch = __FLATJSON__CUR_CHAR(p);
         if ( ch == '{' || ch == '[' ) {
@@ -655,7 +658,7 @@ int fj_parse_array(fj_parser *p, fj_token *parent) {
 
     if ( M == parser_mode::parse ) {
         if ( p->jstok_cur == p->jstok_end ) return FJ_EC_NO_FREE_TOKENS;
-        fj_token *endarr = p->jstok_cur++;
+        fj_token<Iterator> *endarr = p->jstok_cur++;
         endarr->__type = FJ_TYPE_ARRAY_END;
         endarr->__parent = startarr;
         __FLATJSON__CHECK_OVERFLOW(endarr->__parent->__childs, __FLATJSON__CHILDS_TYPE, FJ_EC_CHILDS_OVERFLOW);
@@ -668,15 +671,15 @@ int fj_parse_array(fj_parser *p, fj_token *parent) {
     return 0;
 }
 
-template<parser_mode M>
-int fj_parse_object(fj_parser *p, fj_token *parent) {
+template<parser_mode M, typename Iterator>
+int fj_parse_object(fj_parser<Iterator> *p, fj_token<Iterator> *parent) {
     int ec = fj_check_and_skip(p, '{');
     if ( ec ) return ec;
 
     if ( M == parser_mode::parse && p->jstok_cur == p->jstok_end )
         return FJ_EC_NO_FREE_TOKENS;
 
-    fj_token *startobj = p->jstok_cur++;
+    fj_token<Iterator> *startobj = p->jstok_cur++;
     if ( M == parser_mode::parse ) {
         startobj->__type = FJ_TYPE_OBJECT;
         startobj->__parent = parent;
@@ -699,7 +702,7 @@ int fj_parse_object(fj_parser *p, fj_token *parent) {
         if ( M == parser_mode::parse && p->jstok_cur == p->jstok_end )
             return FJ_EC_NO_FREE_TOKENS;
 
-        fj_token *pair = p->jstok_cur++;
+        fj_token<Iterator> *pair = p->jstok_cur++;
 
         std::size_t size = 0;
         ec = fj_parse_value<M>(
@@ -721,7 +724,7 @@ int fj_parse_object(fj_parser *p, fj_token *parent) {
         ch = __FLATJSON__CUR_CHAR(p);
         if ( ch == '[' || ch == '{' ) {
             p->jstok_cur -= 1;
-            static const char *unused_str{};
+            static Iterator unused_str{};
             std::size_t unused_size{};
             ec = fj_parse_value<M>(
                  p
@@ -785,7 +788,7 @@ int fj_parse_object(fj_parser *p, fj_token *parent) {
 
     if ( M == parser_mode::parse ) {
         if ( p->jstok_cur == p->jstok_end ) return FJ_EC_NO_FREE_TOKENS;
-        fj_token  *endobj = p->jstok_cur++;
+        fj_token<Iterator> *endobj = p->jstok_cur++;
         endobj->__type = FJ_TYPE_OBJECT_END;
         endobj->__parent = startobj;
         __FLATJSON__CHECK_OVERFLOW(endobj->__parent->__childs, __FLATJSON__CHILDS_TYPE, FJ_EC_CHILDS_OVERFLOW);
@@ -798,9 +801,9 @@ int fj_parse_object(fj_parser *p, fj_token *parent) {
     return FJ_EC_OK;
 }
 
-template<parser_mode M>
-int fj_parse_value(fj_parser *p, const char **ptr, std::size_t *size, e_fj_token_type *toktype, fj_token *parent) {
-    char ch = __FLATJSON__CUR_CHAR(p);
+template<parser_mode M, typename Iterator>
+int fj_parse_value(fj_parser<Iterator> *p, Iterator *ptr, std::size_t *size, e_fj_token_type *toktype, fj_token<Iterator> *parent) {
+    auto ch = __FLATJSON__CUR_CHAR(p);
     switch ( ch ) {
         case '{': {
             int ec = fj_parse_object<M>(p, parent);
@@ -890,12 +893,13 @@ struct parse_result {
     std::size_t toknum;
 };
 
-inline void fj_init(fj_parser *parser, const char *beg, const char *end, fj_token *tokbuf, std::size_t toksize) {
+template<typename Iterator>
+inline void fj_init(fj_parser<Iterator> *parser, Iterator beg, Iterator end, fj_token<Iterator> *tokbuf, std::size_t toksize) {
     // root token
     tokbuf[0].__type = FJ_TYPE_INVALID;
-    tokbuf[0].__key = nullptr;
+    tokbuf[0].__key = Iterator{};
     tokbuf[0].__klen = 0;
-    tokbuf[0].__val = nullptr;
+    tokbuf[0].__val = Iterator{};
     tokbuf[0].__vlen = 0;
     tokbuf[0].__parent = nullptr;
     tokbuf[0].__childs = 0;
@@ -903,11 +907,12 @@ inline void fj_init(fj_parser *parser, const char *beg, const char *end, fj_toke
     *parser = {beg, end, tokbuf, tokbuf, tokbuf+toksize};
 }
 
-inline parse_result fj_parse(fj_parser *parser) {
+template<typename Iterator>
+inline parse_result fj_parse(fj_parser<Iterator> *parser) {
     parse_result res{};
 
     std::size_t vlen = 0;
-    res.ec = static_cast<e_fj_error_code>(fj_parse_value<parser_mode::parse>(
+    res.ec = static_cast<e_fj_error_code>(fj_parse_value<parser_mode::parse, Iterator>(
          parser
         ,&(parser->jstok_beg->__val)
         ,&vlen
@@ -926,20 +931,21 @@ inline parse_result fj_parse(fj_parser *parser) {
     return res;
 }
 
-inline parse_result fj_num_tokens(const char *beg, const char *end) {
+template<typename Iterator>
+inline parse_result fj_num_tokens(Iterator beg, Iterator end) {
     parse_result res{};
-    fj_parser parser{};
+    fj_parser<Iterator> parser{};
     parser.js_cur = beg;
     parser.js_end = end;
 
-    static fj_token fake;
+    static fj_token<Iterator> fake;
     parser.jstok_beg = &fake;
     parser.jstok_cur = &fake;
     parser.jstok_end = nullptr;
 
     std::size_t vlen = 0;
     e_fj_token_type toktype{};
-    res.ec = static_cast<e_fj_error_code>(fj_parse_value<parser_mode::count_tokens>(
+    res.ec = static_cast<e_fj_error_code>(fj_parse_value<parser_mode::count_tokens, Iterator>(
          &parser
         ,&(parser.jstok_beg->__val)
         ,&vlen
@@ -947,7 +953,7 @@ inline parse_result fj_num_tokens(const char *beg, const char *end) {
         ,nullptr
     ));
 
-    if ( !res.ec && parser.js_cur != parser.js_end ) {
+    if ( !res.ec && parser.js_cur+1 != parser.js_end ) {
         fj_skip_ws(&parser);
         if ( parser.js_cur != parser.js_end ) {
             res.ec = FJ_EC_INVALID;
@@ -963,9 +969,10 @@ inline parse_result fj_num_tokens(const char *beg, const char *end) {
 }
 
 // for debugging purposes
-inline void fj_dump_tokens(std::FILE *stream, fj_token *toks, std::size_t num) {
+template<typename Iterator>
+inline void fj_dump_tokens(std::FILE *stream, fj_token<Iterator> *toks, std::size_t num) {
     for ( auto *it = toks; it != toks+num; ++it ) {
-        std::fprintf(stream, "%2d: __type=%12s, __parent=%p, addr=%p, __end=%p, __childs=%d, key=%.*s, val=%.*s\n"
+        std::fprintf(stream, "%2d: type=%12s, parent=%p, addr=%p, end=%p, childs=%d, key=%.*s, val=%.*s\n"
             ,(int)(it-toks)
             ,fj_token_type_name(it->__type)
             ,it->__parent
@@ -981,8 +988,8 @@ inline void fj_dump_tokens(std::FILE *stream, fj_token *toks, std::size_t num) {
 
 using fj_gather_cb_t = void(*)(void *userdata, const char *ptr, std::size_t len);
 
-template<bool CalcLength = false>
-inline std::size_t fj_get_tokens(const fj_token *toks, std::size_t num, std::size_t indent, void *userdata, fj_gather_cb_t cb) {
+template<typename Iterator, bool CalcLength = false>
+inline std::size_t fj_get_tokens(const fj_token<Iterator> *toks, std::size_t num, std::size_t indent, void *userdata, fj_gather_cb_t cb) {
     static const char indent_str[] = "                                                                                ";
     std::size_t indent_scope = 0;
     std::size_t length = 0;
@@ -1138,7 +1145,8 @@ static void tokens_to_stream_cb_0(void *userdata, const char *ptr, std::size_t l
     std::fwrite(ptr, len, 1, stream);
 }
 
-inline std::size_t fj_tokens_to_stream(std::FILE *stream, const fj_token *toks, std::size_t num, std::size_t indent = 0) {
+template<typename Iterator>
+inline std::size_t fj_tokens_to_stream(std::FILE *stream, const fj_token<Iterator> *toks, std::size_t num, std::size_t indent = 0) {
     return fj_get_tokens(toks, num, indent, stream, tokens_to_stream_cb_0);
 }
 
@@ -1149,7 +1157,8 @@ static void tokens_to_stream_cb_1(void *userdata, const char *ptr, std::size_t l
     stream->write(ptr, len);
 }
 
-inline std::size_t fj_tokens_to_stream(std::ostream &stream, const fj_token *toks, std::size_t num, std::size_t indent = 0) {
+template<typename Iterator>
+inline std::size_t fj_tokens_to_stream(std::ostream &stream, const fj_token<Iterator> *toks, std::size_t num, std::size_t indent = 0) {
     return fj_get_tokens(toks, num, indent, &stream, tokens_to_stream_cb_1);
 }
 
@@ -1167,28 +1176,31 @@ static void tokens_to_buf_cb(void *userdata, const char *ptr, std::size_t len) {
     p->ptr += len;
 }
 
-inline std::size_t fj_tokens_to_buf(const fj_token *toks, std::size_t num, char *buf, std::size_t size, std::size_t indent = 0) {
+template<typename Iterator>
+inline std::size_t fj_tokens_to_buf(const fj_token<Iterator> *toks, std::size_t num, char *buf, std::size_t size, std::size_t indent = 0) {
     tokens_to_buf_userdata userdata{buf, buf+size};
     return fj_get_tokens(toks, num, indent, &userdata, tokens_to_buf_cb);
 }
 
 /*************************************************************************************************/
 
-inline std::size_t fj_str_length(const fj_token *toks, std::size_t num, std::size_t indent = 0) {
-    return fj_get_tokens<true>(toks, num, indent, nullptr, nullptr);
+template<typename Iterator>
+inline std::size_t fj_str_length(const fj_token<Iterator> *toks, std::size_t num, std::size_t indent = 0) {
+    return fj_get_tokens<Iterator, true>(toks, num, indent, nullptr, nullptr);
 }
 
 /*************************************************************************************************/
 
-inline std::size_t fj_get_keys(const fj_token *toks, std::size_t num, void *userdata, fj_gather_cb_t cb) {
+template<typename Iterator>
+inline std::size_t fj_get_keys(const fj_token<Iterator> *toks, std::size_t num, void *userdata, fj_gather_cb_t cb) {
     std::size_t cnt{};
 
     if ( !toks->is_object() ) {
         return 0;
     }
 
-    const fj_token *parent = toks;
-    for ( const fj_token *it = toks; it != toks+num; ++it ) {
+    const fj_token<Iterator> *parent = toks;
+    for ( const fj_token<Iterator> *it = toks; it != toks+num; ++it ) {
         if ( it->parent() != parent || it->type() == FJ_TYPE_OBJECT_END ) {
             continue;
         }
@@ -1201,40 +1213,39 @@ inline std::size_t fj_get_keys(const fj_token *toks, std::size_t num, void *user
     return cnt;
 }
 
-/*************************************************************************************************/
-
 } // ns details
 
 /*************************************************************************************************/
 
 struct fjson {
-    using element_type = fj_token;
+    using InputIterator = const char *;
+    using element_type = fj_token<InputIterator>;
     using storage_type = std::vector<element_type>;
     using storage_ptr = std::shared_ptr<storage_type>;
 
 private:
     template<typename T>
-    struct iterator_impl {
+    struct tokens_iterator_impl {
         using iterator_category = std::forward_iterator_tag;
         using difference_type = std::ptrdiff_t;
         using value_type = T;
         using pointer = value_type *;
         using reference = value_type &;
 
-        explicit iterator_impl(pointer c)
+        explicit tokens_iterator_impl(pointer c)
             :m_cur{c}
         {}
 
         pointer operator->() const { return m_cur; }
-        iterator_impl& operator++() { ++m_cur; return *this; }
-        iterator_impl operator++(int) { iterator_impl tmp{m_cur}; ++(*this); return tmp; }
+        tokens_iterator_impl& operator++() { ++m_cur; return *this; }
+        tokens_iterator_impl operator++(int) { tokens_iterator_impl tmp{m_cur}; ++(*this); return tmp; }
         reference operator* () { return *m_cur; }
 
-        friend difference_type operator- (const iterator_impl &l, const iterator_impl &r)
+        friend difference_type operator- (const tokens_iterator_impl &l, const tokens_iterator_impl &r)
         { return l.m_cur - r.m_cur; }
-        friend bool operator== (const iterator_impl &l, const iterator_impl &r)
+        friend bool operator== (const tokens_iterator_impl &l, const tokens_iterator_impl &r)
         { return l.m_cur == r.m_cur; }
-        friend bool operator!= (const iterator_impl &l, const iterator_impl &r)
+        friend bool operator!= (const tokens_iterator_impl &l, const tokens_iterator_impl &r)
         { return !operator==(l, r); }
 
     private:
@@ -1242,8 +1253,15 @@ private:
     };
 
 public:
-    using iterator = iterator_impl<element_type>;
-    using const_iterator = iterator_impl<const element_type>;
+    using iterator = tokens_iterator_impl<element_type>;
+    using const_iterator = tokens_iterator_impl<const element_type>;
+
+    iterator begin()              { return iterator{m_beg}; }
+    iterator end()                { return iterator{m_end}; }
+    const_iterator begin()  const { return const_iterator{m_beg}; }
+    const_iterator end()    const { return const_iterator{m_end}; }
+    const_iterator cbegin() const { return const_iterator{m_beg}; }
+    const_iterator cend()   const { return const_iterator{m_end}; }
 
     fjson(const fjson &) = default;
     fjson(fjson &&) = default;
@@ -1258,8 +1276,8 @@ public:
         ,m_err{}
     {}
 
-    template<std::size_t L>
-    explicit fjson(const char (&str)[L], std::size_t reserved = 0)
+    template<std::size_t L, typename CharT = typename std::iterator_traits<InputIterator>::value_type>
+    explicit fjson(const CharT (&str)[L], std::size_t reserved = 0)
         :m_storage{std::make_shared<storage_type>(reserved)}
         ,m_beg{nullptr}
         ,m_end{nullptr}
@@ -1268,13 +1286,13 @@ public:
         load(str, L-1);
     }
 
-    template<
-         typename ConstCharPtr
-        ,typename = typename std::enable_if<
-            std::is_same<ConstCharPtr, const char*>::value
-        >::type
-    >
-    explicit fjson(ConstCharPtr str, std::size_t reserved = 0)
+//    template<
+//         typename ConstCharPtr
+//        ,typename = typename std::enable_if<
+//            std::is_same<ConstCharPtr, const char*>::value
+//        >::type
+//    >
+    explicit fjson(InputIterator str, std::size_t reserved = 0)
         :m_storage{std::make_shared<storage_type>(reserved)}
         ,m_beg{nullptr}
         ,m_end{nullptr}
@@ -1283,7 +1301,7 @@ public:
         load(str, std::strlen(str));
     }
 
-    fjson(const char *ptr, std::size_t size, std::size_t reserved = 0)
+    fjson(InputIterator ptr, std::size_t size, std::size_t reserved = 0)
         :m_storage{std::make_shared<storage_type>(reserved)}
         ,m_beg{nullptr}
         ,m_end{nullptr}
@@ -1291,7 +1309,7 @@ public:
     {
         load(ptr, size);
     }
-    fjson(const char *beg, const char *end, std::size_t reserved = 0)
+    fjson(InputIterator beg, InputIterator end, std::size_t reserved = 0)
         :m_storage{std::make_shared<storage_type>(reserved)}
         ,m_beg{nullptr}
         ,m_end{nullptr}
@@ -1309,14 +1327,6 @@ private:
         ,m_end{end}
         ,m_err{}
     {}
-    
-public:
-    iterator begin()              { return iterator{m_beg}; }
-    iterator end()                { return iterator{m_end}; }
-    const_iterator begin()  const { return const_iterator{m_beg}; }
-    const_iterator end()    const { return const_iterator{m_end}; }
-    const_iterator cbegin() const { return const_iterator{m_beg}; }
-    const_iterator cend()   const { return const_iterator{m_end}; }
 
 public:
     bool is_valid() const { return m_beg && m_end && !m_storage->empty() && m_err == FJ_EC_OK; }
@@ -1354,7 +1364,7 @@ public:
     static_string to_sstring() const { return m_beg->to_sstring(); }
     std::string to_string() const { return m_beg->to_string(); }
     template<typename T>
-    T to() const { return m_beg->to<T>(); }
+    T to() const { return m_beg->template to<T>(); }
     bool to_bool() const { return m_beg->to_bool(); }
     std::uint32_t to_uint() const { return m_beg->to_uint(); }
     std::int32_t to_int() const { return m_beg->to_int(); }
@@ -1419,10 +1429,10 @@ public:
     >
     fjson operator[](ConstCharPtr key) const { return at(key, std::strlen(key)); }
 
-    template<std::size_t N>
+    template<std::size_t N, typename CharT = typename std::iterator_traits<InputIterator>::value_type>
     bool load(const char (&str)[N]) { return load(str, str+N-1); }
-    bool load(const char *ptr, std::size_t size) { return load(ptr, ptr+size); }
-    bool load(const char *beg, const char *end) {
+    bool load(InputIterator beg, std::size_t size) { return load(beg, beg+size); }
+    bool load(InputIterator beg, InputIterator end) {
         if ( m_storage->empty() ) {
             auto res = details::fj_num_tokens(beg, end);
             if ( res.ec ) {
@@ -1434,7 +1444,7 @@ public:
             }
         }
 
-        details::fj_parser parser{};
+        details::fj_parser<InputIterator> parser{};
         details::fj_init(
              &parser
             ,beg
@@ -1479,7 +1489,7 @@ public:
         return os;
     }
 
-    std::pair<const fj_token*, std::size_t>
+    std::pair<const fj_token<InputIterator>*, std::size_t>
     data() const { return {m_beg, m_end-m_beg}; }
 
     std::vector<static_string>
@@ -1560,6 +1570,20 @@ private:
 };
 
 /*************************************************************************************************/
+
+template<typename Iterator>
+fjson  parse(Iterator beg, Iterator end) {
+    fjson json{beg, end};
+
+    return json;
+}
+
+template<typename Iterator>
+fjson parse(Iterator beg) {
+    auto end = beg + std::strlen(beg);
+
+    return parse(beg, end);
+}
 
 } // ns flatjson
 
