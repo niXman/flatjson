@@ -1533,6 +1533,8 @@ private:
             return {beg, beg+1};
         } else if ( type == FJ_TYPE_OBJECT || type == FJ_TYPE_ARRAY ) {
             return {beg, beg->__end};
+        } else if ( beg == end && type == FJ_TYPE_OBJECT_END ) {
+            return {nullptr, nullptr};
         }
 
         throw std::logic_error(__FLATJSON__MAKE_ERROR_MESSAGE("unreachable!"));
@@ -1552,11 +1554,13 @@ private:
             beg = details::fj_is_simple_type(beg->__type) ? beg + 1 : beg->__end + 1;
         }
 
-        auto type = beg->__type;
+        const auto type = beg->__type;
         if ( details::fj_is_simple_type(type) ) {
             return {beg, beg+1};
         } else if ( type == FJ_TYPE_OBJECT || type == FJ_TYPE_ARRAY ) {
             return {beg, beg->__end};
+        } else if ( beg == end && type == FJ_TYPE_ARRAY_END ) {
+            return {nullptr, nullptr};
         }
 
         throw std::logic_error(__FLATJSON__MAKE_ERROR_MESSAGE("unreachable!"));
