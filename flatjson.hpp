@@ -1360,6 +1360,7 @@ public:
     bool is_bool() const { return m_beg->is_bool(); }
     bool is_number() const { return m_beg->is_number(); }
     bool is_string() const { return m_beg->is_string(); }
+    bool is_simple_type() const { return m_beg->is_simple_type(); }
 
     static_string to_sstring() const { return m_beg->to_sstring(); }
     std::string to_string() const { return m_beg->to_string(); }
