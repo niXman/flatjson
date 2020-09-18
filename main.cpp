@@ -640,6 +640,19 @@ void unit_17() {
 
 /*************************************************************************************************/
 
+void unit_18() {
+    static const char str[] = R"({"bb":0, "b":1})";
+    flatjson::fjson json(str);
+
+    assert(json.is_valid());
+    assert(json.size() == 2);
+    assert(json.is_object());
+    assert(json.at("b").to_int() == 1);
+    assert(json.at("bb").to_int() == 0);
+}
+
+/*************************************************************************************************/
+
 int main() {
     auto res = test_conformance();
     if ( res.ec ) {
@@ -667,6 +680,7 @@ int main() {
     unit_15();
     unit_16();
     unit_17();
+    unit_18();
 
     return EXIT_SUCCESS;
 }

@@ -1522,7 +1522,7 @@ private:
             if ( beg->__type == FJ_TYPE_OBJECT_END ) {
                 return {nullptr, nullptr};
             }
-            if ( std::strncmp(beg->__key, key, len) == 0 ) {
+            if ( beg->__klen == len && std::strncmp(beg->__key, key, len) == 0 ) {
                 break;
             }
 
