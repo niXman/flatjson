@@ -1275,8 +1275,10 @@ public:
         ,m_end{nullptr}
         ,m_err{}
     {}
-
-    template<std::size_t L, typename CharT = typename std::iterator_traits<InputIterator>::value_type>
+    template<
+         std::size_t L
+        ,typename CharT = typename std::iterator_traits<InputIterator>::value_type
+    >
     explicit fjson(const CharT (&str)[L], std::size_t reserved = 0)
         :m_storage{std::make_shared<storage_type>(reserved)}
         ,m_beg{nullptr}
@@ -1285,16 +1287,6 @@ public:
     {
         load(str, L-1);
     }
-
-    explicit fjson(InputIterator str, std::size_t reserved = 0)
-        :m_storage{std::make_shared<storage_type>(reserved)}
-        ,m_beg{nullptr}
-        ,m_end{nullptr}
-        ,m_err{}
-    {
-        load(str, std::strlen(str));
-    }
-
     fjson(InputIterator ptr, std::size_t size, std::size_t reserved = 0)
         :m_storage{std::make_shared<storage_type>(reserved)}
         ,m_beg{nullptr}
