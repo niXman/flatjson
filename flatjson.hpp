@@ -1286,12 +1286,6 @@ public:
         load(str, L-1);
     }
 
-//    template<
-//         typename ConstCharPtr
-//        ,typename = typename std::enable_if<
-//            std::is_same<ConstCharPtr, const char*>::value
-//        >::type
-//    >
     explicit fjson(InputIterator str, std::size_t reserved = 0)
         :m_storage{std::make_shared<storage_type>(reserved)}
         ,m_beg{nullptr}
