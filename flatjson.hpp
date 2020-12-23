@@ -1450,8 +1450,8 @@ public:
         }
 
         m_storage->resize(res.toknum);
-        m_beg = &(*m_storage->begin());
-        m_end = &(*m_storage->end());
+        m_beg = m_storage->data();
+        m_end = m_beg + m_storage->size();
 
         return true;
     }
