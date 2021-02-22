@@ -439,10 +439,11 @@ void unit_12() {
     assert(!j0.is_string());
     assert(!j0.is_null());
     assert(!j0.is_bool());
-
-    assert(j0[0].to_int() == 0);
-    assert(j0[1].to_int() == 1);
-    assert(j0[2].to_int() == 2);
+    for ( auto idx = 0u; idx < j0.size(); ++idx ) {
+        const flatjson::fjson item = j0[idx];
+        assert(item.is_simple_type());
+        assert(item.to_uint() == idx);
+    }
 }
 
 void unit_13() {
