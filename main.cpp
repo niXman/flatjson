@@ -95,9 +95,14 @@ test_result test_conformance() {
 /*************************************************************************************************/
 
 void unit_00() {
-    flatjson::fjson json;
+    flatjson::fjson json0;
+    assert(json0.is_valid() == false);
 
-    assert(json.is_valid() == false);
+    flatjson::fjson json1{""};
+    assert(json1.is_valid() == false);
+
+    flatjson::fjson json2{nullptr, nullptr};
+    assert(json2.is_valid() == false);
 }
 
 void unit_01() {

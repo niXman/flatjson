@@ -1284,7 +1284,7 @@ public:
         ,typename CharT = typename std::iterator_traits<InputIterator>::value_type
     >
     explicit fjson(const CharT (&str)[L], std::size_t reserved = 0)
-        :m_storage{std::make_shared<storage_type>(reserved)}
+        :m_storage{L-1 ? std::make_shared<storage_type>(reserved) : storage_ptr{}}
         ,m_beg{nullptr}
         ,m_end{nullptr}
         ,m_err{}
@@ -1292,7 +1292,7 @@ public:
         load(str, L-1);
     }
     fjson(InputIterator ptr, std::size_t size, std::size_t reserved = 0)
-        :m_storage{std::make_shared<storage_type>(reserved)}
+        :m_storage{size ? std::make_shared<storage_type>(reserved) : storage_ptr{}}
         ,m_beg{nullptr}
         ,m_end{nullptr}
         ,m_err{}
@@ -1300,7 +1300,7 @@ public:
         load(ptr, size);
     }
     fjson(InputIterator beg, InputIterator end, std::size_t reserved = 0)
-        :m_storage{std::make_shared<storage_type>(reserved)}
+        :m_storage{beg != end ? std::make_shared<storage_type>(reserved) : storage_ptr{}}
         ,m_beg{nullptr}
         ,m_end{nullptr}
         ,m_err{}
@@ -1424,6 +1424,10 @@ public:
     bool load(const char (&str)[N]) { return load(str, str+N-1); }
     bool load(InputIterator beg, std::size_t size) { return load(beg, beg+size); }
     bool load(InputIterator beg, InputIterator end) {
+        if ( beg == end ) {
+            return false;
+        }
+
         if ( m_storage->empty() ) {
             auto res = details::fj_num_tokens(beg, end);
             if ( res.ec ) {
