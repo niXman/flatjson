@@ -659,6 +659,21 @@ void unit_18() {
 
 /*************************************************************************************************/
 
+void unit_19() {
+    static const char str[] = R"({"bb":0, "b":1})";
+    flatjson::fjson json(str);
+
+    assert(json.is_valid());
+    assert(json.size() == 2);
+    assert(json.is_object());
+
+    auto data = json.get_source_data();
+    assert(data.first  == str);
+    assert(data.second == str+sizeof(str)-1);
+}
+
+/*************************************************************************************************/
+
 int main() {
     auto res = test_conformance();
     if ( res.ec ) {
@@ -687,6 +702,7 @@ int main() {
     unit_16();
     unit_17();
     unit_18();
+    unit_19();
 
     return EXIT_SUCCESS;
 }
