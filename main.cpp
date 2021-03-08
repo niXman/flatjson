@@ -18,6 +18,9 @@
 
 #include <cassert>
 
+#define FJ_RUN_TEST(test) \
+    test(); std::cout << "test \"" << #test "\" passed!" << std::endl;
+
 /*************************************************************************************************/
 
 std::string read_file(const char *fname) {
@@ -680,29 +683,29 @@ int main() {
         std::cout << "test \"" << res.name << "\" FAILED!" << std::endl;
     }
 
-    unit_00();
-    unit_01();
-    unit_02();
-    unit_0();
-    unit_1();
-    unit_2();
-    unit_3();
-    unit_4();
-    unit_5();
-    unit_6();
-    unit_7();
-    unit_8();
-    unit_9();
-    unit_10();
-    unit_11();
-    unit_12();
-    unit_13();
-    unit_14();
-    unit_15();
-    unit_16();
-    unit_17();
-    unit_18();
-    unit_19();
+    FJ_RUN_TEST(unit_00);
+    FJ_RUN_TEST(unit_01);
+    FJ_RUN_TEST(unit_02);
+    FJ_RUN_TEST(unit_0);
+    FJ_RUN_TEST(unit_1);
+    FJ_RUN_TEST(unit_2);
+    FJ_RUN_TEST(unit_3);
+    FJ_RUN_TEST(unit_4);
+    FJ_RUN_TEST(unit_5);
+    FJ_RUN_TEST(unit_6);
+    FJ_RUN_TEST(unit_7);
+    FJ_RUN_TEST(unit_8);
+    FJ_RUN_TEST(unit_9);
+    FJ_RUN_TEST(unit_10);
+    FJ_RUN_TEST(unit_11);
+    FJ_RUN_TEST(unit_12);
+    FJ_RUN_TEST(unit_13);
+    FJ_RUN_TEST(unit_14);
+    FJ_RUN_TEST(unit_15);
+    FJ_RUN_TEST(unit_16);
+    FJ_RUN_TEST(unit_17);
+    FJ_RUN_TEST(unit_18);
+    FJ_RUN_TEST(unit_19);
 
     return EXIT_SUCCESS;
 }
