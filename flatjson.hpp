@@ -517,17 +517,17 @@ int fj_parse_string(fj_parser<Iterator> *p, Iterator *ptr, std::size_t *size) {
 
     int ch = 0;
     Iterator start = p->js_cur;
-    for ( std::ptrdiff_t len = 0; p->js_cur < p->js_end; p->js_cur += len ) {
+    for ( std::size_t len = 0; p->js_cur < p->js_end; p->js_cur += len ) {
         ch = static_cast<unsigned char>(*(p->js_cur));
         len = fj_utf8_char_len((unsigned char)ch);
         if ( !(ch >= 32 && len > 0) ) return FJ_EC_INVALID;
-        if ( len > (p->js_end - p->js_cur) ) return FJ_EC_INCOMPLETE;
+        if ( static_cast<std::ptrdiff_t>(len) > (p->js_end - p->js_cur) ) return FJ_EC_INCOMPLETE;
 
-        if (ch == '\\') {
+        if ( ch == '\\' ) {
             int n = fj_escape_len(p->js_cur + 1, p->js_end - p->js_cur);
             if ( n <= 0 ) return n;
             len += n;
-        } else if (ch == '"') {
+        } else if ( ch == '"' ) {
             if ( M == parser_mode::parse ) {
                 *ptr = start;
                 *size = p->js_cur - start;
@@ -933,6 +933,14 @@ inline parse_result fj_parse(fj_parser<Iterator> *parser) {
     res.toknum = parser->jstok_cur - parser->jstok_beg;
 
     return res;
+}
+
+template<typename Iterator>
+inline fj_parser<Iterator> fj_make_parser(fj_token<Iterator> *tokbuf, std::size_t toksize, Iterator beg, Iterator end) {
+    fj_parser<Iterator> parser;
+    fj_init(std::addressof(parser), beg, end, tokbuf, toksize);
+
+    return parser;
 }
 
 template<typename Iterator>

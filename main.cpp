@@ -677,6 +677,24 @@ void unit_19() {
 
 /*************************************************************************************************/
 
+void unit_20() {
+    static const char str[] = R"({"bb":0, "b":1})";
+
+    flatjson::fj_token<const char *> tokens[4];
+    auto parser = flatjson::details::fj_make_parser(
+         tokens
+        ,sizeof(tokens)/sizeof(tokens[0])
+        ,std::begin(str)
+        ,std::end(str)
+    );
+
+    auto res = flatjson::details::fj_parse(&parser);
+    assert(res.ec == flatjson::FJ_EC_OK);
+    assert(res.toknum == 4);
+}
+
+/*************************************************************************************************/
+
 int main() {
     auto res = test_conformance();
     if ( res.ec ) {
@@ -706,6 +724,7 @@ int main() {
     FJ_RUN_TEST(unit_17);
     FJ_RUN_TEST(unit_18);
     FJ_RUN_TEST(unit_19);
+    FJ_RUN_TEST(unit_20);
 
     return EXIT_SUCCESS;
 }
