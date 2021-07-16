@@ -761,6 +761,7 @@ int fj_parse_object(fj_parser<Iterator> *p, fj_token<Iterator> *parent) {
             p->js_cur++;
             if ( *(p->js_cur) == '}' ) return FJ_EC_INVALID;
         }
+// TODO
 // don't remove the code below!
 //        if ( p->jstok_end && startobj->__childs > 1 ) {
 //            std::size_t num = startobj->__childs-1;
