@@ -695,36 +695,55 @@ void unit_20() {
 
 /*************************************************************************************************/
 
-int main() {
-    auto res = test_conformance();
-    if ( res.ec ) {
-        std::cout << "test \"" << res.name << "\" FAILED!" << std::endl;
-    }
+void unit_21() {
+    static const char str[] = R"({"b":1, "a":0, "d":3, "c":2})";
 
-    FJ_RUN_TEST(unit_00);
-    FJ_RUN_TEST(unit_01);
-    FJ_RUN_TEST(unit_02);
-    FJ_RUN_TEST(unit_0);
-    FJ_RUN_TEST(unit_1);
-    FJ_RUN_TEST(unit_2);
-    FJ_RUN_TEST(unit_3);
-    FJ_RUN_TEST(unit_4);
-    FJ_RUN_TEST(unit_5);
-    FJ_RUN_TEST(unit_6);
-    FJ_RUN_TEST(unit_7);
-    FJ_RUN_TEST(unit_8);
-    FJ_RUN_TEST(unit_9);
-    FJ_RUN_TEST(unit_10);
-    FJ_RUN_TEST(unit_11);
-    FJ_RUN_TEST(unit_12);
-    FJ_RUN_TEST(unit_13);
-    FJ_RUN_TEST(unit_14);
-    FJ_RUN_TEST(unit_15);
-    FJ_RUN_TEST(unit_16);
-    FJ_RUN_TEST(unit_17);
-    FJ_RUN_TEST(unit_18);
-    FJ_RUN_TEST(unit_19);
-    FJ_RUN_TEST(unit_20);
+    flatjson::fj_token<const char *> tokens[6];
+    auto parser = flatjson::details::fj_make_parser(
+         tokens
+        ,sizeof(tokens)/sizeof(tokens[0])
+        ,std::begin(str)
+        ,std::end(str)
+    );
+
+    auto res = flatjson::details::fj_parse(&parser);
+    assert(res.ec == flatjson::FJ_EC_OK);
+    assert(res.toknum == 6);
+}
+
+/*************************************************************************************************/
+
+int main() {
+//    auto res = test_conformance();
+//    if ( res.ec ) {
+//        std::cout << "test \"" << res.name << "\" FAILED!" << std::endl;
+//    }
+//
+//    FJ_RUN_TEST(unit_00);
+//    FJ_RUN_TEST(unit_01);
+//    FJ_RUN_TEST(unit_02);
+//    FJ_RUN_TEST(unit_0);
+//    FJ_RUN_TEST(unit_1);
+//    FJ_RUN_TEST(unit_2);
+//    FJ_RUN_TEST(unit_3);
+//    FJ_RUN_TEST(unit_4);
+//    FJ_RUN_TEST(unit_5);
+//    FJ_RUN_TEST(unit_6);
+//    FJ_RUN_TEST(unit_7);
+//    FJ_RUN_TEST(unit_8);
+//    FJ_RUN_TEST(unit_9);
+//    FJ_RUN_TEST(unit_10);
+//    FJ_RUN_TEST(unit_11);
+//    FJ_RUN_TEST(unit_12);
+//    FJ_RUN_TEST(unit_13);
+//    FJ_RUN_TEST(unit_14);
+//    FJ_RUN_TEST(unit_15);
+//    FJ_RUN_TEST(unit_16);
+//    FJ_RUN_TEST(unit_17);
+//    FJ_RUN_TEST(unit_18);
+//    FJ_RUN_TEST(unit_19);
+//    FJ_RUN_TEST(unit_20);
+    FJ_RUN_TEST(unit_21);
 
     return EXIT_SUCCESS;
 }
