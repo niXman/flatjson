@@ -137,7 +137,7 @@ void unit_02() {
     assert(!json.is_bool());
 }
 
-void unit_0() {
+void unit_03() {
     static const char str[] = R"({})";
     flatjson::fjson json(str);
 
@@ -152,7 +152,7 @@ void unit_0() {
     assert(!json.is_number());
 }
 
-void unit_1() {
+void unit_04() {
     static const char str[] = R"([])";
     flatjson::fjson json(str);
 
@@ -167,7 +167,7 @@ void unit_1() {
     assert(!json.is_number());
 }
 
-void unit_2() {
+void unit_05() {
     static const char str[] = R"(true)";
     flatjson::fjson json(str);
 
@@ -183,7 +183,7 @@ void unit_2() {
     assert(!json.is_number());
 }
 
-void unit_3() {
+void unit_06() {
     static const char str[] = R"(false)";
     flatjson::fjson json(str);
 
@@ -199,7 +199,7 @@ void unit_3() {
     assert(!json.is_number());
 }
 
-void unit_4() {
+void unit_07() {
     static const char str[] = R"(null)";
     flatjson::fjson json(str);
 
@@ -214,7 +214,7 @@ void unit_4() {
     assert(!json.is_number());
 }
 
-void unit_5() {
+void unit_08() {
     static const char str[] = R"("")";
     flatjson::fjson json(str);
 
@@ -231,7 +231,7 @@ void unit_5() {
     assert(!json.is_number());
 }
 
-void unit_6() {
+void unit_09() {
     static const char str[] = R"("string")";
     flatjson::fjson json(str);
 
@@ -248,7 +248,7 @@ void unit_6() {
     assert(!json.is_number());
 }
 
-void unit_7() {
+void unit_10() {
     static const char str[] = R"(1234)";
     flatjson::fjson json(str);
 
@@ -264,7 +264,7 @@ void unit_7() {
     assert(!json.is_object());
 }
 
-void unit_8() {
+void unit_11() {
     static const char str[] = R"(3.14)";
     flatjson::fjson json(str);
 
@@ -280,7 +280,7 @@ void unit_8() {
     assert(!json.is_object());
 }
 
-void unit_9() {
+void unit_12() {
     static const char str[] = R"([0, "1", 3.14])";
     flatjson::fjson json(str);
 
@@ -304,7 +304,7 @@ void unit_9() {
     assert(json.at(2).to_double() == 3.14);
 }
 
-void unit_10() {
+void unit_13() {
     static const char str[] = R"({"a":true, "b":false, "c":null, "d":0, "e":"e"})";
     flatjson::fjson json(str);
 
@@ -379,7 +379,7 @@ void unit_10() {
     assert(!j4.is_null());
 }
 
-void unit_11() {
+void unit_14() {
     static const char str[] = R"({"a":{"b":true, "c":1234}})";
     flatjson::fjson json(str);
 
@@ -425,7 +425,7 @@ void unit_11() {
     assert(!j2.is_bool());
 }
 
-void unit_12() {
+void unit_15() {
     static const char str[] = R"({"a":[0,1,2]})";
     flatjson::fjson json(str);
 
@@ -454,7 +454,7 @@ void unit_12() {
     }
 }
 
-void unit_13() {
+void unit_16() {
     static const char jsstr[] = R"({"a":true, "b":{"c":{"d":1, "e":2}}, "c":[0,1,2,3]})";
     flatjson::fjson json{jsstr};
     auto str = json.dump(4);
@@ -482,7 +482,7 @@ R"({
     assert(ss.str() == expected);
 }
 
-void unit_14() {
+void unit_17() {
     static const char jsstr[] = R"({"a":[4,3,2,1], "b":[{"a":0,"b":0,"c":1},{"b":1,"a":0,"c":0},{"c":2,"b":0,"a":0}], "c":[0,1,2,3]})";
     flatjson::fjson json{jsstr};
     assert(json.is_valid());
@@ -510,7 +510,7 @@ void unit_14() {
 
 /*************************************************************************************************/
 
-void unit_15() {
+void unit_18() {
     {
         static const char jsstr[] = R"([0])";
 
@@ -572,10 +572,10 @@ void unit_15() {
 
 /*************************************************************************************************/
 
-void unit_16() {
+void unit_19() {
     static const char jsstr[] = R"([0, 1, 2])";
 
-    const flatjson::fjson json{jsstr, jsstr+sizeof(jsstr)-1};
+    const flatjson::fjson json{std::begin(jsstr), std::end(jsstr)};
     assert(json.is_valid());
     assert(json.is_array());
     assert(json.size() == 3);
@@ -599,7 +599,7 @@ i=4, ARRAY_END
 
 /*************************************************************************************************/
 
-void unit_17_get_keys_cb(void *userdata, const char *ptr, std::size_t len) {
+void unit_20_get_keys_cb(void *userdata, const char *ptr, std::size_t len) {
     std::size_t &cnt = *static_cast<std::size_t *>(userdata);
 
     assert(len == 1);
@@ -615,7 +615,7 @@ void unit_17_get_keys_cb(void *userdata, const char *ptr, std::size_t len) {
     ++cnt;
 }
 
-void unit_17() {
+void unit_20() {
     {
         static const char jsstr[] = R"({"a":0, "b":1})";
 
@@ -629,7 +629,7 @@ void unit_17() {
         const auto *tokens = data.first;
         const auto size = data.second;
         std::size_t calls_cnt{};
-        int num = flatjson::details::fj_get_keys(tokens, size, &calls_cnt, &unit_17_get_keys_cb);
+        std::size_t num = flatjson::details::fj_get_keys(tokens, size, &calls_cnt, &unit_20_get_keys_cb);
         assert(num == 2);
         assert(calls_cnt == 2);
 
@@ -649,9 +649,9 @@ void unit_17() {
 
 /*************************************************************************************************/
 
-void unit_18() {
-    static const char str[] = R"({"bb":0, "b":1})";
-    flatjson::fjson json(str);
+void unit_21() {
+    static const char jsstr[] = R"({"bb":0, "b":1})";
+    flatjson::fjson json{jsstr};
 
     assert(json.is_valid());
     assert(json.size() == 2);
@@ -662,30 +662,30 @@ void unit_18() {
 
 /*************************************************************************************************/
 
-void unit_19() {
-    static const char str[] = R"({"bb":0, "b":1})";
-    flatjson::fjson json(str);
+void unit_22() {
+    static const char jsstr[] = R"({"bb":0, "b":1})";
+    flatjson::fjson json(jsstr);
 
     assert(json.is_valid());
     assert(json.size() == 2);
     assert(json.is_object());
 
     auto data = json.get_source_data();
-    assert(data.first  == str);
-    assert(data.second == str+sizeof(str)-1);
+    assert(data.first  == jsstr);
+    assert(data.second == jsstr+sizeof(jsstr)-1);
 }
 
 /*************************************************************************************************/
 
-void unit_20() {
-    static const char str[] = R"({"bb":0, "b":1})";
+void unit_23() {
+    static const char jsstr[] = R"({"bb":0, "b":1})";
 
     flatjson::fj_token<const char *> tokens[4];
     auto parser = flatjson::details::fj_make_parser(
-         tokens
-        ,sizeof(tokens)/sizeof(tokens[0])
-        ,std::begin(str)
-        ,std::end(str)
+         std::begin(tokens)
+        ,std::end(tokens)
+        ,std::begin(jsstr)
+        ,std::end(jsstr)
     );
 
     auto res = flatjson::details::fj_parse(&parser);
@@ -695,55 +695,459 @@ void unit_20() {
 
 /*************************************************************************************************/
 
-void unit_21() {
+void unit_24() {
+    // sorted simple types: swap simple with simple
     static const char str[] = R"({"b":1, "a":0, "d":3, "c":2})";
 
     flatjson::fj_token<const char *> tokens[6];
     auto parser = flatjson::details::fj_make_parser(
-         tokens
-        ,sizeof(tokens)/sizeof(tokens[0])
+         std::begin(tokens)
+        ,std::end(tokens)
         ,std::begin(str)
         ,std::end(str)
     );
 
-    auto res = flatjson::details::fj_parse(&parser);
+    auto res = flatjson::details::fj_parse(&parser, true);
     assert(res.ec == flatjson::FJ_EC_OK);
     assert(res.toknum == 6);
+
+//    flatjson::details::fj_dump_tokens(stdout, &tokens[0], 6);
+
+    assert(tokens[0].type() == flatjson::FJ_TYPE_OBJECT);
+    assert(tokens[0].childs() == 5);
+    assert(tokens[5].type() == flatjson::FJ_TYPE_OBJECT_END);
+    for ( auto i = 1; i < 4; ++i ) {
+        assert(tokens[i].is_number());
+        assert((tokens[i].value().data()[0]-'0') == i-1);
+        assert(tokens[i].parent() == std::addressof(tokens[0]));
+    }
+}
+
+/*************************************************************************************************/
+
+void unit_25() {
+    // sorted complex types: swap simple with complex
+    static const char str[] = R"({"b":1, "a":0, "d":{"bb":1, "aa":0}, "c":2})";
+
+    flatjson::fj_token<const char *> tokens[9];
+    auto parser = flatjson::details::fj_make_parser(
+         std::begin(tokens)
+        ,std::end(tokens)
+        ,std::begin(str)
+        ,std::end(str)
+    );
+
+    auto res = flatjson::details::fj_parse(&parser, true);
+    assert(res.ec == flatjson::FJ_EC_OK);
+    assert(res.toknum == 9);
+
+    //flatjson::details::fj_dump_tokens(stdout, &tokens[0], 9);
+
+    assert(tokens[0].type() == flatjson::FJ_TYPE_OBJECT);
+    assert(tokens[0].childs() == 5);
+    assert(tokens[0].parent() == nullptr);
+    assert(tokens[0].end() == std::addressof(tokens[8]));
+
+    assert(tokens[1].type() == flatjson::FJ_TYPE_NUMBER);
+    assert(tokens[1].parent() == std::addressof(tokens[0]));
+    assert(tokens[1].childs() == 0);
+    assert(tokens[1].key() == flatjson::static_string{"a"});
+    assert(tokens[1].value() == flatjson::static_string{"0"});
+
+    assert(tokens[2].type() == flatjson::FJ_TYPE_NUMBER);
+    assert(tokens[2].parent() == std::addressof(tokens[0]));
+    assert(tokens[2].childs() == 0);
+    assert(tokens[2].key() == flatjson::static_string{"b"});
+    assert(tokens[2].value() == flatjson::static_string{"1"});
+
+    assert(tokens[3].type() == flatjson::FJ_TYPE_NUMBER);
+    assert(tokens[3].parent() == std::addressof(tokens[0]));
+    assert(tokens[3].childs() == 0);
+    assert(tokens[3].key() == flatjson::static_string{"c"});
+    assert(tokens[3].value() == flatjson::static_string{"2"});
+
+    assert(tokens[4].type() == flatjson::FJ_TYPE_OBJECT);
+    assert(tokens[4].parent() == std::addressof(tokens[0]));
+    assert(tokens[4].childs() == 3);
+    assert(tokens[4].end() == std::addressof(tokens[7]));
+
+    assert(tokens[5].type() == flatjson::FJ_TYPE_NUMBER);
+    assert(tokens[5].parent() == std::addressof(tokens[4]));
+    assert(tokens[5].childs() == 0);
+    assert(tokens[5].key() == flatjson::static_string{"aa"});
+    assert(tokens[5].value() == flatjson::static_string{"0"});
+
+    assert(tokens[6].type() == flatjson::FJ_TYPE_NUMBER);
+    assert(tokens[6].parent() == std::addressof(tokens[4]));
+    assert(tokens[6].childs() == 0);
+    assert(tokens[6].key() == flatjson::static_string{"bb"});
+    assert(tokens[6].value() == flatjson::static_string{"1"});
+
+    assert(tokens[7].type() == flatjson::FJ_TYPE_OBJECT_END);
+    assert(tokens[7].parent() == std::addressof(tokens[4]));
+    assert(tokens[7].childs() == 0);
+
+    assert(tokens[8].type() == flatjson::FJ_TYPE_OBJECT_END);
+    assert(tokens[8].parent() == std::addressof(tokens[0]));
+    assert(tokens[8].childs() == 0);
+}
+
+/*************************************************************************************************/
+
+void unit_26() {
+    // sorted complex types: swap simple with complex
+    static const char str[] = R"({"b":1, "a":0, "d":{"bb":1, "aa":0, "cc":{"k":44, "f":33}}, "c":2})";
+
+    flatjson::fj_token<const char *> tokens[13];
+    auto parser = flatjson::details::fj_make_parser(
+         std::begin(tokens)
+        ,std::end(tokens)
+        ,std::begin(str)
+        ,std::end(str)
+    );
+
+    auto res = flatjson::details::fj_parse(&parser, true);
+    assert(res.ec == flatjson::FJ_EC_OK);
+    assert(res.toknum == 13);
+
+//    flatjson::details::fj_dump_tokens(stdout, std::begin(tokens), toksize);
+
+    assert(tokens[0].type() == flatjson::FJ_TYPE_OBJECT);
+    assert(tokens[0].parent() == nullptr);
+    assert(tokens[0].childs() == 5);
+    assert(tokens[0].end() == std::addressof(tokens[12]));
+
+    assert(tokens[1].type() == flatjson::FJ_TYPE_NUMBER);
+    assert(tokens[1].parent() == std::addressof(tokens[0]));
+    assert(tokens[1].childs() == 0);
+    assert(tokens[1].key() == flatjson::static_string{"a"});
+    assert(tokens[1].value() == flatjson::static_string{"0"});
+
+    assert(tokens[2].type() == flatjson::FJ_TYPE_NUMBER);
+    assert(tokens[2].parent() == std::addressof(tokens[0]));
+    assert(tokens[2].childs() == 0);
+    assert(tokens[2].key() == flatjson::static_string{"b"});
+    assert(tokens[2].value() == flatjson::static_string{"1"});
+
+    assert(tokens[3].type() == flatjson::FJ_TYPE_NUMBER);
+    assert(tokens[3].parent() == std::addressof(tokens[0]));
+    assert(tokens[3].childs() == 0);
+    assert(tokens[3].key() == flatjson::static_string{"c"});
+    assert(tokens[3].value() == flatjson::static_string{"2"});
+
+    assert(tokens[4].type() == flatjson::FJ_TYPE_OBJECT);
+    assert(tokens[4].parent() == std::addressof(tokens[0]));
+    assert(tokens[4].childs() == 4);
+    assert(tokens[4].end() == std::addressof(tokens[11]));
+
+    assert(tokens[5].type() == flatjson::FJ_TYPE_NUMBER);
+    assert(tokens[5].parent() == std::addressof(tokens[4]));
+    assert(tokens[5].childs() == 0);
+    assert(tokens[5].key() == flatjson::static_string{"aa"});
+    assert(tokens[5].value() == flatjson::static_string{"0"});
+
+    assert(tokens[6].type() == flatjson::FJ_TYPE_NUMBER);
+    assert(tokens[6].parent() == std::addressof(tokens[4]));
+    assert(tokens[6].childs() == 0);
+    assert(tokens[6].key() == flatjson::static_string{"bb"});
+    assert(tokens[6].value() == flatjson::static_string{"1"});
+
+    assert(tokens[7].type() == flatjson::FJ_TYPE_OBJECT);
+    assert(tokens[7].parent() == std::addressof(tokens[4]));
+    assert(tokens[7].childs() == 3);
+    assert(tokens[7].end() == std::addressof(tokens[10]));
+
+    assert(tokens[8].type() == flatjson::FJ_TYPE_NUMBER);
+    assert(tokens[8].parent() == std::addressof(tokens[7]));
+    assert(tokens[8].childs() == 0);
+    assert(tokens[8].key() == flatjson::static_string{"f"});
+    assert(tokens[8].value() == flatjson::static_string{"33"});
+
+    assert(tokens[9].type() == flatjson::FJ_TYPE_NUMBER);
+    assert(tokens[9].parent() == std::addressof(tokens[7]));
+    assert(tokens[9].childs() == 0);
+    assert(tokens[9].key() == flatjson::static_string{"k"});
+    assert(tokens[9].value() == flatjson::static_string{"44"});
+
+    assert(tokens[10].type() == flatjson::FJ_TYPE_OBJECT_END);
+    assert(tokens[10].parent() == std::addressof(tokens[7]));
+    assert(tokens[10].childs() == 0);
+
+    assert(tokens[11].type() == flatjson::FJ_TYPE_OBJECT_END);
+    assert(tokens[11].parent() == std::addressof(tokens[4]));
+    assert(tokens[11].childs() == 0);
+
+    assert(tokens[12].type() == flatjson::FJ_TYPE_OBJECT_END);
+    assert(tokens[12].parent() == std::addressof(tokens[0]));
+    assert(tokens[12].childs() == 0);
+}
+
+/*************************************************************************************************/
+
+void unit_27() {
+    // sorted complex types: swap complex with simple
+    static const char str[] = R"({"b":1, "a":0, "d":3, "c":{"bb":1, "aa":0}})";
+
+    flatjson::fj_token<const char *> tokens[9];
+    auto parser = flatjson::details::fj_make_parser(
+         std::begin(tokens)
+        ,std::end(tokens)
+        ,std::begin(str)
+        ,std::end(str)
+    );
+
+    auto res = flatjson::details::fj_parse(&parser, true);
+    assert(res.ec == flatjson::FJ_EC_OK);
+    assert(res.toknum == 9);
+
+    //flatjson::details::fj_dump_tokens(stdout, &tokens[0], 9);
+
+    assert(tokens[0].type() == flatjson::FJ_TYPE_OBJECT);
+    assert(tokens[0].childs() == 5);
+    assert(tokens[0].parent() == nullptr);
+    assert(tokens[0].end() == std::addressof(tokens[8]));
+
+    assert(tokens[1].type() == flatjson::FJ_TYPE_NUMBER);
+    assert(tokens[1].parent() == std::addressof(tokens[0]));
+    assert(tokens[1].childs() == 0);
+    assert(tokens[1].key() == flatjson::static_string{"a"});
+    assert(tokens[1].value() == flatjson::static_string{"0"});
+
+    assert(tokens[2].type() == flatjson::FJ_TYPE_NUMBER);
+    assert(tokens[2].parent() == std::addressof(tokens[0]));
+    assert(tokens[2].childs() == 0);
+    assert(tokens[2].key() == flatjson::static_string{"b"});
+    assert(tokens[2].value() == flatjson::static_string{"1"});
+
+    assert(tokens[3].type() == flatjson::FJ_TYPE_OBJECT);
+    assert(tokens[3].parent() == std::addressof(tokens[0]));
+    assert(tokens[3].childs() == 3);
+    assert(tokens[3].end() == std::addressof(tokens[6]));
+
+    assert(tokens[4].type() == flatjson::FJ_TYPE_NUMBER);
+    assert(tokens[4].parent() == std::addressof(tokens[3]));
+    assert(tokens[4].childs() == 0);
+    assert(tokens[4].key() == flatjson::static_string{"aa"});
+    assert(tokens[4].value() == flatjson::static_string{"0"});
+
+    assert(tokens[5].type() == flatjson::FJ_TYPE_NUMBER);
+    assert(tokens[5].parent() == std::addressof(tokens[3]));
+    assert(tokens[5].childs() == 0);
+    assert(tokens[5].key() == flatjson::static_string{"bb"});
+    assert(tokens[5].value() == flatjson::static_string{"1"});
+
+    assert(tokens[6].type() == flatjson::FJ_TYPE_OBJECT_END);
+    assert(tokens[6].parent() == std::addressof(tokens[3]));
+    assert(tokens[6].childs() == 0);
+
+    assert(tokens[7].type() == flatjson::FJ_TYPE_NUMBER);
+    assert(tokens[7].parent() == std::addressof(tokens[0]));
+    assert(tokens[7].childs() == 0);
+    assert(tokens[7].key() == flatjson::static_string{"d"});
+    assert(tokens[7].value() == flatjson::static_string{"3"});
+
+    assert(tokens[8].type() == flatjson::FJ_TYPE_OBJECT_END);
+    assert(tokens[8].parent() == std::addressof(tokens[0]));
+    assert(tokens[8].childs() == 0);
+}
+
+/*************************************************************************************************/
+
+void unit_28() {
+    // sorted complex types: swap complex with simple
+    static const char str[] = R"({"b":1, "a":0, "d":3, "c":{"bb":1, "aa":0, "cc":{"k":44, "f":33}}})";
+
+    flatjson::fj_token<const char *> tokens[13];
+    auto parser = flatjson::details::fj_make_parser(
+         std::begin(tokens)
+        ,std::end(tokens)
+        ,std::begin(str)
+        ,std::end(str)
+    );
+
+    auto res = flatjson::details::fj_parse(&parser, true);
+    assert(res.ec == flatjson::FJ_EC_OK);
+    assert(res.toknum == 13);
+
+//    flatjson::details::fj_dump_tokens(stdout, &tokens[0], 13);
+
+    assert(tokens[0].type() == flatjson::FJ_TYPE_OBJECT);
+    assert(tokens[0].childs() == 5);
+    assert(tokens[0].parent() == nullptr);
+    assert(tokens[0].end() == std::addressof(tokens[12]));
+
+    assert(tokens[1].type() == flatjson::FJ_TYPE_NUMBER);
+    assert(tokens[1].parent() == std::addressof(tokens[0]));
+    assert(tokens[1].childs() == 0);
+    assert(tokens[1].key() == flatjson::static_string{"a"});
+    assert(tokens[1].value() == flatjson::static_string{"0"});
+
+    assert(tokens[2].type() == flatjson::FJ_TYPE_NUMBER);
+    assert(tokens[2].parent() == std::addressof(tokens[0]));
+    assert(tokens[2].childs() == 0);
+    assert(tokens[2].key() == flatjson::static_string{"b"});
+    assert(tokens[2].value() == flatjson::static_string{"1"});
+
+    assert(tokens[3].type() == flatjson::FJ_TYPE_OBJECT);
+    assert(tokens[3].parent() == std::addressof(tokens[0]));
+    assert(tokens[3].childs() == 4);
+    assert(tokens[3].end() == std::addressof(tokens[10]));
+
+    assert(tokens[4].type() == flatjson::FJ_TYPE_NUMBER);
+    assert(tokens[4].parent() == std::addressof(tokens[3]));
+    assert(tokens[4].childs() == 0);
+    assert(tokens[4].key() == flatjson::static_string{"aa"});
+    assert(tokens[4].value() == flatjson::static_string{"0"});
+
+    assert(tokens[5].type() == flatjson::FJ_TYPE_NUMBER);
+    assert(tokens[5].parent() == std::addressof(tokens[3]));
+    assert(tokens[5].childs() == 0);
+    assert(tokens[5].key() == flatjson::static_string{"bb"});
+    assert(tokens[5].value() == flatjson::static_string{"1"});
+
+    assert(tokens[6].type() == flatjson::FJ_TYPE_OBJECT);
+    assert(tokens[6].parent() == std::addressof(tokens[3]));
+    assert(tokens[6].childs() == 3);
+    assert(tokens[6].end() == std::addressof(tokens[9]));
+
+    assert(tokens[7].type() == flatjson::FJ_TYPE_NUMBER);
+    assert(tokens[7].parent() == std::addressof(tokens[6]));
+    assert(tokens[7].childs() == 0);
+    assert(tokens[7].key() == flatjson::static_string{"f"});
+    assert(tokens[7].value() == flatjson::static_string{"33"});
+
+    assert(tokens[8].type() == flatjson::FJ_TYPE_NUMBER);
+    assert(tokens[8].parent() == std::addressof(tokens[6]));
+    assert(tokens[8].childs() == 0);
+    assert(tokens[8].key() == flatjson::static_string{"k"});
+    assert(tokens[8].value() == flatjson::static_string{"44"});
+
+    assert(tokens[9].type() == flatjson::FJ_TYPE_OBJECT_END);
+    assert(tokens[9].parent() == std::addressof(tokens[6]));
+    assert(tokens[9].childs() == 0);
+
+    assert(tokens[10].type() == flatjson::FJ_TYPE_OBJECT_END);
+    assert(tokens[10].parent() == std::addressof(tokens[3]));
+    assert(tokens[10].childs() == 0);
+
+    assert(tokens[11].type() == flatjson::FJ_TYPE_NUMBER);
+    assert(tokens[11].parent() == std::addressof(tokens[0]));
+    assert(tokens[11].childs() == 0);
+    assert(tokens[11].key() == flatjson::static_string{"d"});
+    assert(tokens[11].value() == flatjson::static_string{"3"});
+
+    assert(tokens[12].type() == flatjson::FJ_TYPE_OBJECT_END);
+    assert(tokens[12].parent() == std::addressof(tokens[0]));
+    assert(tokens[12].childs() == 0);
+}
+
+/*************************************************************************************************/
+
+void unit_29() {
+    // sorted complex types: swap complex with complex
+    static const char str[] = R"({"b":1, "a":0, "d":{"f":1, "e":0}, "c":{"bb":1, "aa":0}})";
+
+    flatjson::fj_token<const char *> tokens[12];
+    auto parser = flatjson::details::fj_make_parser(
+         std::begin(tokens)
+        ,std::end(tokens)
+        ,std::begin(str)
+        ,std::end(str)
+    );
+
+    auto res = flatjson::details::fj_parse(&parser, true);
+    assert(res.ec == flatjson::FJ_EC_OK);
+    assert(res.toknum == 12);
+
+    flatjson::details::fj_dump_tokens(stdout, &tokens[0], 12);
+
+    assert(tokens[0].type() == flatjson::FJ_TYPE_OBJECT);
+    assert(tokens[0].childs() == 5);
+    assert(tokens[0].parent() == nullptr);
+    assert(tokens[0].end() == std::addressof(tokens[8]));
+
+    assert(tokens[1].type() == flatjson::FJ_TYPE_NUMBER);
+    assert(tokens[1].parent() == std::addressof(tokens[0]));
+    assert(tokens[1].childs() == 0);
+    assert(tokens[1].key() == flatjson::static_string{"a"});
+    assert(tokens[1].value() == flatjson::static_string{"0"});
+
+    assert(tokens[2].type() == flatjson::FJ_TYPE_NUMBER);
+    assert(tokens[2].parent() == std::addressof(tokens[0]));
+    assert(tokens[2].childs() == 0);
+    assert(tokens[2].key() == flatjson::static_string{"b"});
+    assert(tokens[2].value() == flatjson::static_string{"1"});
+
+    assert(tokens[3].type() == flatjson::FJ_TYPE_OBJECT);
+    assert(tokens[3].parent() == std::addressof(tokens[0]));
+    assert(tokens[3].childs() == 3);
+    assert(tokens[3].end() == std::addressof(tokens[6]));
+
+    assert(tokens[4].type() == flatjson::FJ_TYPE_NUMBER);
+    assert(tokens[4].parent() == std::addressof(tokens[3]));
+    assert(tokens[4].childs() == 0);
+    assert(tokens[4].key() == flatjson::static_string{"aa"});
+    assert(tokens[4].value() == flatjson::static_string{"0"});
+
+    assert(tokens[5].type() == flatjson::FJ_TYPE_NUMBER);
+    assert(tokens[5].parent() == std::addressof(tokens[3]));
+    assert(tokens[5].childs() == 0);
+    assert(tokens[5].key() == flatjson::static_string{"bb"});
+    assert(tokens[5].value() == flatjson::static_string{"1"});
+
+    assert(tokens[6].type() == flatjson::FJ_TYPE_OBJECT_END);
+    assert(tokens[6].parent() == std::addressof(tokens[3]));
+    assert(tokens[6].childs() == 0);
+
+    assert(tokens[7].type() == flatjson::FJ_TYPE_NUMBER);
+    assert(tokens[7].parent() == std::addressof(tokens[0]));
+    assert(tokens[7].childs() == 0);
+    assert(tokens[7].key() == flatjson::static_string{"d"});
+    assert(tokens[7].value() == flatjson::static_string{"3"});
+
+    assert(tokens[8].type() == flatjson::FJ_TYPE_OBJECT_END);
+    assert(tokens[8].parent() == std::addressof(tokens[0]));
+    assert(tokens[8].childs() == 0);
 }
 
 /*************************************************************************************************/
 
 int main() {
-//    auto res = test_conformance();
-//    if ( res.ec ) {
-//        std::cout << "test \"" << res.name << "\" FAILED!" << std::endl;
-//    }
-//
-//    FJ_RUN_TEST(unit_00);
-//    FJ_RUN_TEST(unit_01);
-//    FJ_RUN_TEST(unit_02);
-//    FJ_RUN_TEST(unit_0);
-//    FJ_RUN_TEST(unit_1);
-//    FJ_RUN_TEST(unit_2);
-//    FJ_RUN_TEST(unit_3);
-//    FJ_RUN_TEST(unit_4);
-//    FJ_RUN_TEST(unit_5);
-//    FJ_RUN_TEST(unit_6);
-//    FJ_RUN_TEST(unit_7);
-//    FJ_RUN_TEST(unit_8);
-//    FJ_RUN_TEST(unit_9);
-//    FJ_RUN_TEST(unit_10);
-//    FJ_RUN_TEST(unit_11);
-//    FJ_RUN_TEST(unit_12);
-//    FJ_RUN_TEST(unit_13);
-//    FJ_RUN_TEST(unit_14);
-//    FJ_RUN_TEST(unit_15);
-//    FJ_RUN_TEST(unit_16);
-//    FJ_RUN_TEST(unit_17);
-//    FJ_RUN_TEST(unit_18);
-//    FJ_RUN_TEST(unit_19);
-//    FJ_RUN_TEST(unit_20);
+    auto res = test_conformance();
+    if ( res.ec ) {
+        std::cout << "test \"" << res.name << "\" FAILED!" << std::endl;
+    }
+
+    FJ_RUN_TEST(unit_00);
+    FJ_RUN_TEST(unit_01);
+    FJ_RUN_TEST(unit_02);
+    FJ_RUN_TEST(unit_03);
+    FJ_RUN_TEST(unit_04);
+    FJ_RUN_TEST(unit_05);
+    FJ_RUN_TEST(unit_06);
+    FJ_RUN_TEST(unit_07);
+    FJ_RUN_TEST(unit_08);
+    FJ_RUN_TEST(unit_09);
+    FJ_RUN_TEST(unit_10);
+    FJ_RUN_TEST(unit_11);
+    FJ_RUN_TEST(unit_12);
+    FJ_RUN_TEST(unit_13);
+    FJ_RUN_TEST(unit_14);
+    FJ_RUN_TEST(unit_15);
+    FJ_RUN_TEST(unit_16);
+    FJ_RUN_TEST(unit_17);
+    FJ_RUN_TEST(unit_18);
+    FJ_RUN_TEST(unit_19);
+    FJ_RUN_TEST(unit_20);
     FJ_RUN_TEST(unit_21);
+    FJ_RUN_TEST(unit_22);
+    FJ_RUN_TEST(unit_23);
+    FJ_RUN_TEST(unit_24);
+    FJ_RUN_TEST(unit_25);
+    FJ_RUN_TEST(unit_26);
+    FJ_RUN_TEST(unit_27);
+    FJ_RUN_TEST(unit_28);
+    FJ_RUN_TEST(unit_29);
 
     return EXIT_SUCCESS;
 }
