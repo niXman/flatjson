@@ -563,48 +563,57 @@ void swap_simple_with_simple(fj_token<Iterator>* dst, fj_token<Iterator>* src) {
 
 // input: left - complex, right - simple
 template<typename Iterator>
-void swap_simple_with_complex(fj_token<Iterator>* complex, fj_token<Iterator>* complex_end, fj_token<Iterator>* simple) {
+void swap_simple_with_complex(fj_token<Iterator>* complex, fj_token<Iterator>* simple) {
+    auto *complex_end = complex->end();
     auto *complex_parent = complex->parent();
     auto tmp = *simple;
     for ( auto *beg = complex - 1; complex_end != beg; --complex_end ) {
         auto *new_end = complex_end + 1;
         *new_end = *complex_end;
-        if ( new_end->end() ) { new_end->end(new_end->end() + 1); }
-        if ( new_end->parent() && new_end->parent() != complex_parent ) { new_end->parent(new_end->parent() + 1); }
+        if ( new_end->end() ) {
+            new_end->end(new_end->end() + 1);
+        }
+        if ( new_end->parent() && new_end->parent() != complex_parent ) {
+            new_end->parent(new_end->parent() + 1);
+        }
     }
     *complex = tmp;
 }
 
 // input: left - simple, right - complex
 template<typename Iterator>
-void swap_complex_with_simple(fj_token<Iterator>* simple, fj_token<Iterator>* complex, fj_token<Iterator>* complex_end) {
+void swap_complex_with_simple(fj_token<Iterator>* simple, fj_token<Iterator>* complex) {
+    auto *complex_end = complex->end();
     auto *complex_parent = complex->parent();
     auto tmp = *simple;
     for ( auto *end = complex_end + 1; complex != end; ++complex  ) {
         auto *new_beg = complex - 1;
         *new_beg = *complex;
-        if ( new_beg->end() ) { new_beg->end(new_beg->end() - 1); }
-        if ( new_beg->parent() && new_beg->parent() != complex_parent ) { new_beg->parent(new_beg->parent() - 1); }
+        if ( new_beg->end() ) {
+            new_beg->end(new_beg->end() - 1);
+        }
+        if ( new_beg->parent() && new_beg->parent() != complex_parent ) {
+            new_beg->parent(new_beg->parent() - 1);
+        }
     }
     *complex_end = tmp;
 }
 
 template<typename Iterator>
-void swap_complex_with_complex(
-     fj_token<Iterator> *complex_dst
-    ,fj_token<Iterator> *complex_dst_end
-    ,fj_token<Iterator> *complex_src
-    ,fj_token<Iterator> *complex_src_end)
-{
+void swap_complex_with_complex(fj_token<Iterator> *complex_dst, fj_token<Iterator> *complex_src) {
+    auto *complex_src_end = complex_src->end();
+    auto *complex_dst_end = complex_dst->end();
     auto src_size = complex_src_end - complex_src;
     auto dst_size = complex_dst_end - complex_dst;
 
     if ( src_size == dst_size ) {
-        auto diff = complex_src - complex_dst;
+//        auto diff = complex_src - complex_dst;
         for ( auto *end = complex_src_end + 1; complex_src != end; ++complex_src, ++complex_dst ) {
             auto tmp = *complex_src;
             *complex_src = *complex_dst;
-            if ( complex_src->end() ) { complex_src->end(); }
+            if ( complex_src->end() ) {
+                complex_src->end();
+            }
             *complex_dst = tmp;
         }
     } else if ( src_size < dst_size ) {
@@ -847,14 +856,13 @@ int fj_parse_array(fj_parser<Iterator> *p, fj_token<Iterator> *parent) {
         }
     }
 
-    while ( fj_current_char(p) != ']' ) {
+    for ( char ch = fj_current_char(p); ch != ']'; ch = fj_current_char(p) ) {
         __FLATJSON__CONSTEXPR_IF ( M & parser_mode::parse && p->jstok_cur == p->jstok_end ) {
             return FJ_EC_NO_FREE_TOKENS;
         }
 
         fj_token<Iterator> *pair = p->jstok_cur++;
 
-        char ch = fj_current_char(p);
         if ( ch == '{' || ch == '[' ) {
             p->jstok_cur -= 1;
         } else {
@@ -935,8 +943,7 @@ int fj_parse_object(fj_parser<Iterator> *p, fj_token<Iterator> *parent) {
         }
     }
 
-    while ( fj_current_char(p) != '}' ) {
-        char ch = fj_current_char(p);
+    for ( char ch = fj_current_char(p); ch != '}'; ch = fj_current_char(p) ) {
         if ( ch != '"' ) {
             if ( ch == ((char)-1) ) {
                 return FJ_EC_INCOMPLETE;
@@ -1048,19 +1055,36 @@ int fj_parse_object(fj_parser<Iterator> *p, fj_token<Iterator> *parent) {
                 );
 #endif // 1
                 if ( it != current ) {
-                    if ( current->is_simple_type() ) {
-                        if ( it->is_simple_type() ) {
-                            swap_simple_with_simple(it, current);
-                        } else {
-                            swap_simple_with_complex(it, it->end(), current);
-                        }
-                    } else {
-                        if ( it->is_simple_type() ) {
-                            swap_complex_with_simple(it, current, current->end());
-                        } else {
-                            swap_complex_with_complex(it, it->end(), current, current->end());
-                        }
-                    }
+                    using swap_signature = void(*)(fj_token<Iterator>* dst, fj_token<Iterator>* src);
+                    static const swap_signature swap_ptrs[4] = {
+                         swap_simple_with_simple
+                        ,swap_simple_with_complex
+                        ,swap_complex_with_simple
+                        ,swap_complex_with_complex
+                    };
+                    const bool is_it_simple = it->is_simple_type();
+                    const bool is_current_simple = current->is_simple_type();
+                    const std::size_t swap_idx =
+                        is_current_simple
+                            ? is_it_simple ? 0 : 1
+                            : is_it_simple ? 2 : 3
+                    ;
+                    swap_ptrs[swap_idx](it, current);
+
+                    // TODO: just as reference
+//                    if ( current->is_simple_type() ) {
+//                        if ( it->is_simple_type() ) {
+//                            swap_simple_with_simple(it, current);
+//                        } else {
+//                            swap_simple_with_complex(it, current);
+//                        }
+//                    } else {
+//                        if ( it->is_simple_type() ) {
+//                            swap_complex_with_simple(it, current);
+//                        } else {
+//                            swap_complex_with_complex(it, current);
+//                        }
+//                    }
                 }
             }
         }
