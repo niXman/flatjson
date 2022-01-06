@@ -55,10 +55,10 @@
 #   define __FLATJSON__KLEN_TYPE std::uint8_t
 #endif // __FLATJSON__KLEN_TYPE
 #ifndef __FLATJSON__VLEN_TYPE
-#   define __FLATJSON__VLEN_TYPE std::uint16_t
+#   define __FLATJSON__VLEN_TYPE std::uint32_t
 #endif // __FLATJSON__VLEN_TYPE
 #ifndef __FLATJSON__CHILDS_TYPE
-#   define __FLATJSON__CHILDS_TYPE std::uint8_t
+#   define __FLATJSON__CHILDS_TYPE std::uint16_t
 #endif // __FLATJSON__CHILDS_TYPE
 
 /*************************************************************************************************/
