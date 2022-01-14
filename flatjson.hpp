@@ -70,7 +70,7 @@
 #   define __FLATJSON__CONSTEXPR_IF(...) if constexpr (__VA_ARGS__)
 #   include <string_view>
 namespace flatjson {
-using static_string = std::string_view;
+using string_view = std::string_view;
 } // ns flatjson
 #else
 #   define __FLATJSON__CONSTEXPR_IF(...) if (__VA_ARGS__)
@@ -79,18 +79,18 @@ namespace details {
 
 /*************************************************************************************************/
 
-struct static_string {
-    static_string() = default;
+struct string_view {
+    string_view() = default;
     template<std::size_t N>
-    explicit static_string(const char (&str)[N])
+    explicit string_view(const char (&str)[N])
         :m_ptr{str}
         ,m_len{N-1}
     {}
-    static_string(const char *ptr, std::size_t len)
+    string_view(const char *ptr, std::size_t len)
         :m_ptr{ptr}
         ,m_len{len}
     {}
-    static_string(const char *beg, const char *end)
+    string_view(const char *beg, const char *end)
         :m_ptr{beg}
         ,m_len{static_cast<std::size_t>(end-beg)}
     {}
@@ -100,19 +100,19 @@ struct static_string {
     const char* data() const { return m_ptr; }
 
     int compare(const char *r) const { return compare(r, std::strlen(r)); }
-    int compare(const static_string &r) const { return compare(r.data(), r.size()); }
+    int compare(const string_view &r) const { return compare(r.data(), r.size()); }
     int compare(const char *r, std::size_t len) const { return std::strncmp(m_ptr, r, len); }
 
-    friend bool operator< (const static_string &l, const char *r) { return l.compare(r) < 0; }
-    friend bool operator< (const static_string &l, const static_string &r) { return l.compare(r) < 0; }
-    friend bool operator> (const static_string &l, const char *r) { return l.compare(r) > 0; }
-    friend bool operator> (const static_string &l, const static_string &r) { return l.compare(r) > 0; }
-    friend bool operator==(const static_string &l, const char *r) { return l.compare(r) == 0; }
-    friend bool operator==(const static_string &l, const static_string &r) { return l.compare(r) == 0; }
-    friend bool operator!=(const static_string &l, const char *r) { return !(l == r); }
-    friend bool operator!=(const static_string &l, const static_string &r) { return !(l == r); }
+    friend bool operator< (const string_view &l, const char *r) { return l.compare(r) < 0; }
+    friend bool operator< (const string_view &l, const string_view &r) { return l.compare(r) < 0; }
+    friend bool operator> (const string_view &l, const char *r) { return l.compare(r) > 0; }
+    friend bool operator> (const string_view &l, const string_view &r) { return l.compare(r) > 0; }
+    friend bool operator==(const string_view &l, const char *r) { return l.compare(r) == 0; }
+    friend bool operator==(const string_view &l, const string_view &r) { return l.compare(r) == 0; }
+    friend bool operator!=(const string_view &l, const char *r) { return !(l == r); }
+    friend bool operator!=(const string_view &l, const string_view &r) { return !(l == r); }
 
-    friend std::ostream& operator<< (std::ostream &os, const static_string &s) {
+    friend std::ostream& operator<< (std::ostream &os, const string_view &s) {
         os.write(s.m_ptr, s.m_len);
 
         return os;
@@ -127,7 +127,7 @@ private:
 
 } // ns details
 
-using static_string = details::static_string;
+using string_view = details::string_view;
 
 } // ns flatjson
 #endif // __cplusplus >= 201703L
@@ -422,7 +422,7 @@ static typename std::enable_if<std::is_same<To, std::string>::value, To>::type
 conv_to(const char *ptr, std::size_t len) { return {ptr, len}; }
 
 template<typename To>
-static typename std::enable_if<std::is_same<To, static_string>::value, To>::type
+static typename std::enable_if<std::is_same<To, string_view>::value, To>::type
 conv_to(const char *ptr, std::size_t len) { return {ptr, len}; }
 
 } // ns details
@@ -459,7 +459,7 @@ struct fj_token {
     bool is_string() const { return type() == FJ_TYPE_STRING; }
     bool is_simple_type() const { return details::fj_is_simple_type(type()); }
 
-    static_string to_sstring() const {
+    string_view to_sstring() const {
         if ( is_simple_type() ) {
             if ( !is_null() ) {
                 return value();
@@ -481,7 +481,7 @@ struct fj_token {
     double to_double() const { return to<double>(); }
     float to_float() const { return to<float>(); }
 
-    static_string key() const { return {m_key, m_klen}; }
+    string_view key() const { return {m_key, m_klen}; }
     Iterator const* key_iterator() const { return &m_key; }
     Iterator* key_iterator() { return &m_key; }
     void key(Iterator v) { m_key = v; }
@@ -489,7 +489,7 @@ struct fj_token {
     std::size_t klen() const { return m_klen; }
     void klen(std::size_t v) { m_klen = static_cast<__FLATJSON__KLEN_TYPE>(v); }
 
-    static_string value() const { return {m_val, m_vlen}; }
+    string_view value() const { return {m_val, m_vlen}; }
     Iterator const* value_iterator() const { return &m_val; }
     Iterator* value_iterator() { return &m_val; }
     void value(Iterator v) { m_val = v; }
@@ -603,23 +603,87 @@ template<typename Iterator>
 void swap_complex_with_complex(fj_token<Iterator> *complex_dst, fj_token<Iterator> *complex_src) {
     auto *complex_src_end = complex_src->end();
     auto *complex_dst_end = complex_dst->end();
-    auto src_size = complex_src_end - complex_src;
-    auto dst_size = complex_dst_end - complex_dst;
+    const auto src_size = complex_src_end - complex_src;
+    const auto dst_size = complex_dst_end - complex_dst;
 
     if ( src_size == dst_size ) {
-//        auto diff = complex_src - complex_dst;
-        for ( auto *end = complex_src_end + 1; complex_src != end; ++complex_src, ++complex_dst ) {
-            auto tmp = *complex_src;
-            *complex_src = *complex_dst;
-            if ( complex_src->end() ) {
-                complex_src->end();
+        const auto size = src_size + 1; //dst_size | src_size
+        while ( complex_src_end != complex_src ) {
+            auto tmp = *complex_src_end;
+            *complex_src_end = *complex_dst_end;
+            *complex_dst_end = tmp;
+            if ( complex_dst_end->end() ) {
+                complex_dst_end->end( complex_src_end->end() + (complex_dst < complex_src ? 0 - size : size) );
+            }
+            if ( complex_src_end->end() ) {
+                complex_src_end->end( tmp.end() - (complex_dst < complex_src ? 0 - size : size) );
+            }
+            complex_dst_end->parent(complex_src_end->parent() +  (complex_dst < complex_src ? 0 - size : size) );
+            complex_src_end->parent(tmp.parent() - (complex_dst < complex_src ? 0 - size : size) );
+            --complex_src_end;
+            --complex_dst_end;
+            if ( complex_dst_end != complex_dst ) {
+                complex_dst_end->parent(complex_src);
+                complex_src_end->parent(complex_dst);
+            }
+
+        }
+        complex_dst->end(complex_src + dst_size);
+        complex_src->end(complex_dst + src_size);
+        complex_dst->end()->parent(complex_src);
+        complex_src->end()->parent(complex_dst);
+        auto tmp = *complex_src_end;
+        *complex_src_end = *complex_dst_end;
+        *complex_dst_end = tmp;
+    } else if ( dst_size > src_size ) {
+        for ( auto *beg = complex_src; beg != complex_src_end + 1 ; ++beg ) {
+            auto tmp = *beg;
+            if ( tmp.end() ) {
+                tmp.end( tmp.end() - dst_size - 1 );
+            }
+            if ( beg != complex_src ) {
+                tmp.parent(tmp.parent() - dst_size - 1 );
+            }
+            for ( auto *end = complex_dst_end + 1; end != complex_dst; --end ) {
+                *end = *(end - 1);
             }
             *complex_dst = tmp;
+            ++complex_dst;
+            ++complex_dst_end;
         }
-    } else if ( src_size < dst_size ) {
-
-    } else {
-
+        for (auto *beg = complex_dst; beg != complex_dst_end + 1; ++beg ) {
+            if ( beg->end() ) {
+                beg->end( beg->end() + src_size + 1 );
+            }
+            if ( beg != complex_dst ) {
+                beg->parent(beg->parent() + src_size + 1 );
+            }
+        }
+    }
+    else {
+        for ( auto *end = complex_dst_end ; end != complex_dst - 1; --end ) {
+            auto tmp = *end;
+            if ( tmp.end() ) {
+                tmp.end( tmp.end() + src_size + 1 );
+            }
+            if ( end != complex_dst ) {
+                tmp.parent(tmp.parent() + src_size + 1 );
+            }
+            for ( auto *beg = complex_src; beg != complex_src_end + 1; ++beg ) {
+                *(beg - 1) = *beg;
+            }
+            *complex_src_end = tmp;
+            --complex_src;
+            --complex_src_end;
+        }
+        for (auto *beg = complex_src; beg != complex_src_end + 1; ++beg ) {
+            if ( beg->end() ) {
+                beg->end( beg->end() - dst_size - 1 );
+            }
+            if ( beg != complex_dst ) {
+                beg->parent(beg->parent() - dst_size - 1 );
+            }
+        }
     }
 }
 
@@ -1036,12 +1100,7 @@ int fj_parse_object(fj_parser<Iterator> *p, fj_token<Iterator> *parent) {
                          const auto lkey = l->key();
                          const auto rkey = r->key();
 
-                         if ( lkey.size() < rkey.size() ) {
-                             return true;
-                         }
-
-                         bool res = lkey < rkey;
-                         return res;
+                         return lkey.size() < rkey.size() || lkey < rkey;
                      }
                 );
 #if 0
@@ -1750,7 +1809,7 @@ public:
     bool is_string() const { return m_beg->is_string(); }
     bool is_simple_type() const { return m_beg->is_simple_type(); }
 
-    static_string to_sstring() const { return m_beg->to_sstring(); }
+    string_view to_sstring() const { return m_beg->to_sstring(); }
     std::string to_string() const { return m_beg->to_string(); }
     template<typename T>
     T to() const { return m_beg->template to<T>(); }
@@ -1885,9 +1944,9 @@ public:
     std::pair<const fj_token<InputIterator>*, std::size_t>
     data() const { return {m_beg, m_end-m_beg}; }
 
-    std::vector<static_string>
+    std::vector<string_view>
     get_keys() const {
-        std::vector<static_string> res{};
+        std::vector<string_view> res{};
 
         const auto d = data();
         details::fj_get_keys(d.first, d.second, &res, &get_keys_cb);
@@ -1900,8 +1959,8 @@ public:
 
 private:
     static void get_keys_cb(void *userdata, const char *ptr, std::size_t len) {
-        auto *vec = static_cast<std::vector<static_string> *>(userdata);
-        vec->push_back(static_string{ptr, len});
+        auto *vec = static_cast<std::vector<string_view> *>(userdata);
+        vec->push_back(string_view{ptr, len});
     }
 
 private:
