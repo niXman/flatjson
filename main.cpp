@@ -52,7 +52,7 @@ int parse_file(const char *path, const char *fname) {
 }
 
 test_result test_conformance() {
-    static const char *part0_path = "../jsonchecker/";
+    static const char *part0_path = "jsonchecker/";
     static const char *part0[] = {
          "0:pass01.json","0:pass02.json","0:pass03.json","1:fail02.json"
         ,"1:fail03.json","1:fail04.json","1:fail05.json","1:fail06.json"
@@ -1113,7 +1113,7 @@ void unit_29() {
 
 void unit_30() {
     // sorted complex types: swap complex with complex (L>R)
-    static const char str[] = R"({"b":1, "a":0, "d":{"b":{"f":1, "e":0}, "a":{"f":1, "e":0}}, "c":{"bb":1, "aa":0}})";
+    static const char str[] = R"({"b":1, "a":0, "d":{"b":{"ff":10, "ee":1}, "a":{"f":1, "e":0}}, "c":{"bb":1, "aa":0}})";
 
     flatjson::fj_token<const char *> tokens[18];
     auto parser = flatjson::details::fj_make_parser(
@@ -1153,8 +1153,7 @@ void unit_30() {
     assert(tokens[3].parent() == tokens[7].parent());
 
     assert(tokens[4].type() == flatjson::FJ_TYPE_NUMBER);
-    assert(tokens[4].parent() == std::addressof(tokens[3]));
-    assert(tokens[4].childs() == 0);
+    assert(tokens[4].parent() == tokens[5].parent());
     assert(tokens[4].key() == flatjson::string_view{"aa"});
     assert(tokens[4].value() == flatjson::string_view{"0"});
 
@@ -1169,28 +1168,67 @@ void unit_30() {
     assert(tokens[6].childs() == 0);
 
     assert(tokens[7].type() == flatjson::FJ_TYPE_OBJECT);
-    assert(tokens[7].parent() == std::addressof(tokens[0]));
     assert(tokens[7].childs() == 3);
     assert(tokens[7].key() == flatjson::string_view{"d"});
-    assert(tokens[7].value() == flatjson::string_view{""});
+    assert(tokens[7].parent() == tokens[3].parent());
+    assert(tokens[7].end() == std::addressof(tokens[16]));
 
-    assert(tokens[8].parent() == tokens[12].parent());
+    assert(tokens[8].type() == flatjson::FJ_TYPE_OBJECT);
     assert(tokens[8].parent() == std::addressof(tokens[7]));
+    assert(tokens[8].childs() == 3);
+    assert(tokens[8].end() == std::addressof(tokens[11]));
+    assert(tokens[8].key() == flatjson::string_view{"a"});
+
+    assert(tokens[9].type() == flatjson::FJ_TYPE_NUMBER);
+    assert(tokens[9].parent() == std::addressof(tokens[8]));
+    assert(tokens[9].childs() == 0);
+    assert(tokens[9].key() == flatjson::string_view{"e"});
+    assert(tokens[9].value() == flatjson::string_view{"0"});
+
+    assert(tokens[10].type() == flatjson::FJ_TYPE_NUMBER);
+    assert(tokens[10].parent() == tokens[9].parent() );
+    assert(tokens[10].childs() == 0);
+    assert(tokens[10].key() == flatjson::string_view{"f"});
+    assert(tokens[10].value() == flatjson::string_view{"1"});
+
+    assert(tokens[11].type() == flatjson::FJ_TYPE_OBJECT_END);
+    assert(tokens[11].parent() == std::addressof(tokens[8]));
+    assert(tokens[11].childs() == 0);
 
     assert(tokens[12].type() == flatjson::FJ_TYPE_OBJECT);
+    assert(tokens[12].parent() == tokens[8].parent());
+    assert(tokens[12].childs() == 3);
     assert(tokens[12].end() == std::addressof(tokens[15]));
+    assert(tokens[12].key() == flatjson::string_view{"b"});
 
     assert(tokens[13].type() == flatjson::FJ_TYPE_NUMBER);
     assert(tokens[13].parent() == std::addressof(tokens[12]));
+    assert(tokens[13].childs() == 0);
+    assert(tokens[13].key() == flatjson::string_view{"ee"});
+    assert(tokens[13].value() == flatjson::string_view{"1"});
+
+    assert(tokens[14].type() == flatjson::FJ_TYPE_NUMBER);
+    assert(tokens[14].parent() == tokens[13].parent() );
+    assert(tokens[14].childs() == 0);
+    assert(tokens[14].key() == flatjson::string_view{"ff"});
+    assert(tokens[14].value() == flatjson::string_view{"10"});
 
     assert(tokens[15].type() == flatjson::FJ_TYPE_OBJECT_END);
     assert(tokens[15].parent() == std::addressof(tokens[12]));
     assert(tokens[15].childs() == 0);
+
+    assert(tokens[16].type() == flatjson::FJ_TYPE_OBJECT_END);
+    assert(tokens[16].parent() == std::addressof(tokens[7]));
+    assert(tokens[16].childs() == 0);
+
+    assert(tokens[17].type() == flatjson::FJ_TYPE_OBJECT_END);
+    assert(tokens[17].parent() == std::addressof(tokens[0]));
+    assert(tokens[17].childs() == 0);
 }
 
 void unit_31() {
     // sorted complex types: swap complex with complex (L<R)
-    static const char str[] = R"({"b":1, "a":0, "d":{"bb":1, "aa":0}, "c":{"b":{"f":1, "e":0}, "a":{"f":1, "e":0}}})";
+    static const char str[] = R"({"b":1, "a":0, "d":{"bb":1, "aa":0}, "c":{"b":{"ff":10, "ee":1}, "a":{"f":1, "e":0}}})";
 
     flatjson::fj_token<const char *> tokens[18];
     auto parser = flatjson::details::fj_make_parser(
@@ -1204,7 +1242,7 @@ void unit_31() {
     assert(res.ec == flatjson::FJ_EC_OK);
     assert(res.toknum == 18);
 
-    flatjson::details::fj_dump_tokens(stdout, &tokens[0], 18);
+    //flatjson::details::fj_dump_tokens(stdout, &tokens[0], 18);
 
     assert(tokens[0].type() == flatjson::FJ_TYPE_OBJECT);
     assert(tokens[0].childs() == 5);
@@ -1228,9 +1266,58 @@ void unit_31() {
     assert(tokens[3].childs() == 3);
     assert(tokens[3].end() == std::addressof(tokens[12]));
     assert(tokens[3].parent() == tokens[13].parent());
+    assert(tokens[3].key() == flatjson::string_view{"c"});
 
-    assert(tokens[8].parent() == tokens[12].parent());
+
+    assert(tokens[4].type() == flatjson::FJ_TYPE_OBJECT);
+    assert(tokens[4].parent() == std::addressof(tokens[3]));
+    assert(tokens[4].childs() == 3);
+    assert(tokens[4].end() == std::addressof(tokens[7]));
+    assert(tokens[4].parent() == tokens[8].parent());
+    assert(tokens[4].key() == flatjson::string_view{"a"});
+
+    assert(tokens[5].type() == flatjson::FJ_TYPE_NUMBER);
+    assert(tokens[5].parent() == std::addressof(tokens[4]));
+    assert(tokens[5].childs() == 0);
+    assert(tokens[5].value() == flatjson::string_view{"0"});
+    assert(tokens[5].key() == flatjson::string_view{"e"});
+
+    assert(tokens[6].type() == flatjson::FJ_TYPE_NUMBER);
+    assert(tokens[6].parent() == tokens[5].parent() );
+    assert(tokens[6].childs() == 0);
+    assert(tokens[6].key() == flatjson::string_view{"f"});
+    assert(tokens[6].value() == flatjson::string_view{"1"});
+
+    assert(tokens[7].type() == flatjson::FJ_TYPE_OBJECT_END);
+    assert(tokens[7].parent() == std::addressof(tokens[4]));
+    assert(tokens[7].childs() == 0);
+
+    assert(tokens[8].type() == flatjson::FJ_TYPE_OBJECT);
     assert(tokens[8].parent() == std::addressof(tokens[3]));
+    assert(tokens[8].childs() == 3);
+    assert(tokens[8].end() == std::addressof(tokens[11]));
+    assert(tokens[8].parent() == tokens[12].parent());
+    assert(tokens[8].key() == flatjson::string_view{"b"});
+
+    assert(tokens[9].type() == flatjson::FJ_TYPE_NUMBER);
+    assert(tokens[9].parent() == std::addressof(tokens[8]));
+    assert(tokens[9].childs() == 0);
+    assert(tokens[9].key() == flatjson::string_view{"ee"});
+    assert(tokens[9].value() == flatjson::string_view{"1"});
+
+    assert(tokens[10].type() == flatjson::FJ_TYPE_NUMBER);
+    assert(tokens[10].parent() == tokens[9].parent() );
+    assert(tokens[10].childs() == 0);
+    assert(tokens[10].key() == flatjson::string_view{"ff"});
+    assert(tokens[10].value() == flatjson::string_view{"10"});
+
+    assert(tokens[11].type() == flatjson::FJ_TYPE_OBJECT_END);
+    assert(tokens[11].parent() == std::addressof(tokens[8]));
+    assert(tokens[11].childs() == 0);
+
+    assert(tokens[12].type() == flatjson::FJ_TYPE_OBJECT_END);
+    assert(tokens[12].parent() == std::addressof(tokens[3]));
+    assert(tokens[12].childs() == 0);
 
     assert(tokens[13].end() == std::addressof(tokens[16]));
     assert(tokens[13].type() == flatjson::FJ_TYPE_OBJECT);
@@ -1255,6 +1342,140 @@ void unit_31() {
     assert(tokens[16].parent() == std::addressof(tokens[13]));
     assert(tokens[16].childs() == 0);
 
+    assert(tokens[17].type() == flatjson::FJ_TYPE_OBJECT_END);
+    assert(tokens[17].parent() == std::addressof(tokens[0]));
+    assert(tokens[17].childs() == 0);
+}
+
+void unit_32() {
+    // sorted complex types: swap complex with complex and recursion complexes
+    static const char str[] = R"({"b":1, "a":0, "d":{"b":{"ff":{"ab":3, "cc":4}, "ee":5}, "a":{"f":1, "e":0}}, "c":{"bb":1, "aa":0}})";
+
+    flatjson::fj_token<const char *> tokens[21];
+    auto parser = flatjson::details::fj_make_parser(
+            std::begin(tokens)
+            ,std::end(tokens)
+            ,std::begin(str)
+            ,std::end(str)
+    );
+
+    auto res = flatjson::details::fj_parse(&parser, true);
+    assert(res.ec == flatjson::FJ_EC_OK);
+    assert(res.toknum == 21);
+
+    flatjson::details::fj_dump_tokens(stdout, &tokens[0], 21);
+
+    assert(tokens[0].type() == flatjson::FJ_TYPE_OBJECT);
+    assert(tokens[0].childs() == 5);
+    assert(tokens[0].parent() == nullptr);
+    assert(tokens[0].end() == std::addressof(tokens[20]));
+
+    assert(tokens[1].type() == flatjson::FJ_TYPE_NUMBER);
+    assert(tokens[1].parent() == std::addressof(tokens[0]));
+    assert(tokens[1].childs() == 0);
+    assert(tokens[1].key() == flatjson::string_view{"a"});
+    assert(tokens[1].value() == flatjson::string_view{"0"});
+
+    assert(tokens[2].type() == flatjson::FJ_TYPE_NUMBER);
+    assert(tokens[2].parent() == std::addressof(tokens[0]));
+    assert(tokens[2].childs() == 0);
+    assert(tokens[2].key() == flatjson::string_view{"b"});
+    assert(tokens[2].value() == flatjson::string_view{"1"});
+
+    assert(tokens[3].type() == flatjson::FJ_TYPE_OBJECT);
+    assert(tokens[3].parent() == std::addressof(tokens[0]));
+    assert(tokens[3].childs() == 3);
+    assert(tokens[3].end() == std::addressof(tokens[6]));
+    assert(tokens[3].parent() == tokens[7].parent());
+
+    assert(tokens[4].type() == flatjson::FJ_TYPE_NUMBER);
+    assert(tokens[4].parent() == tokens[5].parent());
+    assert(tokens[4].key() == flatjson::string_view{"aa"});
+    assert(tokens[4].value() == flatjson::string_view{"0"});
+
+    assert(tokens[5].type() == flatjson::FJ_TYPE_NUMBER);
+    assert(tokens[5].parent() == std::addressof(tokens[3]));
+    assert(tokens[5].childs() == 0);
+    assert(tokens[5].key() == flatjson::string_view{"bb"});
+    assert(tokens[5].value() == flatjson::string_view{"1"});
+
+    assert(tokens[6].type() == flatjson::FJ_TYPE_OBJECT_END);
+    assert(tokens[6].parent() == std::addressof(tokens[3]));
+    assert(tokens[6].childs() == 0);
+
+    assert(tokens[7].type() == flatjson::FJ_TYPE_OBJECT);
+    assert(tokens[7].childs() == 3);
+    assert(tokens[7].key() == flatjson::string_view{"d"});
+    assert(tokens[7].parent() == tokens[3].parent());
+    assert(tokens[7].end() == std::addressof(tokens[19]));
+
+    assert(tokens[8].type() == flatjson::FJ_TYPE_OBJECT);
+    assert(tokens[8].parent() == std::addressof(tokens[7]));
+    assert(tokens[8].childs() == 3);
+    assert(tokens[8].end() == std::addressof(tokens[11]));
+    assert(tokens[8].key() == flatjson::string_view{"a"});
+
+    assert(tokens[9].type() == flatjson::FJ_TYPE_NUMBER);
+    assert(tokens[9].parent() == std::addressof(tokens[8]));
+    assert(tokens[9].childs() == 0);
+    assert(tokens[9].key() == flatjson::string_view{"e"});
+    assert(tokens[9].value() == flatjson::string_view{"0"});
+
+    assert(tokens[10].type() == flatjson::FJ_TYPE_NUMBER);
+    assert(tokens[10].parent() == tokens[9].parent() );
+    assert(tokens[10].childs() == 0);
+    assert(tokens[10].key() == flatjson::string_view{"f"});
+    assert(tokens[10].value() == flatjson::string_view{"1"});
+
+    assert(tokens[11].type() == flatjson::FJ_TYPE_OBJECT_END);
+    assert(tokens[11].parent() == std::addressof(tokens[8]));
+    assert(tokens[11].childs() == 0);
+
+    assert(tokens[12].type() == flatjson::FJ_TYPE_OBJECT);
+    assert(tokens[12].parent() == tokens[8].parent());
+    assert(tokens[12].childs() == 3);
+    assert(tokens[12].end() == std::addressof(tokens[18]));
+    assert(tokens[12].key() == flatjson::string_view{"b"});
+
+    assert(tokens[13].type() == flatjson::FJ_TYPE_NUMBER);
+    assert(tokens[13].parent() == std::addressof(tokens[12]));
+    assert(tokens[13].childs() == 0);
+    assert(tokens[13].key() == flatjson::string_view{"ee"});
+    assert(tokens[13].value() == flatjson::string_view{"5"});
+
+    assert(tokens[14].type() == flatjson::FJ_TYPE_OBJECT);
+    assert(tokens[14].parent() == tokens[13].parent() );
+    assert(tokens[14].childs() == 3);
+    assert(tokens[14].key() == flatjson::string_view{"ff"});
+    assert(tokens[14].end() == std::addressof(tokens[17]));
+
+    assert(tokens[15].type() == flatjson::FJ_TYPE_NUMBER);
+    assert(tokens[15].parent() == std::addressof(tokens[14]));
+    assert(tokens[15].childs() == 0);
+    assert(tokens[15].key() == flatjson::string_view{"ab"});
+    assert(tokens[15].value() == flatjson::string_view{"3"});
+
+    assert(tokens[16].type() == flatjson::FJ_TYPE_NUMBER);
+    assert(tokens[16].parent() == std::addressof(tokens[14]));
+    assert(tokens[16].childs() == 0);
+    assert(tokens[16].key() == flatjson::string_view{"cc"});
+    assert(tokens[16].value() == flatjson::string_view{"4"});
+
+    assert(tokens[17].type() == flatjson::FJ_TYPE_OBJECT_END);
+    assert(tokens[17].parent() == std::addressof(tokens[14]));
+    assert(tokens[17].childs() == 0);
+
+    assert(tokens[18].type() == flatjson::FJ_TYPE_OBJECT_END);
+    assert(tokens[18].parent() == std::addressof(tokens[12]));
+    assert(tokens[18].childs() == 0);
+
+    assert(tokens[19].type() == flatjson::FJ_TYPE_OBJECT_END);
+    assert(tokens[19].parent() == std::addressof(tokens[7]));
+    assert(tokens[19].childs() == 0);
+
+    assert(tokens[20].type() == flatjson::FJ_TYPE_OBJECT_END);
+    assert(tokens[20].parent() == std::addressof(tokens[0]));
+    assert(tokens[20].childs() == 0);
 }
 /*************************************************************************************************/
 
@@ -1296,6 +1517,7 @@ int main() {
     FJ_RUN_TEST(unit_29);
     FJ_RUN_TEST(unit_30);
     FJ_RUN_TEST(unit_31);
+    FJ_RUN_TEST(unit_32);
 
     return EXIT_SUCCESS;
 }

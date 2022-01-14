@@ -659,8 +659,7 @@ void swap_complex_with_complex(fj_token<Iterator> *complex_dst, fj_token<Iterato
                 beg->parent(beg->parent() + src_size + 1 );
             }
         }
-    }
-    else {
+    } else {
         for ( auto *end = complex_dst_end ; end != complex_dst - 1; --end ) {
             auto tmp = *end;
             if ( tmp.end() ) {
