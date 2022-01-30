@@ -1719,6 +1719,13 @@ public:
     fjson& operator= (const fjson &) = default;
     fjson& operator= (fjson &&) = default;
 
+/*    explicit fjson(std::size_t reserved = 0)
+ *    explicit fjson(const CharT (&str)[L], std::size_t reserved = 0)
+ *    fjson(InputIterator ptr, std::size_t size, std::size_t reserved = 0)
+ *    fjson(InputIterator beg, InputIterator end, std::size_t reserved = 0)
+ *    +bool
+ */
+
     explicit fjson(std::size_t reserved = 0)
         :m_storage{std::make_shared<storage_type>(reserved)}
         ,m_src_beg{nullptr}
@@ -1727,39 +1734,76 @@ public:
         ,m_end{nullptr}
         ,m_err{}
     {}
+
     template<
-         std::size_t L
-        ,typename CharT = typename std::iterator_traits<InputIterator>::value_type
+         std::size_t L ,typename CharT = typename std::iterator_traits<InputIterator>::value_type,
+         typename BS = void*, typename SB = void*
     >
-    explicit fjson(const CharT (&str)[L], std::size_t reserved = 0)
-        :m_storage{L-1 ? std::make_shared<storage_type>(reserved) : storage_ptr{}}
+    explicit fjson(const CharT (&str)[L], BS bs = nullptr, SB sb = nullptr)
+    // You can pass reserved(integer) or "is sorted"(bool) in any order or both or nothing
+        :m_storage{L-1 ? (std::make_shared<storage_type>(std::numeric_limits<SB>::is_integer ? (size_t)sb :
+        (std::numeric_limits<BS>::is_integer ? (size_t)bs : 0))) : storage_ptr{}}
         ,m_src_beg{str}
         ,m_src_end{str+L-1}
         ,m_beg{nullptr}
         ,m_end{nullptr}
         ,m_err{}
     {
-        load(str, L-1);
+        static_assert(std::is_same<BS, bool>::value
+                      || std::is_same<BS, void*>::value
+                      || std::numeric_limits<BS>::is_integer,
+                      "Type Error");
+        static_assert((std::is_same<SB, bool>::value && std::numeric_limits<BS>::is_integer)
+                      || (std::is_same<SB, void*>::value && std::is_same<BS, void*>::value)
+                      || (std::numeric_limits<SB>::is_integer && std::is_same<BS, bool>::value),
+                      "Type Error");
+        // (BS = integer && SB = bool || void* ) || (BS = bool && SB = integer || void*) || (BS == void && SB = void)
+        if (std::is_same<BS, bool>::value) {
+            load(str, L-1, bs);
+        } else if (std::is_same<SB, bool>::value) {
+            load(str, L-1, sb);
+        } else {
+            load(str, L-1);
+        }
     }
-    fjson(InputIterator ptr, std::size_t size, std::size_t reserved = 0)
-        :m_storage{size ? std::make_shared<storage_type>(reserved) : storage_ptr{}}
+
+    template<typename BS = void*, typename SB = void*>
+    fjson(InputIterator ptr, std::size_t size, BS bs = nullptr, SB sb = nullptr)
+        :m_storage{size ? std::make_shared<storage_type>(std::numeric_limits<SB>::is_integer ? (size_t)sb :
+        (std::numeric_limits<BS>::is_integer ? (size_t)bs : 0)) : storage_ptr{}}
         ,m_src_beg{ptr}
         ,m_src_end{ptr+size}
         ,m_beg{nullptr}
         ,m_end{nullptr}
         ,m_err{}
     {
-        load(ptr, size);
+        if (std::is_same<BS, bool>::value) {
+            load(ptr, size, bs);
+        } else if (std::is_same<SB, bool>::value) {
+            load(ptr, size, sb);
+        } else {
+            load(ptr, size);
+        }
     }
-    fjson(InputIterator beg, InputIterator end, std::size_t reserved = 0)
-        :m_storage{beg != end ? std::make_shared<storage_type>(reserved) : storage_ptr{}}
+
+    template<typename BS = void*, typename SB = void*>
+    fjson(InputIterator beg, InputIterator end, BS bs = nullptr, SB sb = nullptr)
+        :m_storage{beg != end ? std::make_shared<storage_type>(
+         std::numeric_limits<SB>::is_integer ? (size_t)sb :
+        (std::numeric_limits<BS>::is_integer ? (size_t)bs : 0)) : storage_ptr{}}
         ,m_src_beg{beg}
         ,m_src_end{end}
         ,m_beg{nullptr}
         ,m_end{nullptr}
         ,m_err{}
     {
-        load(beg, end);
+        if (std::is_same<BS, bool>::value) {
+            load(beg, end, bs);
+        } else if (std::is_same<SB, bool>::value) {
+            load(beg, end, sb);
+        } else {
+            load(beg, end);
+        }
     }
 
     virtual ~fjson() = default;
@@ -1877,9 +1921,9 @@ public:
     fjson operator[](ConstCharPtr key) const { return at(key, std::strlen(key)); }
 
     template<std::size_t N, typename CharT = typename std::iterator_traits<InputIterator>::value_type>
-    bool load(const char (&str)[N]) { return load(str, str+N-1); }
-    bool load(InputIterator beg, std::size_t size) { return load(beg, beg+size); }
-    bool load(InputIterator beg, InputIterator end) {
+    bool load(const char (&str)[N], bool is_sorted = false) { return load(str, str+N-1, is_sorted); }
+    bool load(InputIterator beg, std::size_t size, bool is_sorted = false) {return load(beg, beg+size, is_sorted);}
+    bool load(InputIterator beg, InputIterator end, bool is_sorted = false) {
         if ( beg == end ) {
             return false;
         }
@@ -1903,7 +1947,7 @@ public:
             ,std::addressof(*m_storage->begin())
             ,std::addressof(*m_storage->end())
         );
-        details::parse_result res = details::fj_parse(&parser);
+        details::parse_result res = details::fj_parse(&parser, is_sorted);
         if ( res.ec ) {
             m_err = res.ec;
             return false;
