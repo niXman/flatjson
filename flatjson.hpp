@@ -1692,7 +1692,7 @@ private:
         pointer operator->() const { return m_cur; }
         tokens_iterator_impl& operator++() { ++m_cur; return *this; }
         tokens_iterator_impl operator++(int) { tokens_iterator_impl tmp{m_cur}; ++(*this); return tmp; }
-        tokens_iterator_impl operator+(int n) { auto tmp = *this; while(n){++tmp;--n;} return tmp; }
+        tokens_iterator_impl operator+(int n) { tokens_iterator_impl tmp{m_cur + n}; return tmp; }
         reference operator* () { return *m_cur; }
 
         friend difference_type operator- (const tokens_iterator_impl &l, const tokens_iterator_impl &r)
@@ -1742,8 +1742,9 @@ public:
     {}
 
     template<
-         std::size_t L ,typename CharT = typename std::iterator_traits<InputIterator>::value_type,
-         typename ...Args
+          std::size_t L
+         ,typename CharT = typename std::iterator_traits<InputIterator>::value_type
+         ,typename ...Args
     >
     explicit fjson(const CharT (&str)[L], const Args &...args)
         :m_storage{L-1 ? std::make_shared<storage_type>(params(args...).first) : storage_ptr{}}
@@ -1769,7 +1770,8 @@ public:
     }
 
     template<typename ...Args>
-    fjson(InputIterator ptr, std::size_t size, const Args &...args) : fjson(ptr, ptr + size, args...){}
+    fjson(InputIterator ptr, std::size_t size, const Args &...args)
+    :fjson(ptr, ptr + size, args...){}
 
     virtual ~fjson() = default;
 
@@ -2043,14 +2045,14 @@ private:
 /*************************************************************************************************/
 
 template<typename Iterator, typename ...Args>
-fjson parse(Iterator beg, Iterator end, Args... args) {
+fjson parse(Iterator beg, Iterator end, const Args &...args) {
     fjson json{beg, end, args...};
 
     return json;
 }
 
 template<typename Iterator, typename ...Args>
-fjson parse(Iterator beg, Args... args) {
+fjson parse(Iterator beg, const Args &...args) {
     auto end = beg + std::strlen(beg);
 
     return parse(beg, end, args...);

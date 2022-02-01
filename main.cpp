@@ -1838,6 +1838,14 @@ void unit_35() {
     assert((it + 20)->childs() == 0);
 }
 
+void unit_36() {
+    static const char str[] = R"({"b":1,"a":0,"d":{"b":{"ff":{"ab":3,"cc":4},"ee":5},"a":{"f":1,"e":0}},"c":{"bb":1,"aa":0}})";
+    flatjson::fjson json1(std::begin(str), std::end(str), flatjson::reserve{128});
+    flatjson::fjson json2(std::begin(str), std::end(str));
+    assert(json1.dump() == std::string(str));
+    assert(json2.dump() == std::string(str));
+}
+
 /*************************************************************************************************/
 int main() {
     auto res = test_conformance();
@@ -1881,6 +1889,7 @@ int main() {
     FJ_RUN_TEST(unit_33);
     FJ_RUN_TEST(unit_34);
     FJ_RUN_TEST(unit_35);
+    FJ_RUN_TEST(unit_36);
 
     return EXIT_SUCCESS;
 }
