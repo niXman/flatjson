@@ -1363,7 +1363,7 @@ void unit_32() {
     assert(res.ec == flatjson::FJ_EC_OK);
     assert(res.toknum == 21);
 
-    flatjson::details::fj_dump_tokens(stdout, &tokens[0], 21);
+    //flatjson::details::fj_dump_tokens(stdout, &tokens[0], 21);
 
     assert(tokens[0].type() == flatjson::FJ_TYPE_OBJECT);
     assert(tokens[0].childs() == 5);
@@ -1477,8 +1477,376 @@ void unit_32() {
     assert(tokens[20].parent() == std::addressof(tokens[0]));
     assert(tokens[20].childs() == 0);
 }
-/*************************************************************************************************/
 
+void unit_33() {
+    static const char str[] = R"({"b":1, "a":0, "d":{"b":{"ff":{"ab":3, "cc":4}, "ee":5}, "a":{"f":1, "e":0}}, "c":{"bb":1, "aa":0}})";
+
+    flatjson::fjson json(std::begin(str), std::end(str), flatjson::sort, flatjson::reserve{128});
+
+    auto it = json.begin();
+
+    assert(it->type() == flatjson::FJ_TYPE_OBJECT);
+    assert(it->childs() == 5);
+    assert(it->parent() == nullptr);
+    assert(it->end() == std::addressof(*(it + 20)));
+
+    assert((it + 1)->type() == flatjson::FJ_TYPE_NUMBER);
+    assert((it + 1)->parent() == std::addressof(*it));
+    assert((it + 1)->childs() == 0);
+    assert((it + 1)->key() == flatjson::string_view{"a"});
+    assert((it + 1)->value() == flatjson::string_view{"0"});
+
+    assert((it + 2)->type() == flatjson::FJ_TYPE_NUMBER);
+    assert((it + 2)->parent() == std::addressof(*it));
+    assert((it + 2)->childs() == 0);
+    assert((it + 2)->key() == flatjson::string_view{"b"});
+    assert((it + 2)->value() == flatjson::string_view{"1"});
+
+    assert((it + 3)->type() == flatjson::FJ_TYPE_OBJECT);
+    assert((it + 3)->parent() == std::addressof(*it));
+    assert((it + 3)->childs() == 3);
+    assert((it + 3)->end() == std::addressof(*(it + 6)));
+    assert((it + 3)->parent() == (it + 7)->parent());
+
+    assert((it + 4)->type() == flatjson::FJ_TYPE_NUMBER);
+    assert((it + 4)->parent() == (it + 5)->parent());
+    assert((it + 4)->key() == flatjson::string_view{"aa"});
+    assert((it + 4)->value() == flatjson::string_view{"0"});
+
+    assert((it + 5)->type() == flatjson::FJ_TYPE_NUMBER);
+    assert((it + 5)->parent() == std::addressof(*(it + 3)));
+    assert((it + 5)->childs() == 0);
+    assert((it + 5)->key() == flatjson::string_view{"bb"});
+    assert((it + 5)->value() == flatjson::string_view{"1"});
+
+    assert((it + 6)->type() == flatjson::FJ_TYPE_OBJECT_END);
+    assert((it + 6)->parent() == std::addressof(*(it + 3)));
+    assert((it + 6)->childs() == 0);
+
+    assert((it + 7)->type() == flatjson::FJ_TYPE_OBJECT);
+    assert((it + 7)->childs() == 3);
+    assert((it + 7)->key() == flatjson::string_view{"d"});
+    assert((it + 7)->parent() == (it + 3)->parent());
+    assert((it + 7)->end() == std::addressof(*(it + 19)));
+
+    assert((it + 8)->type() == flatjson::FJ_TYPE_OBJECT);
+    assert((it + 8)->parent() == std::addressof(*(it + 7)));
+    assert((it + 8)->childs() == 3);
+    assert((it + 8)->end() == std::addressof(*(it + 11)));
+    assert((it + 8)->key() == flatjson::string_view{"a"});
+
+    assert((it + 9)->type() == flatjson::FJ_TYPE_NUMBER);
+    assert((it + 9)->parent() == std::addressof(*(it + 8)));
+    assert((it + 9)->childs() == 0);
+    assert((it + 9)->key() == flatjson::string_view{"e"});
+    assert((it + 9)->value() == flatjson::string_view{"0"});
+
+    assert((it + 10)->type() == flatjson::FJ_TYPE_NUMBER);
+    assert((it + 10)->parent() == (it + 9)->parent() );
+    assert((it + 10)->childs() == 0);
+    assert((it + 10)->key() == flatjson::string_view{"f"});
+    assert((it + 10)->value() == flatjson::string_view{"1"});
+
+    assert((it + 11)->type() == flatjson::FJ_TYPE_OBJECT_END);
+    assert((it + 11)->parent() == std::addressof(*(it + 8)));
+    assert((it + 11)->childs() == 0);
+
+    assert((it + 12)->type() == flatjson::FJ_TYPE_OBJECT);
+    assert((it + 12)->parent() == (it + 8)->parent());
+    assert((it + 12)->childs() == 3);
+    assert((it + 12)->end() == std::addressof(*(it + 18)));
+    assert((it + 12)->key() == flatjson::string_view{"b"});
+
+    assert((it + 13)->type() == flatjson::FJ_TYPE_NUMBER);
+    assert((it + 13)->parent() == std::addressof(*(it + 12)));
+    assert((it + 13)->childs() == 0);
+    assert((it + 13)->key() == flatjson::string_view{"ee"});
+    assert((it + 13)->value() == flatjson::string_view{"5"});
+
+    assert((it + 14)->type() == flatjson::FJ_TYPE_OBJECT);
+    assert((it + 14)->parent() == (it + 13)->parent() );
+    assert((it + 14)->childs() == 3);
+    assert((it + 14)->key() == flatjson::string_view{"ff"});
+    assert((it + 14)->end() == std::addressof(*(it + 17)));
+
+    assert((it + 15)->type() == flatjson::FJ_TYPE_NUMBER);
+    assert((it + 15)->parent() == std::addressof(*(it + 14)));
+    assert((it + 15)->childs() == 0);
+    assert((it + 15)->key() == flatjson::string_view{"ab"});
+    assert((it + 15)->value() == flatjson::string_view{"3"});
+
+    assert((it + 16)->type() == flatjson::FJ_TYPE_NUMBER);
+    assert((it + 16)->parent() == std::addressof(*(it + 14)));
+    assert((it + 16)->childs() == 0);
+    assert((it + 16)->key() == flatjson::string_view{"cc"});
+    assert((it + 16)->value() == flatjson::string_view{"4"});
+
+    assert((it + 17)->type() == flatjson::FJ_TYPE_OBJECT_END);
+    assert((it + 17)->parent() == std::addressof(*(it + 14)));
+    assert((it + 17)->childs() == 0);
+
+    assert((it + 18)->type() == flatjson::FJ_TYPE_OBJECT_END);
+    assert((it + 18)->parent() == std::addressof(*(it + 12)));
+    assert((it + 18)->childs() == 0);
+
+    assert((it + 19)->type() == flatjson::FJ_TYPE_OBJECT_END);
+    assert((it + 19)->parent() == std::addressof(*(it + 7)));
+    assert((it + 19)->childs() == 0);
+
+    assert((it + 20)->type() == flatjson::FJ_TYPE_OBJECT_END);
+    assert((it + 20)->parent() == std::addressof(*it));
+    assert((it + 20)->childs() == 0);
+}
+
+void unit_34() {
+    static const char str[] = R"({"b":1, "a":0, "d":{"b":{"ff":{"ab":3, "cc":4}, "ee":5}, "a":{"f":1, "e":0}}, "c":{"bb":1, "aa":0}})";
+
+    flatjson::fjson json(std::begin(str), std::end(str), flatjson::sort);
+
+    auto it = json.begin();
+
+    assert(it->type() == flatjson::FJ_TYPE_OBJECT);
+    assert(it->childs() == 5);
+    assert(it->parent() == nullptr);
+    assert(it->end() == std::addressof(*(it + 20)));
+
+    assert((it + 1)->type() == flatjson::FJ_TYPE_NUMBER);
+    assert((it + 1)->parent() == std::addressof(*it));
+    assert((it + 1)->childs() == 0);
+    assert((it + 1)->key() == flatjson::string_view{"a"});
+    assert((it + 1)->value() == flatjson::string_view{"0"});
+
+    assert((it + 2)->type() == flatjson::FJ_TYPE_NUMBER);
+    assert((it + 2)->parent() == std::addressof(*it));
+    assert((it + 2)->childs() == 0);
+    assert((it + 2)->key() == flatjson::string_view{"b"});
+    assert((it + 2)->value() == flatjson::string_view{"1"});
+
+    assert((it + 3)->type() == flatjson::FJ_TYPE_OBJECT);
+    assert((it + 3)->parent() == std::addressof(*it));
+    assert((it + 3)->childs() == 3);
+    assert((it + 3)->end() == std::addressof(*(it + 6)));
+    assert((it + 3)->parent() == (it + 7)->parent());
+
+    assert((it + 4)->type() == flatjson::FJ_TYPE_NUMBER);
+    assert((it + 4)->parent() == (it + 5)->parent());
+    assert((it + 4)->key() == flatjson::string_view{"aa"});
+    assert((it + 4)->value() == flatjson::string_view{"0"});
+
+    assert((it + 5)->type() == flatjson::FJ_TYPE_NUMBER);
+    assert((it + 5)->parent() == std::addressof(*(it + 3)));
+    assert((it + 5)->childs() == 0);
+    assert((it + 5)->key() == flatjson::string_view{"bb"});
+    assert((it + 5)->value() == flatjson::string_view{"1"});
+
+    assert((it + 6)->type() == flatjson::FJ_TYPE_OBJECT_END);
+    assert((it + 6)->parent() == std::addressof(*(it + 3)));
+    assert((it + 6)->childs() == 0);
+
+    assert((it + 7)->type() == flatjson::FJ_TYPE_OBJECT);
+    assert((it + 7)->childs() == 3);
+    assert((it + 7)->key() == flatjson::string_view{"d"});
+    assert((it + 7)->parent() == (it + 3)->parent());
+    assert((it + 7)->end() == std::addressof(*(it + 19)));
+
+    assert((it + 8)->type() == flatjson::FJ_TYPE_OBJECT);
+    assert((it + 8)->parent() == std::addressof(*(it + 7)));
+    assert((it + 8)->childs() == 3);
+    assert((it + 8)->end() == std::addressof(*(it + 11)));
+    assert((it + 8)->key() == flatjson::string_view{"a"});
+
+    assert((it + 9)->type() == flatjson::FJ_TYPE_NUMBER);
+    assert((it + 9)->parent() == std::addressof(*(it + 8)));
+    assert((it + 9)->childs() == 0);
+    assert((it + 9)->key() == flatjson::string_view{"e"});
+    assert((it + 9)->value() == flatjson::string_view{"0"});
+
+    assert((it + 10)->type() == flatjson::FJ_TYPE_NUMBER);
+    assert((it + 10)->parent() == (it + 9)->parent() );
+    assert((it + 10)->childs() == 0);
+    assert((it + 10)->key() == flatjson::string_view{"f"});
+    assert((it + 10)->value() == flatjson::string_view{"1"});
+
+    assert((it + 11)->type() == flatjson::FJ_TYPE_OBJECT_END);
+    assert((it + 11)->parent() == std::addressof(*(it + 8)));
+    assert((it + 11)->childs() == 0);
+
+    assert((it + 12)->type() == flatjson::FJ_TYPE_OBJECT);
+    assert((it + 12)->parent() == (it + 8)->parent());
+    assert((it + 12)->childs() == 3);
+    assert((it + 12)->end() == std::addressof(*(it + 18)));
+    assert((it + 12)->key() == flatjson::string_view{"b"});
+
+    assert((it + 13)->type() == flatjson::FJ_TYPE_NUMBER);
+    assert((it + 13)->parent() == std::addressof(*(it + 12)));
+    assert((it + 13)->childs() == 0);
+    assert((it + 13)->key() == flatjson::string_view{"ee"});
+    assert((it + 13)->value() == flatjson::string_view{"5"});
+
+    assert((it + 14)->type() == flatjson::FJ_TYPE_OBJECT);
+    assert((it + 14)->parent() == (it + 13)->parent() );
+    assert((it + 14)->childs() == 3);
+    assert((it + 14)->key() == flatjson::string_view{"ff"});
+    assert((it + 14)->end() == std::addressof(*(it + 17)));
+
+    assert((it + 15)->type() == flatjson::FJ_TYPE_NUMBER);
+    assert((it + 15)->parent() == std::addressof(*(it + 14)));
+    assert((it + 15)->childs() == 0);
+    assert((it + 15)->key() == flatjson::string_view{"ab"});
+    assert((it + 15)->value() == flatjson::string_view{"3"});
+
+    assert((it + 16)->type() == flatjson::FJ_TYPE_NUMBER);
+    assert((it + 16)->parent() == std::addressof(*(it + 14)));
+    assert((it + 16)->childs() == 0);
+    assert((it + 16)->key() == flatjson::string_view{"cc"});
+    assert((it + 16)->value() == flatjson::string_view{"4"});
+
+    assert((it + 17)->type() == flatjson::FJ_TYPE_OBJECT_END);
+    assert((it + 17)->parent() == std::addressof(*(it + 14)));
+    assert((it + 17)->childs() == 0);
+
+    assert((it + 18)->type() == flatjson::FJ_TYPE_OBJECT_END);
+    assert((it + 18)->parent() == std::addressof(*(it + 12)));
+    assert((it + 18)->childs() == 0);
+
+    assert((it + 19)->type() == flatjson::FJ_TYPE_OBJECT_END);
+    assert((it + 19)->parent() == std::addressof(*(it + 7)));
+    assert((it + 19)->childs() == 0);
+
+    assert((it + 20)->type() == flatjson::FJ_TYPE_OBJECT_END);
+    assert((it + 20)->parent() == std::addressof(*it));
+    assert((it + 20)->childs() == 0);
+}
+
+void unit_35() {
+    static const char str[] = R"({"b":1, "a":0, "d":{"b":{"ff":{"ab":3, "cc":4}, "ee":5}, "a":{"f":1, "e":0}}, "c":{"bb":1, "aa":0}})";
+
+    flatjson::fjson json(std::begin(str), std::end(str), flatjson::reserve{128}, flatjson::sort);
+
+    auto it = json.begin();
+
+    assert(it->type() == flatjson::FJ_TYPE_OBJECT);
+    assert(it->childs() == 5);
+    assert(it->parent() == nullptr);
+    assert(it->end() == std::addressof(*(it + 20)));
+
+    assert((it + 1)->type() == flatjson::FJ_TYPE_NUMBER);
+    assert((it + 1)->parent() == std::addressof(*it));
+    assert((it + 1)->childs() == 0);
+    assert((it + 1)->key() == flatjson::string_view{"a"});
+    assert((it + 1)->value() == flatjson::string_view{"0"});
+
+    assert((it + 2)->type() == flatjson::FJ_TYPE_NUMBER);
+    assert((it + 2)->parent() == std::addressof(*it));
+    assert((it + 2)->childs() == 0);
+    assert((it + 2)->key() == flatjson::string_view{"b"});
+    assert((it + 2)->value() == flatjson::string_view{"1"});
+
+    assert((it + 3)->type() == flatjson::FJ_TYPE_OBJECT);
+    assert((it + 3)->parent() == std::addressof(*it));
+    assert((it + 3)->childs() == 3);
+    assert((it + 3)->end() == std::addressof(*(it + 6)));
+    assert((it + 3)->parent() == (it + 7)->parent());
+
+    assert((it + 4)->type() == flatjson::FJ_TYPE_NUMBER);
+    assert((it + 4)->parent() == (it + 5)->parent());
+    assert((it + 4)->key() == flatjson::string_view{"aa"});
+    assert((it + 4)->value() == flatjson::string_view{"0"});
+
+    assert((it + 5)->type() == flatjson::FJ_TYPE_NUMBER);
+    assert((it + 5)->parent() == std::addressof(*(it + 3)));
+    assert((it + 5)->childs() == 0);
+    assert((it + 5)->key() == flatjson::string_view{"bb"});
+    assert((it + 5)->value() == flatjson::string_view{"1"});
+
+    assert((it + 6)->type() == flatjson::FJ_TYPE_OBJECT_END);
+    assert((it + 6)->parent() == std::addressof(*(it + 3)));
+    assert((it + 6)->childs() == 0);
+
+    assert((it + 7)->type() == flatjson::FJ_TYPE_OBJECT);
+    assert((it + 7)->childs() == 3);
+    assert((it + 7)->key() == flatjson::string_view{"d"});
+    assert((it + 7)->parent() == (it + 3)->parent());
+    assert((it + 7)->end() == std::addressof(*(it + 19)));
+
+    assert((it + 8)->type() == flatjson::FJ_TYPE_OBJECT);
+    assert((it + 8)->parent() == std::addressof(*(it + 7)));
+    assert((it + 8)->childs() == 3);
+    assert((it + 8)->end() == std::addressof(*(it + 11)));
+    assert((it + 8)->key() == flatjson::string_view{"a"});
+
+    assert((it + 9)->type() == flatjson::FJ_TYPE_NUMBER);
+    assert((it + 9)->parent() == std::addressof(*(it + 8)));
+    assert((it + 9)->childs() == 0);
+    assert((it + 9)->key() == flatjson::string_view{"e"});
+    assert((it + 9)->value() == flatjson::string_view{"0"});
+
+    assert((it + 10)->type() == flatjson::FJ_TYPE_NUMBER);
+    assert((it + 10)->parent() == (it + 9)->parent() );
+    assert((it + 10)->childs() == 0);
+    assert((it + 10)->key() == flatjson::string_view{"f"});
+    assert((it + 10)->value() == flatjson::string_view{"1"});
+
+    assert((it + 11)->type() == flatjson::FJ_TYPE_OBJECT_END);
+    assert((it + 11)->parent() == std::addressof(*(it + 8)));
+    assert((it + 11)->childs() == 0);
+
+    assert((it + 12)->type() == flatjson::FJ_TYPE_OBJECT);
+    assert((it + 12)->parent() == (it + 8)->parent());
+    assert((it + 12)->childs() == 3);
+    assert((it + 12)->end() == std::addressof(*(it + 18)));
+    assert((it + 12)->key() == flatjson::string_view{"b"});
+
+    assert((it + 13)->type() == flatjson::FJ_TYPE_NUMBER);
+    assert((it + 13)->parent() == std::addressof(*(it + 12)));
+    assert((it + 13)->childs() == 0);
+    assert((it + 13)->key() == flatjson::string_view{"ee"});
+    assert((it + 13)->value() == flatjson::string_view{"5"});
+
+    assert((it + 14)->type() == flatjson::FJ_TYPE_OBJECT);
+    assert((it + 14)->parent() == (it + 13)->parent() );
+    assert((it + 14)->childs() == 3);
+    assert((it + 14)->key() == flatjson::string_view{"ff"});
+    assert((it + 14)->end() == std::addressof(*(it + 17)));
+
+    assert((it + 15)->type() == flatjson::FJ_TYPE_NUMBER);
+    assert((it + 15)->parent() == std::addressof(*(it + 14)));
+    assert((it + 15)->childs() == 0);
+    assert((it + 15)->key() == flatjson::string_view{"ab"});
+    assert((it + 15)->value() == flatjson::string_view{"3"});
+
+    assert((it + 16)->type() == flatjson::FJ_TYPE_NUMBER);
+    assert((it + 16)->parent() == std::addressof(*(it + 14)));
+    assert((it + 16)->childs() == 0);
+    assert((it + 16)->key() == flatjson::string_view{"cc"});
+    assert((it + 16)->value() == flatjson::string_view{"4"});
+
+    assert((it + 17)->type() == flatjson::FJ_TYPE_OBJECT_END);
+    assert((it + 17)->parent() == std::addressof(*(it + 14)));
+    assert((it + 17)->childs() == 0);
+
+    assert((it + 18)->type() == flatjson::FJ_TYPE_OBJECT_END);
+    assert((it + 18)->parent() == std::addressof(*(it + 12)));
+    assert((it + 18)->childs() == 0);
+
+    assert((it + 19)->type() == flatjson::FJ_TYPE_OBJECT_END);
+    assert((it + 19)->parent() == std::addressof(*(it + 7)));
+    assert((it + 19)->childs() == 0);
+
+    assert((it + 20)->type() == flatjson::FJ_TYPE_OBJECT_END);
+    assert((it + 20)->parent() == std::addressof(*it));
+    assert((it + 20)->childs() == 0);
+}
+
+void unit_36() {
+    static const char str[] = R"({"b":1,"a":0,"d":{"b":{"ff":{"ab":3,"cc":4},"ee":5},"a":{"f":1,"e":0}},"c":{"bb":1,"aa":0}})";
+    flatjson::fjson json1(std::begin(str), std::end(str), flatjson::reserve{128});
+    flatjson::fjson json2(std::begin(str), std::end(str));
+    assert(json1.dump() == std::string(str));
+    assert(json2.dump() == std::string(str));
+}
+
+/*************************************************************************************************/
 int main() {
     auto res = test_conformance();
     if ( res.ec ) {
@@ -1518,6 +1886,10 @@ int main() {
     FJ_RUN_TEST(unit_30);
     FJ_RUN_TEST(unit_31);
     FJ_RUN_TEST(unit_32);
+    FJ_RUN_TEST(unit_33);
+    FJ_RUN_TEST(unit_34);
+    FJ_RUN_TEST(unit_35);
+    FJ_RUN_TEST(unit_36);
 
     return EXIT_SUCCESS;
 }

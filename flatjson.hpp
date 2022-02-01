@@ -1667,6 +1667,9 @@ std::size_t fj_get_keys(const fj_token<Iterator> *toks, std::size_t num, void *u
 
 /*************************************************************************************************/
 
+struct sort_t {} constexpr sort;
+struct reserve {size_t size;};
+
 struct fjson {
     using InputIterator = const char *;
     using element_type = fj_token<InputIterator>;
@@ -1689,6 +1692,7 @@ private:
         pointer operator->() const { return m_cur; }
         tokens_iterator_impl& operator++() { ++m_cur; return *this; }
         tokens_iterator_impl operator++(int) { tokens_iterator_impl tmp{m_cur}; ++(*this); return tmp; }
+        tokens_iterator_impl operator+(int n) { tokens_iterator_impl tmp{m_cur + n}; return tmp; }
         reference operator* () { return *m_cur; }
 
         friend difference_type operator- (const tokens_iterator_impl &l, const tokens_iterator_impl &r)
@@ -1701,7 +1705,6 @@ private:
     private:
         pointer m_cur;
     };
-
 public:
     using iterator = tokens_iterator_impl<element_type>;
     using const_iterator = tokens_iterator_impl<const element_type>;
@@ -1719,6 +1722,16 @@ public:
     fjson& operator= (const fjson &) = default;
     fjson& operator= (fjson &&) = default;
 
+private:
+    static std::pair<std::size_t, bool> params() { return {0, false}; }
+    static std::pair<std::size_t, bool> params(const reserve &res) { return {res.size, false}; }
+    static std::pair<std::size_t, bool> params(const sort_t &){ return {0, true}; }
+    static std::pair<std::size_t, bool> params(const reserve &res, const sort_t &)
+    { return {res.size, true}; }
+    static std::pair<std::size_t, bool> params(const sort_t &, const reserve &res)
+    { return {res.size, true}; }
+
+public:
     explicit fjson(std::size_t reserved = 0)
         :m_storage{std::make_shared<storage_type>(reserved)}
         ,m_src_beg{nullptr}
@@ -1727,40 +1740,38 @@ public:
         ,m_end{nullptr}
         ,m_err{}
     {}
+
     template<
-         std::size_t L
-        ,typename CharT = typename std::iterator_traits<InputIterator>::value_type
+          std::size_t L
+         ,typename CharT = typename std::iterator_traits<InputIterator>::value_type
+         ,typename ...Args
     >
-    explicit fjson(const CharT (&str)[L], std::size_t reserved = 0)
-        :m_storage{L-1 ? std::make_shared<storage_type>(reserved) : storage_ptr{}}
+    explicit fjson(const CharT (&str)[L], const Args &...args)
+        :m_storage{L-1 ? std::make_shared<storage_type>(params(args...).first) : storage_ptr{}}
         ,m_src_beg{str}
         ,m_src_end{str+L-1}
         ,m_beg{nullptr}
         ,m_end{nullptr}
         ,m_err{}
     {
-        load(str, L-1);
+        load(str, L-1, params(args...).second);
     }
-    fjson(InputIterator ptr, std::size_t size, std::size_t reserved = 0)
-        :m_storage{size ? std::make_shared<storage_type>(reserved) : storage_ptr{}}
-        ,m_src_beg{ptr}
-        ,m_src_end{ptr+size}
-        ,m_beg{nullptr}
-        ,m_end{nullptr}
-        ,m_err{}
+
+    template<typename ...Args>
+    fjson(InputIterator beg, InputIterator end, const Args &...args)
+            :m_storage{beg != end ? std::make_shared<storage_type>(params(args...).first) : storage_ptr{}}
+            ,m_src_beg{beg}
+            ,m_src_end{end}
+            ,m_beg{nullptr}
+            ,m_end{nullptr}
+            ,m_err{}
     {
-        load(ptr, size);
+        load(beg, end, params(args...).second);
     }
-    fjson(InputIterator beg, InputIterator end, std::size_t reserved = 0)
-        :m_storage{beg != end ? std::make_shared<storage_type>(reserved) : storage_ptr{}}
-        ,m_src_beg{beg}
-        ,m_src_end{end}
-        ,m_beg{nullptr}
-        ,m_end{nullptr}
-        ,m_err{}
-    {
-        load(beg, end);
-    }
+
+    template<typename ...Args>
+    fjson(InputIterator ptr, std::size_t size, const Args &...args)
+    :fjson(ptr, ptr + size, args...){}
 
     virtual ~fjson() = default;
 
@@ -1877,9 +1888,9 @@ public:
     fjson operator[](ConstCharPtr key) const { return at(key, std::strlen(key)); }
 
     template<std::size_t N, typename CharT = typename std::iterator_traits<InputIterator>::value_type>
-    bool load(const char (&str)[N]) { return load(str, str+N-1); }
-    bool load(InputIterator beg, std::size_t size) { return load(beg, beg+size); }
-    bool load(InputIterator beg, InputIterator end) {
+    bool load(const char (&str)[N], bool is_sorted = false) { return load(str, str+N-1, is_sorted); }
+    bool load(InputIterator beg, std::size_t size, bool is_sorted = false) {return load(beg, beg+size, is_sorted);}
+    bool load(InputIterator beg, InputIterator end, bool is_sorted = false) {
         if ( beg == end ) {
             return false;
         }
@@ -1903,7 +1914,7 @@ public:
             ,std::addressof(*m_storage->begin())
             ,std::addressof(*m_storage->end())
         );
-        details::parse_result res = details::fj_parse(&parser);
+        details::parse_result res = details::fj_parse(&parser, is_sorted);
         if ( res.ec ) {
             m_err = res.ec;
             return false;
@@ -2031,21 +2042,20 @@ private:
     element_type *m_end;
     e_fj_error_code m_err;
 };
-
 /*************************************************************************************************/
 
-template<typename Iterator>
-fjson parse(Iterator beg, Iterator end) {
-    fjson json{beg, end};
+template<typename Iterator, typename ...Args>
+fjson parse(Iterator beg, Iterator end, const Args &...args) {
+    fjson json{beg, end, args...};
 
     return json;
 }
 
-template<typename Iterator>
-fjson parse(Iterator beg) {
+template<typename Iterator, typename ...Args>
+fjson parse(Iterator beg, const Args &...args) {
     auto end = beg + std::strlen(beg);
 
-    return parse(beg, end);
+    return parse(beg, end, args...);
 }
 
 } // ns flatjson
