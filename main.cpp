@@ -1890,13 +1890,20 @@ void unit_37() {
 }
 
 void unit_38() {
-    static const char str[] = R"({"b":1, "a":0, "d":{"b":{"ff":{"ab":3, "cc":4}, "ee":5}, "a":{"f":1, "e":0}}, "c":{"bb":1, "aa":0}})";
+    static const char str[] = R"({"b":1, "a":123, "d":{"b":{"ff":{"ab":3, "cc":4, "ee":5}, "a":{"f":1, "e":0}}, "c":{"bb":1, "aa":0}}})";
+
+    flatjson::fj_token<const char *> tokens[21];
+    auto parser = flatjson::details::fj_make_parser(
+            std::begin(tokens), std::end(tokens), std::begin(str), std::end(str)
+    );
+    auto res = flatjson::details::fj_parse(&parser, true);
+    //flatjson::details::fj_dump_tokens(stdout, &tokens[0], 21);
 
     flatjson::fjson json(std::begin(str), std::end(str), flatjson::reserve{128}, flatjson::sort);
 
-    assert(json.at("a").to_string() == "0");
-    assert(json.at("d").at("a").at("f").to_string() == "1");
-    assert(json.at("d").at("a").at("e").to_string() == "0");
+    assert(json.at("a").to_string() == "123");
+    assert(json.at("d").at("b").at("a").at("f").to_string() == "1");
+    assert(json.at("d").at("b").at("a").at("e").to_string() == "0");
     assert(json.at("d").at("b").at("ff").at("ab").to_string() == "3");
 }
 
@@ -1910,7 +1917,7 @@ void unit_39() {
     );
 
     auto res = flatjson::details::fj_parse(&parser, true);
-    flatjson::details::fj_dump_tokens(stdout, &tokens[0], 6);
+    //flatjson::details::fj_dump_tokens(stdout, &tokens[0], 6);
     assert(res.ec == flatjson::FJ_EC_OK);
     assert(res.toknum == 6);
 
@@ -1969,7 +1976,7 @@ int main() {
     FJ_RUN_TEST(unit_35);
     FJ_RUN_TEST(unit_36);
     FJ_RUN_TEST(unit_37);
-    //FJ_RUN_TEST(unit_38);
+    FJ_RUN_TEST(unit_38);
     FJ_RUN_TEST(unit_39);
 
     return EXIT_SUCCESS;

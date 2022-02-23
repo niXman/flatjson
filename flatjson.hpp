@@ -1787,8 +1787,8 @@ public:
     virtual ~fjson() = default;
 
 private:
-    fjson(storage_ptr storage, element_type *beg, element_type *end)
-        :m_sorted{false}
+    fjson(storage_ptr storage, element_type *beg, element_type *end, bool is_sort = false)
+        :m_sorted{is_sort}
         ,m_storage{std::move(storage)}
         ,m_src_beg{nullptr}
         ,m_src_end{nullptr}
@@ -1870,7 +1870,7 @@ public:
     fjson at(const char *key, std::size_t len) const {
         auto res = find(key, len);
         if ( res.first ) {
-            return {m_storage, res.first, res.second};
+            return {m_storage, res.first, res.second, m_sorted};
         }
 
         throw std::runtime_error(__FLATJSON__MAKE_ERROR_MESSAGE("key not found"));
@@ -1988,7 +1988,7 @@ private:
 private:
     std::pair<element_type *, element_type *>
     find(const char *key, std::size_t len) const {
-        //if ( !m_sorted ) {
+        if ( !m_sorted ) {
             if (type() != FJ_TYPE_OBJECT) {
                 throw std::logic_error(__FLATJSON__MAKE_ERROR_MESSAGE("not OBJECT type"));
             }
@@ -2017,43 +2017,48 @@ private:
             }
 
             throw std::logic_error(__FLATJSON__MAKE_ERROR_MESSAGE("unreachable!"));
-#if 0
         } else {
             if (type() != FJ_TYPE_OBJECT) {
                 throw std::logic_error(__FLATJSON__MAKE_ERROR_MESSAGE("not OBJECT type"));
             }
 
-            element_type *parent = m_beg;
-            element_type *end = parent->end();
-            element_type *left = parent + 1;
-            element_type *right = parent->end();
-            element_type *tmp = left + ( left - right );
-            while ( left != right ) {
+            element_type *tmp = m_beg + 1;
+            size_t count = m_beg->childs();
+            while (count != 0) {
+                count /= 2;
                 if (tmp->type() == FJ_TYPE_OBJECT_END) {
                     return {nullptr, nullptr};
                 }
                 if (tmp->klen() == len && std::strncmp(tmp->key().data(), key, len) == 0) {
                     break;
-                } else if (  std::strncmp(tmp->key().data(), key, len) < 0 ) {
-                    right = tmp;
-                } else if (  std::strncmp(tmp->key().data(), key, len) > 0 ) {
-                    left = tmp;
+                } else if (std::strncmp(tmp->key().data(), key, len) > 0) {
+                    for (size_t i = 0; i < count; ++i) {
+                        if ( (tmp - 1) == m_beg)
+                            break;
+                        tmp = details::fj_is_simple_type((tmp - 1)->type()) ? tmp - 1 : (tmp - 1)->parent();
+                        if ( (tmp - 1) == m_beg)
+                            break;
+                    }
+                } else if (std::strncmp(tmp->key().data(), key, len) < 0) {
+                    for (size_t i = 0; i < count; ++i) {
+                        tmp = details::fj_is_simple_type(tmp->type()) ? tmp + 1 : tmp->end() + 1;
+                        if (tmp == m_beg->end())
+                            break;
+                    }
                 }
-                tmp = left + ( left - right );
             }
 
             const auto type = tmp->type();
-            if (details::fj_is_simple_type(type)) {
+            if (tmp == m_beg->end() || tmp == m_beg){
+                return {nullptr, nullptr};
+            } else if (details::fj_is_simple_type(type)) {
                 return {tmp, tmp + 1};
             } else if (type == FJ_TYPE_OBJECT || type == FJ_TYPE_ARRAY) {
                 return {tmp, tmp->end()};
-            } else if (tmp == end && type == FJ_TYPE_OBJECT_END) {
-                return {nullptr, nullptr};
             }
 
             throw std::logic_error(__FLATJSON__MAKE_ERROR_MESSAGE("unreachable!"));
         }
-#endif
     }
     std::pair<element_type *, element_type *>
     find(std::size_t idx) const {
