@@ -101,8 +101,7 @@ struct string_view {
 
     int compare(const char *r) const { return compare(r, std::strlen(r)); }
     int compare(const string_view &r) const { return compare(r.data(), r.size()); }
-    int compare(const char *r, std::size_t len) const { return std::strncmp(m_ptr, r, len); }
-
+    int compare(const char *r, std::size_t len) const { return std::strncmp(m_ptr, r, len>m_len?len:m_len); }
     friend bool operator< (const string_view &l, const char *r) { return l.compare(r) < 0; }
     friend bool operator< (const string_view &l, const string_view &r) { return l.compare(r) < 0; }
     friend bool operator> (const string_view &l, const char *r) { return l.compare(r) > 0; }
@@ -531,18 +530,17 @@ private:
 
 namespace details {
 
-template<typename Iterator, typename Compare>
-fj_token<Iterator>* lower_bound(fj_token<Iterator>* left, fj_token<Iterator>* right, fj_token<Iterator> *val, Compare cmp) {
+template<typename Iterator>
+fj_token<Iterator>* lower_bound(fj_token<Iterator>* left, fj_token<Iterator>* right, fj_token<Iterator> *val) {
     fj_token<Iterator>* it{};
     std::size_t count = right - left, step;
-
     while ( count ) {
         it = left;
         step = count / 2;
         it += step;
-
-        bool ok = cmp(it, val);
-        if ( ok ) {
+        //while ( it->parent() != val->parent() )
+          //  it = it->parent();
+        if ( it->key() < val->key() ) {
             left = ++it;
             count -= step + 1;
         } else {
@@ -1092,15 +1090,8 @@ int fj_parse_object(fj_parser<Iterator> *p, fj_token<Iterator> *parent) {
         __FLATJSON__CONSTEXPR_IF ( M & parser_mode::sorted_objects ) {
             if ( startobj->childs() > 1 ) {
                 fj_token<Iterator> *it = lower_bound(
-                     startobj + 1
-                    ,startobj + startobj->childs()
+                     startobj + 1                     ,startobj + startobj->childs()
                     ,current
-                    ,[](const fj_token<Iterator> *l, const fj_token<Iterator> *r) {
-                         const auto lkey = l->key();
-                         const auto rkey = r->key();
-
-                         return lkey.size() < rkey.size() || lkey < rkey;
-                     }
                 );
 #if 0
                 std::printf("'current'(\"%.*s\")=%p, 'place'(\"%.*s\")=%p, 'current' %s 'place', so 'current' should be %s\n"
@@ -1112,7 +1103,7 @@ int fj_parse_object(fj_parser<Iterator> *p, fj_token<Iterator> *parent) {
                     ,(current->key() < it->key() ? "before 'place'" : current->key() > it->key() ? "after 'place'" : "in his position")
                 );
 #endif // 1
-                if ( it != current ) {
+                if ( it != current && it->parent() == current->parent() ) {
                     using swap_signature = void(*)(fj_token<Iterator>* dst, fj_token<Iterator>* src);
                     static const swap_signature swap_ptrs[4] = {
                          swap_simple_with_simple
@@ -1121,13 +1112,30 @@ int fj_parse_object(fj_parser<Iterator> *p, fj_token<Iterator> *parent) {
                         ,swap_complex_with_complex
                     };
                     const bool is_it_simple = it->is_simple_type();
-                    const bool is_current_simple = current->is_simple_type();
+                    bool is_current_simple = current->is_simple_type();
                     const std::size_t swap_idx =
                         is_current_simple
                             ? is_it_simple ? 0 : 1
                             : is_it_simple ? 2 : 3
                     ;
+
+                    while( ( it->childs() ? it->end() : it ) + 1 != current || ( it->childs() ? it->end() : it )  != current - 1) {
+                        // from current way to it
+                        auto temp = current - 1;
+                        if ( temp->parent() != current->parent() )
+                            temp = temp->parent();
+                        const bool is_temp_simple = temp->is_simple_type();
+                        const std::size_t swap_tmp =
+                                is_current_simple
+                                ? is_temp_simple ? 0 : 1
+                                : is_temp_simple ? 2 : 3
+                        ;
+                        swap_ptrs[swap_tmp](temp, current);
+                        current = temp;
+                    } //it < current by adres
+                    // Quick Fix
                     swap_ptrs[swap_idx](it, current);
+                    //They swap and dont move all if tokens dont stay before, and yes these cases exist
 
                     // TODO: just as reference
 //                    if ( current->is_simple_type() ) {
@@ -1730,10 +1738,11 @@ private:
     { return {res.size, true}; }
     static std::pair<std::size_t, bool> params(const sort_t &, const reserve &res)
     { return {res.size, true}; }
-
+    const bool m_sorted;
 public:
     explicit fjson(std::size_t reserved = 0)
-        :m_storage{std::make_shared<storage_type>(reserved)}
+        :m_sorted{false}
+        ,m_storage{std::make_shared<storage_type>(reserved)}
         ,m_src_beg{nullptr}
         ,m_src_end{nullptr}
         ,m_beg{nullptr}
@@ -1742,24 +1751,26 @@ public:
     {}
 
     template<
-          std::size_t L
-         ,typename CharT = typename std::iterator_traits<InputIterator>::value_type
-         ,typename ...Args
+            std::size_t L
+            ,typename CharT = typename std::iterator_traits<InputIterator>::value_type
+            ,typename ...Args
     >
     explicit fjson(const CharT (&str)[L], const Args &...args)
-        :m_storage{L-1 ? std::make_shared<storage_type>(params(args...).first) : storage_ptr{}}
-        ,m_src_beg{str}
-        ,m_src_end{str+L-1}
-        ,m_beg{nullptr}
-        ,m_end{nullptr}
-        ,m_err{}
+            :m_sorted{params(args...).first}
+            ,m_storage{L-1 ? std::make_shared<storage_type>(params(args...).first) : storage_ptr{}}
+            ,m_src_beg{str}
+            ,m_src_end{str+L-1}
+            ,m_beg{nullptr}
+            ,m_end{nullptr}
+            ,m_err{}
     {
         load(str, L-1, params(args...).second);
     }
 
     template<typename ...Args>
     fjson(InputIterator beg, InputIterator end, const Args &...args)
-            :m_storage{beg != end ? std::make_shared<storage_type>(params(args...).first) : storage_ptr{}}
+            :m_sorted{params(args...).first}
+            ,m_storage{beg != end ? std::make_shared<storage_type>(params(args...).first) : storage_ptr{}}
             ,m_src_beg{beg}
             ,m_src_end{end}
             ,m_beg{nullptr}
@@ -1776,8 +1787,9 @@ public:
     virtual ~fjson() = default;
 
 private:
-    fjson(storage_ptr storage, element_type *beg, element_type *end)
-        :m_storage{std::move(storage)}
+    fjson(storage_ptr storage, element_type *beg, element_type *end, bool is_sort = false)
+        :m_sorted{is_sort}
+        ,m_storage{std::move(storage)}
         ,m_src_beg{nullptr}
         ,m_src_end{nullptr}
         ,m_beg{beg}
@@ -1858,7 +1870,7 @@ public:
     fjson at(const char *key, std::size_t len) const {
         auto res = find(key, len);
         if ( res.first ) {
-            return {m_storage, res.first, res.second};
+            return {m_storage, res.first, res.second, m_sorted};
         }
 
         throw std::runtime_error(__FLATJSON__MAKE_ERROR_MESSAGE("key not found"));
@@ -1976,34 +1988,77 @@ private:
 private:
     std::pair<element_type *, element_type *>
     find(const char *key, std::size_t len) const {
-        if ( type() != FJ_TYPE_OBJECT ) {
-            throw std::logic_error(__FLATJSON__MAKE_ERROR_MESSAGE("not OBJECT type"));
-        }
+        if ( !m_sorted ) {
+            if (type() != FJ_TYPE_OBJECT) {
+                throw std::logic_error(__FLATJSON__MAKE_ERROR_MESSAGE("not OBJECT type"));
+            }
 
-        element_type *parent = m_beg;
-        element_type *beg = parent+1;
-        element_type *end = parent->end();
-        while ( beg != end ) {
-            if ( beg->type() == FJ_TYPE_OBJECT_END ) {
+            element_type *parent = m_beg;
+            element_type *beg = parent + 1;
+            element_type *end = parent->end();
+            while (beg != end) {
+                if (beg->type() == FJ_TYPE_OBJECT_END) {
+                    return {nullptr, nullptr};
+                }
+                if (beg->klen() == len && std::strncmp(beg->key().data(), key, len) == 0) {
+                    break;
+                }
+
+                beg = details::fj_is_simple_type(beg->type()) ? beg + 1 : beg->end() + 1;
+            }
+
+            const auto type_t = beg->type();
+            if (details::fj_is_simple_type(type_t)) {
+                return {beg, beg + 1};
+            } else if (type_t == FJ_TYPE_OBJECT || type_t == FJ_TYPE_ARRAY) {
+                return {beg, beg->end()};
+            } else if (beg == end && type_t == FJ_TYPE_OBJECT_END) {
                 return {nullptr, nullptr};
             }
-            if ( beg->klen() == len && std::strncmp(beg->key().data(), key, len) == 0 ) {
-                break;
+
+            throw std::logic_error(__FLATJSON__MAKE_ERROR_MESSAGE("unreachable!"));
+        } else {
+            if (type() != FJ_TYPE_OBJECT) {
+                throw std::logic_error(__FLATJSON__MAKE_ERROR_MESSAGE("not OBJECT type"));
             }
 
-            beg = details::fj_is_simple_type(beg->type()) ? beg + 1 : beg->end() + 1;
-        }
+            element_type *tmp = m_beg + 1;
+            size_t count = m_beg->childs();
+            while (count != 0) {
+                count /= 2;
+                if (tmp->type() == FJ_TYPE_OBJECT_END) {
+                    return {nullptr, nullptr};
+                }
+                if (tmp->klen() == len && std::strncmp(tmp->key().data(), key, len) == 0) {
+                    break;
+                } else if (std::strncmp(tmp->key().data(), key, len) > 0) {
+                    for (size_t i = 0; i < count; ++i) {
+                        if ( (tmp - 1) == m_beg)
+                            break;
+                        tmp = details::fj_is_simple_type((tmp - 1)->type()) ? tmp - 1 : (tmp - 1)->parent();
+                        if ( (tmp - 1) == m_beg)
+                            break;
+                    }
+                } else if (std::strncmp(tmp->key().data(), key, len) < 0) {
+                    for (size_t i = 0; i < count; ++i) {
+                        tmp = details::fj_is_simple_type(tmp->type()) ? tmp + 1 : tmp->end() + 1;
+                        if (tmp == m_beg->end())
+                            break;
+                    }
+                }
+            }
 
-        const auto type = beg->type();
-        if ( details::fj_is_simple_type(type) ) {
-            return {beg, beg+1};
-        } else if ( type == FJ_TYPE_OBJECT || type == FJ_TYPE_ARRAY ) {
-            return {beg, beg->end()};
-        } else if ( beg == end && type == FJ_TYPE_OBJECT_END ) {
-            return {nullptr, nullptr};
-        }
+            const auto type = tmp->type();
+            if (tmp == m_beg->end() || tmp == m_beg){
+                return {nullptr, nullptr};
+            } else if (details::fj_is_simple_type(type)) {
+                return {tmp, tmp + 1};
+            } else if (type == FJ_TYPE_OBJECT || type == FJ_TYPE_ARRAY) {
+                return {tmp, tmp->end()};
+            }
 
-        throw std::logic_error(__FLATJSON__MAKE_ERROR_MESSAGE("unreachable!"));
+            throw std::logic_error(__FLATJSON__MAKE_ERROR_MESSAGE("unreachable!"));
+        }
     }
     std::pair<element_type *, element_type *>
     find(std::size_t idx) const {

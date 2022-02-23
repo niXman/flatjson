@@ -696,6 +696,49 @@ void unit_23() {
 /*************************************************************************************************/
 
 void unit_24() {
+    {
+        static const char str[] = R"({"a":{"c":0},"b":1})";
+
+        flatjson::fj_token<const char *> tokens[6];
+        auto parser = flatjson::details::fj_make_parser(
+                std::begin(tokens), std::end(tokens), std::begin(str), std::end(str)
+        );
+
+        auto res = flatjson::details::fj_parse(&parser, true);
+        //flatjson::details::fj_dump_tokens(stdout, &tokens[0], 6);
+        assert(res.ec == flatjson::FJ_EC_OK);
+        assert(res.toknum == 6);
+
+        assert(tokens[2].key() == "c");
+        assert(tokens[4].key() == "b");
+        assert(tokens[2].value() == "0");
+        assert(tokens[4].value() == "1");
+    }
+    {
+        static const char str[] = R"({"a":2,"c":0,"b":1})";
+
+        flatjson::fj_token<const char *> tokens[6];
+        auto parser = flatjson::details::fj_make_parser(
+                std::begin(tokens), std::end(tokens), std::begin(str), std::end(str)
+        );
+
+        auto res = flatjson::details::fj_parse(&parser, true);
+        //flatjson::details::fj_dump_tokens(stdout, &tokens[0], 5);
+        assert(res.ec == flatjson::FJ_EC_OK);
+        assert(res.toknum == 5);
+
+        assert(tokens[1].key() == "a");
+        assert(tokens[2].key() == "b");
+        assert(tokens[3].key() == "c");
+        assert(tokens[1].value() == "2");
+        assert(tokens[2].value() == "1");
+        assert(tokens[3].value() == "0");
+    }
+}
+
+/*************************************************************************************************/
+
+void unit_25() {
     // sorted simple types: swap simple with simple
     static const char str[] = R"({"b":1, "a":0, "d":3, "c":2})";
 
@@ -725,7 +768,7 @@ void unit_24() {
 
 /*************************************************************************************************/
 
-void unit_25() {
+void unit_26() {
     // sorted complex types: swap simple with complex
     static const char str[] = R"({"b":1, "a":0, "d":{"bb":1, "aa":0}, "c":2})";
 
@@ -794,7 +837,7 @@ void unit_25() {
 
 /*************************************************************************************************/
 
-void unit_26() {
+void unit_27() {
     // sorted complex types: swap simple with complex
     static const char str[] = R"({"b":1, "a":0, "d":{"bb":1, "aa":0, "cc":{"k":44, "f":33}}, "c":2})";
 
@@ -884,7 +927,7 @@ void unit_26() {
 
 /*************************************************************************************************/
 
-void unit_27() {
+void unit_28() {
     // sorted complex types: swap complex with simple
     static const char str[] = R"({"b":1, "a":0, "d":3, "c":{"bb":1, "aa":0}})";
 
@@ -953,7 +996,7 @@ void unit_27() {
 
 /*************************************************************************************************/
 
-void unit_28() {
+void unit_29() {
     // sorted complex types: swap complex with simple
     static const char str[] = R"({"b":1, "a":0, "d":3, "c":{"bb":1, "aa":0, "cc":{"k":44, "f":33}}})";
 
@@ -1043,7 +1086,7 @@ void unit_28() {
 
 /*************************************************************************************************/
 
-void unit_29() {
+void unit_30() {
     // sorted complex types: swap complex with complex (L == R)
     static const char str[] = R"({"b":1, "a":0, "d":{"f":1, "e":0}, "c":{"bb":1, "aa":0}})";
 
@@ -1111,7 +1154,7 @@ void unit_29() {
 
 }
 
-void unit_30() {
+void unit_31() {
     // sorted complex types: swap complex with complex (L>R)
     static const char str[] = R"({"b":1, "a":0, "d":{"b":{"ff":10, "ee":1}, "a":{"f":1, "e":0}}, "c":{"bb":1, "aa":0}})";
 
@@ -1226,7 +1269,7 @@ void unit_30() {
     assert(tokens[17].childs() == 0);
 }
 
-void unit_31() {
+void unit_32() {
     // sorted complex types: swap complex with complex (L<R)
     static const char str[] = R"({"b":1, "a":0, "d":{"bb":1, "aa":0}, "c":{"b":{"ff":10, "ee":1}, "a":{"f":1, "e":0}}})";
 
@@ -1347,7 +1390,7 @@ void unit_31() {
     assert(tokens[17].childs() == 0);
 }
 
-void unit_32() {
+void unit_33() {
     // sorted complex types: swap complex with complex and recursion complexes
     static const char str[] = R"({"b":1, "a":0, "d":{"b":{"ff":{"ab":3, "cc":4}, "ee":5}, "a":{"f":1, "e":0}}, "c":{"bb":1, "aa":0}})";
 
@@ -1478,7 +1521,7 @@ void unit_32() {
     assert(tokens[20].childs() == 0);
 }
 
-void unit_33() {
+void unit_34() {
     static const char str[] = R"({"b":1, "a":0, "d":{"b":{"ff":{"ab":3, "cc":4}, "ee":5}, "a":{"f":1, "e":0}}, "c":{"bb":1, "aa":0}})";
 
     flatjson::fjson json(std::begin(str), std::end(str), flatjson::sort, flatjson::reserve{128});
@@ -1598,7 +1641,7 @@ void unit_33() {
     assert((it + 20)->childs() == 0);
 }
 
-void unit_34() {
+void unit_35() {
     static const char str[] = R"({"b":1, "a":0, "d":{"b":{"ff":{"ab":3, "cc":4}, "ee":5}, "a":{"f":1, "e":0}}, "c":{"bb":1, "aa":0}})";
 
     flatjson::fjson json(std::begin(str), std::end(str), flatjson::sort);
@@ -1718,7 +1761,7 @@ void unit_34() {
     assert((it + 20)->childs() == 0);
 }
 
-void unit_35() {
+void unit_36() {
     static const char str[] = R"({"b":1, "a":0, "d":{"b":{"ff":{"ab":3, "cc":4}, "ee":5}, "a":{"f":1, "e":0}}, "c":{"bb":1, "aa":0}})";
 
     flatjson::fjson json(std::begin(str), std::end(str), flatjson::reserve{128}, flatjson::sort);
@@ -1838,12 +1881,54 @@ void unit_35() {
     assert((it + 20)->childs() == 0);
 }
 
-void unit_36() {
+void unit_37() {
     static const char str[] = R"({"b":1,"a":0,"d":{"b":{"ff":{"ab":3,"cc":4},"ee":5},"a":{"f":1,"e":0}},"c":{"bb":1,"aa":0}})";
     flatjson::fjson json1(std::begin(str), std::end(str), flatjson::reserve{128});
     flatjson::fjson json2(std::begin(str), std::end(str));
     assert(json1.dump() == std::string(str));
     assert(json2.dump() == std::string(str));
+}
+
+void unit_38() {
+    static const char str[] = R"({"b":1, "a":123, "d":{"b":{"ff":{"ab":3, "cc":4, "ee":5}, "a":{"f":1, "e":0}}, "c":{"bb":1, "aa":0}}})";
+
+    flatjson::fj_token<const char *> tokens[21];
+    auto parser = flatjson::details::fj_make_parser(
+            std::begin(tokens), std::end(tokens), std::begin(str), std::end(str)
+    );
+    auto res = flatjson::details::fj_parse(&parser, true);
+    //flatjson::details::fj_dump_tokens(stdout, &tokens[0], 21);
+
+    flatjson::fjson json(std::begin(str), std::end(str), flatjson::reserve{128}, flatjson::sort);
+
+    assert(json.at("a").to_string() == "123");
+    assert(json.at("d").at("b").at("a").at("f").to_string() == "1");
+    assert(json.at("d").at("b").at("a").at("e").to_string() == "0");
+    assert(json.at("d").at("b").at("ff").at("ab").to_string() == "3");
+}
+
+
+void unit_39() {
+    static const char str[] = R"({"bbb":0,"aa":1,"bb":4,"a":3})";
+
+    flatjson::fj_token<const char *> tokens[6];
+    auto parser = flatjson::details::fj_make_parser(
+            std::begin(tokens), std::end(tokens), std::begin(str), std::end(str)
+    );
+
+    auto res = flatjson::details::fj_parse(&parser, true);
+    //flatjson::details::fj_dump_tokens(stdout, &tokens[0], 6);
+    assert(res.ec == flatjson::FJ_EC_OK);
+    assert(res.toknum == 6);
+
+    assert(tokens[1].key() == "a");
+    assert(tokens[2].key() == "aa");
+    assert(tokens[3].key() == "bb");
+    assert(tokens[4].key() == "bbb");
+    assert(tokens[1].value() == "3");
+    assert(tokens[2].value() == "1");
+    assert(tokens[3].value() == "4");
+    assert(tokens[4].value() == "0");
 }
 
 /*************************************************************************************************/
@@ -1890,6 +1975,9 @@ int main() {
     FJ_RUN_TEST(unit_34);
     FJ_RUN_TEST(unit_35);
     FJ_RUN_TEST(unit_36);
+    FJ_RUN_TEST(unit_37);
+    FJ_RUN_TEST(unit_38);
+    FJ_RUN_TEST(unit_39);
 
     return EXIT_SUCCESS;
 }
