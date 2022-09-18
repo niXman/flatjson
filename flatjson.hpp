@@ -454,6 +454,7 @@ struct fj_token {
     static_string value() const { return {__val, __vlen}; }
     __FLATJSON__CHILDS_TYPE childs() const { return __childs; }
     const fj_token* parent() const { return __parent; }
+    fj_token* end() { return __end; }
     const fj_token* end() const { return __end; }
 
     e_fj_token_type __type;

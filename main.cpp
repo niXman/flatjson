@@ -732,7 +732,7 @@ static void unit_24() {
 
 static void unit_25() {
     static const char str[] = R"({"a":0, "b":1, "c":{"d":2, "e":3}, "f":4})";
-    const flatjson::fjson json{str};
+    flatjson::fjson json{str};
 
     assert(json.is_valid());
     assert(json.size() == 4);
