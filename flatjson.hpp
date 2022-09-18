@@ -659,7 +659,7 @@ int fj_parse_array(fj_parser<Iterator> *p, fj_token<Iterator> *parent) {
     int ec = fj_check_and_skip(p, '[');
     if ( ec ) return ec;
 
-    __FLATJSON__CONSTEXPR_IF( M == parser_mode::parse && p->jstok_cur == p->jstok_end ) {
+    if ( M == parser_mode::parse && p->jstok_cur == p->jstok_end ) {
         return FJ_EC_NO_FREE_TOKENS;
     }
 
@@ -674,7 +674,7 @@ int fj_parse_array(fj_parser<Iterator> *p, fj_token<Iterator> *parent) {
     }
 
     while ( __FLATJSON__CUR_CHAR(p) != ']' ) {
-        __FLATJSON__CONSTEXPR_IF( M == parser_mode::parse && p->jstok_cur == p->jstok_end ) {
+        if ( M == parser_mode::parse && p->jstok_cur == p->jstok_end ) {
             return FJ_EC_NO_FREE_TOKENS;
         }
 
@@ -735,7 +735,7 @@ int fj_parse_object(fj_parser<Iterator> *p, fj_token<Iterator> *parent) {
     int ec = fj_check_and_skip(p, '{');
     if ( ec ) return ec;
 
-    __FLATJSON__CONSTEXPR_IF( M == parser_mode::parse && p->jstok_cur == p->jstok_end ) {
+    if ( M == parser_mode::parse && p->jstok_cur == p->jstok_end ) {
         return FJ_EC_NO_FREE_TOKENS;
     }
 
@@ -759,7 +759,7 @@ int fj_parse_object(fj_parser<Iterator> *p, fj_token<Iterator> *parent) {
             return FJ_EC_INVALID;
         }
 
-        __FLATJSON__CONSTEXPR_IF( M == parser_mode::parse && p->jstok_cur == p->jstok_end ) {
+        if ( M == parser_mode::parse && p->jstok_cur == p->jstok_end ) {
             return FJ_EC_NO_FREE_TOKENS;
         }
 
