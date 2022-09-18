@@ -10,6 +10,7 @@ add_definitions(
 set(SOURCES
 	flatjson.hpp
 	main.cpp
+    inst.cpp
 )
 
 add_executable(${PROJECT_NAME} ${SOURCES})
