@@ -6,8 +6,11 @@
 //
 // This file is part of FlatJSON(https://github.com/niXman/flatjson) project.
 //
-// Copyright (c) 2019-2021 niXman (github dot nixman dog pm.me). All rights reserved.
+// Copyright (c) 2019-2022 niXman (github dot nixman dog pm.me). All rights reserved.
 // ----------------------------------------------------------------------------
+
+
+// to compile: g++ -std=c++11 parsetest.cpp -O2 -o parsetest
 
 #include "flatjson.hpp"
 
