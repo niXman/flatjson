@@ -636,33 +636,31 @@ static void unit_21_get_keys_cb(void *userdata, const char *ptr, std::size_t len
 }
 
 static void unit_21() {
-    {
-        static const char jsstr[] = R"({"a":0, "b":1})";
+    static const char jsstr[] = R"({"a":0, "b":1})";
 
-        const flatjson::fjson json{jsstr};
-        assert(json.is_valid());
-        assert(json.is_object());
-        assert(json.size() == 2);
-        assert(json.tokens() == 4);
+    const flatjson::fjson json{jsstr};
+    assert(json.is_valid());
+    assert(json.is_object());
+    assert(json.size() == 2);
+    assert(json.tokens() == 4);
 
-        const auto data = json.data();
-        const auto *tokens = data.first;
-        const auto size = data.second;
-        std::size_t calls_cnt{};
-        int num = flatjson::fj_get_keys(tokens, size, &calls_cnt, &unit_21_get_keys_cb);
-        assert(num == 2);
-        assert(calls_cnt == 2);
+    const auto data = json.data();
+    const auto *toksbeg= data.first;
+    const auto *toksend = data.second;
+    std::size_t calls_cnt{};
+    int num = flatjson::fj_get_keys(toksbeg, toksend - toksbeg, &calls_cnt, &unit_21_get_keys_cb);
+    assert(num == 2);
+    assert(calls_cnt == 2);
 
-        auto keys = json.get_keys();
-        for ( auto it = keys.begin(); it != keys.end(); ++it ) {
-            auto dist = std::distance(keys.begin(), it);
-            if ( dist == 0 ) {
-                assert(*it == "a");
-            } else if ( dist == 1 ) {
-                assert(*it == "b");
-            } else {
-                assert(!"unreachable!");
-            }
+    auto keys = json.get_keys();
+    for ( auto it = keys.begin(); it != keys.end(); ++it ) {
+        auto dist = std::distance(keys.begin(), it);
+        if ( dist == 0 ) {
+            assert(*it == "a");
+        } else if ( dist == 1 ) {
+            assert(*it == "b");
+        } else {
+            assert(!"unreachable!");
         }
     }
 }
@@ -678,21 +676,6 @@ static void unit_22() {
     assert(json.is_object());
     assert(json.at("b").to_int() == 1);
     assert(json.at("bb").to_int() == 0);
-}
-
-/*************************************************************************************************/
-
-static void unit_23() {
-    static const char str[] = R"({"bb":0, "b":1})";
-    const flatjson::fjson json{str};
-
-    assert(json.is_valid());
-    assert(json.size() == 2);
-    assert(json.is_object());
-
-    auto data = json.get_source_data();
-    assert(data.first  == str);
-    assert(data.second == str+sizeof(str)-1);
 }
 
 /*************************************************************************************************/
@@ -723,6 +706,22 @@ static void unit_24() {
     assert(tokens[2].value() == "1");
 
     assert(tokens[3].type() == flatjson::FJ_TYPE_OBJECT_END);
+
+    /////
+    flatjson::fjson json{std::begin(tokens), std::end(tokens)};
+    assert(json.is_valid());
+    assert(json.is_object());
+    assert(json.size() == 2);
+
+    assert(json.begin()->is_number());
+    assert(json.begin()->key() == "bb");
+    assert(json.begin()->value() == "0");
+
+    assert(std::next(json.begin())->is_number());
+    assert(std::next(json.begin())->key() == "b");
+    assert(std::next(json.begin())->value() == "1");
+
+    assert(std::next(std::next(json.begin()))->type() == flatjson::FJ_TYPE_OBJECT_END);
 }
 
 /*************************************************************************************************/
@@ -909,7 +908,6 @@ int main() {
     FJ_RUN_TEST(unit_20);
     FJ_RUN_TEST(unit_21);
     FJ_RUN_TEST(unit_22);
-    FJ_RUN_TEST(unit_23);
     FJ_RUN_TEST(unit_24);
     FJ_RUN_TEST(unit_25);
     FJ_RUN_TEST(unit_26);
