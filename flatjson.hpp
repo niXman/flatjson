@@ -1533,6 +1533,13 @@ public:
         ,m_end{end}
         ,m_err{}
     {}
+    template<std::size_t N>
+    fjson(const element_type (&arr)[N])
+        :m_storage{}
+        ,m_beg{std::addressof(arr[0])}
+        ,m_end{std::addressof(arr[N])}
+        ,m_err{}
+    {}
 
     virtual ~fjson() = default;
 
