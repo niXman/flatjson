@@ -1657,6 +1657,7 @@ public:
     >
     fjson operator[](ConstCharPtr key) const { return at(key, std::strlen(key)); }
 
+    // load
     template<std::size_t N, typename CharT = typename std::iterator_traits<InputIterator>::value_type>
     bool load(const char (&str)[N]) { return load(str, str+N-1); }
     bool load(InputIterator beg, std::size_t size) { return load(beg, beg+size); }
@@ -1681,12 +1682,13 @@ public:
              std::addressof(parser)
             ,beg
             ,end
-            ,std::addressof(*m_storage->begin())
+            ,m_storage->data()
             ,m_storage->size()
         );
         parse_result res = fj_parse(std::addressof(parser));
         if ( res.ec ) {
             m_err = res.ec;
+
             return false;
         }
 
