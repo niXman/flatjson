@@ -38,6 +38,7 @@ int main(int argc, char **argv) {
 		return EXIT_FAILURE;
 	}
 
+	std::cout << "sizeof(fj_token) = " << sizeof(flatjson::fjson::element_type) << std::endl;
 	const char *fname = argv[1];
 	std::string body = read_file(fname);
 

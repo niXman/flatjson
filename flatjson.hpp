@@ -471,6 +471,9 @@ struct fj_token {
 
 #ifndef __FLATJSON__DONT_PACK_TOKENS
 #pragma pack(pop)
+static_assert(sizeof(fj_token<const char *>) == 40, "");
+#else
+static_assert(sizeof(fj_token<const char *>) == 64, "");
 #endif // __FLATJSON__DONT_PACK_TOKENS
 
 /*************************************************************************************************/
@@ -1159,7 +1162,9 @@ inline std::size_t fj_get_tokens(const fj_token<Iterator> *toks, std::size_t num
             {
                 if ( !CalcLength ) {
                     cb(userdata, ",", 1);
-                    if ( indent ) cb(userdata, "\n", 1);
+                    if ( indent ) {
+                        cb(userdata, "\n", 1);
+                    }
                 }
                 length += 1;
                 if ( indent ) {
@@ -1265,7 +1270,9 @@ inline std::size_t fj_get_tokens(const fj_token<Iterator> *toks, std::size_t num
             case FJ_TYPE_STRING: {
                 if ( it->__parent->__type != FJ_TYPE_ARRAY ) {
                     if ( !CalcLength ) {
-                        if ( indent ) cb(userdata, indent_str, indent_scope);
+                        if ( indent ) {
+                            cb(userdata, indent_str, indent_scope);
+                        }
                         cb(userdata, "\"", 1);
                         cb(userdata, it->__key, it->__klen);
                         cb(userdata, "\":", 2);
@@ -1416,7 +1423,9 @@ inline std::size_t fj_get_keys(const fj_token<Iterator> *toks, std::size_t num, 
             continue;
         }
 
-        cb(userdata, it->__key, it->__klen);
+        if ( cb ) {
+            cb(userdata, it->__key, it->__klen);
+        }
 
         ++cnt;
     }
@@ -1496,7 +1505,7 @@ public:
         :m_storage{std::make_shared<storage_type>(reserved)}
         ,m_beg{nullptr}
         ,m_end{nullptr}
-        ,m_err{}
+        ,m_err{FJ_EC_INVALID}
     {}
     template<
          std::size_t L
@@ -1506,53 +1515,66 @@ public:
         :m_storage{L-1 ? std::make_shared<storage_type>(reserved) : storage_ptr{}}
         ,m_beg{nullptr}
         ,m_end{nullptr}
-        ,m_err{}
-    {
-        load(str, L-1);
-    }
+        ,m_err{FJ_EC_INVALID}
+    { load(str, L-1); }
+
     fjson(InputIterator ptr, std::size_t size, std::size_t reserved = 0)
         :m_storage{size ? std::make_shared<storage_type>(reserved) : storage_ptr{}}
         ,m_beg{nullptr}
         ,m_end{nullptr}
-        ,m_err{}
-    {
-        load(ptr, size);
-    }
+        ,m_err{FJ_EC_INVALID}
+    { load(ptr, size); }
+
     fjson(InputIterator beg, InputIterator end, std::size_t reserved = 0)
         :m_storage{beg != end ? std::make_shared<storage_type>(reserved) : storage_ptr{}}
         ,m_beg{nullptr}
         ,m_end{nullptr}
-        ,m_err{}
-    {
-        load(beg, end);
-    }
-    template<typename Et, typename = typename std::enable_if<std::is_same<Et, element_type>::value>::type>
+        ,m_err{FJ_EC_INVALID}
+    { load(beg, end); }
+
+    // construct using user-provided already parsed array of tokens
+    template<
+         typename Et
+        ,typename = typename std::enable_if<std::is_same<Et, element_type>::value>::type
+    >
     fjson(const Et *beg, const Et *end)
         :m_storage{}
         ,m_beg{beg}
         ,m_end{end}
-        ,m_err{}
+        ,m_err{FJ_EC_OK}
     {}
     template<std::size_t N>
     fjson(const element_type (&arr)[N])
         :m_storage{}
         ,m_beg{std::addressof(arr[0])}
         ,m_end{std::addressof(arr[N])}
-        ,m_err{}
+        ,m_err{FJ_EC_OK}
     {}
+
+    // construct and parse into user-provided array of tokens
+    template<
+         typename Et
+        ,typename = typename std::enable_if<std::is_same<Et, element_type>::value>::type
+    >
+    fjson(Et *toksbeg, Et *toksend, InputIterator beg, InputIterator end)
+        :m_storage{}
+        ,m_beg{}
+        ,m_end{}
+        ,m_err{FJ_EC_INVALID}
+    { parse(toksbeg, toksend, beg, end); }
 
     virtual ~fjson() = default;
 
 private:
-    fjson(storage_ptr storage, const element_type *beg, const element_type *end)
+    fjson(e_fj_error_code ec, storage_ptr storage, const element_type *beg, const element_type *end)
         :m_storage{std::move(storage)}
         ,m_beg{beg}
         ,m_end{end}
-        ,m_err{}
+        ,m_err{ec}
     {}
 
 public:
-    bool is_valid() const { return m_beg; }
+    bool is_valid() const { return m_beg && m_err == FJ_EC_OK; }
     e_fj_error_code error() const { return m_err; }
     const char* error_string() const { return fj_error_string(m_err); }
 
@@ -1624,7 +1646,7 @@ public:
     fjson at(const char *key, std::size_t len) const {
         auto res = find(key, len);
         if ( res.first ) {
-            return {m_storage, res.first, res.second};
+            return {m_err, m_storage, res.first, res.second};
         }
 
         throw std::runtime_error(__FLATJSON__MAKE_ERROR_MESSAGE("key not found"));
@@ -1633,7 +1655,7 @@ public:
     fjson at(std::size_t idx) const {
         auto res = find(idx);
         if ( res.first ) {
-            return {m_storage, res.first, res.second};
+            return {m_err, m_storage, res.first, res.second};
         }
 
         throw std::out_of_range(__FLATJSON__MAKE_ERROR_MESSAGE("out of range"));
@@ -1641,7 +1663,7 @@ public:
 
     // get a fjson object at iterator position
     fjson at(const const_iterator &it) const
-    { return fjson{m_storage, std::addressof(*it), it->end()}; }
+    { return {m_err, m_storage, std::addressof(*it), it->end()}; }
 
     // for arrays
     fjson operator[](std::size_t idx) const { return at(idx); }
@@ -1658,7 +1680,10 @@ public:
     fjson operator[](ConstCharPtr key) const { return at(key, std::strlen(key)); }
 
     // load
-    template<std::size_t N, typename CharT = typename std::iterator_traits<InputIterator>::value_type>
+    template<
+         std::size_t N
+        ,typename CharT = typename std::iterator_traits<InputIterator>::value_type
+    >
     bool load(const char (&str)[N]) { return load(str, str+N-1); }
     bool load(InputIterator beg, std::size_t size) { return load(beg, beg+size); }
     bool load(InputIterator beg, InputIterator end) {
@@ -1695,6 +1720,7 @@ public:
         m_storage->resize(res.toknum);
         m_beg = m_storage->data();
         m_end = m_beg + m_storage->size();
+        m_err = FJ_EC_OK;
 
         return true;
     }
@@ -1726,12 +1752,25 @@ public:
     std::pair<const fj_token<InputIterator>*, const fj_token<InputIterator>*>
     data() const { return {m_beg, m_end}; }
 
+    // for top level object/array only
+    std::size_t keys_num() const {
+        const auto d = data();
+
+        return fj_get_keys(d.first, d.second - d.first, nullptr, nullptr);
+    }
     std::vector<string_view>
-    get_keys() const {
+    keys() const {
         std::vector<string_view> res{};
+        auto num = keys_num();
+        res.reserve(num);
 
         const auto d = data();
-        fj_get_keys(d.first, d.second - d.first, std::addressof(res), std::addressof(get_keys_cb));
+        fj_get_keys(
+             d.first
+            ,d.second - d.first
+            ,std::addressof(res)
+            ,std::addressof(get_keys_cb)
+        );
 
         return res;
     }
@@ -1804,7 +1843,8 @@ private:
     }
 
     template<typename Et, bool IsBeg>
-    static tokens_iterator_impl<Et> construct_iterator(Et *beg, Et *end) {
+    static tokens_iterator_impl<Et>
+    construct_iterator(Et *beg, Et *end) {
         if ( beg == end ) {
             return tokens_iterator_impl<Et>{nullptr, nullptr, nullptr};
         }
@@ -1823,6 +1863,29 @@ private:
                 return tokens_iterator_impl<Et>{beg, beg->end(), beg->end()};
             }
         }
+    }
+
+    bool parse(element_type *toksbeg, element_type *toksend, InputIterator strbeg, InputIterator strend) {
+        fj_parser<InputIterator> parser{};
+        fj_init(
+             std::addressof(parser)
+            ,strbeg
+            ,strend
+            ,toksbeg
+            ,toksend - toksbeg
+        );
+        parse_result res = fj_parse(std::addressof(parser));
+        if ( res.ec ) {
+            m_err = res.ec;
+
+            return false;
+        }
+
+        m_err = FJ_EC_OK;
+        m_beg = toksbeg;
+        m_end = toksbeg + res.toknum;
+
+        return true;
     }
 
 private:

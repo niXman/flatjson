@@ -98,15 +98,6 @@ test_result test_conformance() {
 /*************************************************************************************************/
 
 static void unit_00() {
-    flatjson::fjson json0;
-    assert(json0.is_valid() == false);
-
-    flatjson::fjson json1{""};
-    assert(json1.is_valid() == false);
-
-    flatjson::fjson json2{nullptr, nullptr};
-    assert(json2.is_valid() == false);
-
     assert(flatjson::details::fj_is_simple_type(flatjson::FJ_TYPE_INVALID) == false);
     assert(flatjson::details::fj_is_simple_type(flatjson::FJ_TYPE_STRING) == true);
     assert(flatjson::details::fj_is_simple_type(flatjson::FJ_TYPE_NUMBER) == true);
@@ -118,7 +109,20 @@ static void unit_00() {
     assert(flatjson::details::fj_is_simple_type(flatjson::FJ_TYPE_ARRAY_END) == false);
 }
 
+/*************************************************************************************************/
+
 static void unit_01() {
+    flatjson::fjson json0;
+    assert(json0.is_valid() == false);
+
+    flatjson::fjson json1{""};
+    assert(json1.is_valid() == false);
+
+    flatjson::fjson json2{nullptr, nullptr};
+    assert(json2.is_valid() == false);
+}
+
+static void unit_02() {
     static const char str[] = R"({"a":true, "b":false, "c":null, "d":0, "e":"e"})";
     auto json = flatjson::parse(std::begin(str), std::end(str));
 
@@ -132,7 +136,7 @@ static void unit_01() {
     assert(!json.is_bool());
 }
 
-static void unit_02() {
+static void unit_03() {
     static const char str[] = R"({"a":true, "b":false, "c":null, "d":0, "e":"e"})";
     auto json = flatjson::parse(std::begin(str), std::end(str));
     json.load(str);
@@ -147,7 +151,7 @@ static void unit_02() {
     assert(!json.is_bool());
 }
 
-static void unit_03() {
+static void unit_04() {
     static const char str[] = R"({})";
     flatjson::fjson json(str);
 
@@ -162,7 +166,7 @@ static void unit_03() {
     assert(!json.is_number());
 }
 
-static void unit_04() {
+static void unit_05() {
     static const char str[] = R"([])";
     flatjson::fjson json(str);
 
@@ -177,7 +181,7 @@ static void unit_04() {
     assert(!json.is_number());
 }
 
-static void unit_05() {
+static void unit_06() {
     static const char str[] = R"(true)";
     flatjson::fjson json(str);
 
@@ -193,7 +197,7 @@ static void unit_05() {
     assert(!json.is_number());
 }
 
-static void unit_06() {
+static void unit_07() {
     static const char str[] = R"(false)";
     flatjson::fjson json(str);
 
@@ -209,7 +213,7 @@ static void unit_06() {
     assert(!json.is_number());
 }
 
-static void unit_07() {
+static void unit_08() {
     static const char str[] = R"(null)";
     flatjson::fjson json(str);
 
@@ -224,7 +228,7 @@ static void unit_07() {
     assert(!json.is_number());
 }
 
-static void unit_08() {
+static void unit_09() {
     static const char str[] = R"("")";
     flatjson::fjson json(str);
 
@@ -241,7 +245,7 @@ static void unit_08() {
     assert(!json.is_number());
 }
 
-static void unit_09() {
+static void unit_10() {
     static const char str[] = R"("string")";
     flatjson::fjson json(str);
 
@@ -258,7 +262,7 @@ static void unit_09() {
     assert(!json.is_number());
 }
 
-static void unit_10() {
+static void unit_11() {
     static const char str[] = R"(1234)";
     flatjson::fjson json(str);
 
@@ -274,7 +278,7 @@ static void unit_10() {
     assert(!json.is_object());
 }
 
-static void unit_11() {
+static void unit_12() {
     static const char str[] = R"(3.14)";
     flatjson::fjson json(str);
 
@@ -290,7 +294,7 @@ static void unit_11() {
     assert(!json.is_object());
 }
 
-static void unit_12() {
+static void unit_13() {
     static const char str[] = R"([0, "1", 3.14])";
     flatjson::fjson json(str);
 
@@ -314,7 +318,7 @@ static void unit_12() {
     assert(json.at(2).to_double() == 3.14);
 }
 
-static void unit_13() {
+static void unit_14() {
     static const char str[] = R"({"a":true, "b":false, "c":null, "d":0, "e":"e"})";
     flatjson::fjson json(str);
 
@@ -389,7 +393,7 @@ static void unit_13() {
     assert(!j4.is_null());
 }
 
-static void unit_14() {
+static void unit_15() {
     static const char str[] = R"({"a":{"b":true, "c":1234}})";
     flatjson::fjson json(str);
 
@@ -435,7 +439,7 @@ static void unit_14() {
     assert(!j2.is_bool());
 }
 
-static void unit_15() {
+static void unit_16() {
     static const char str[] = R"({"a":[0,1,2]})";
     flatjson::fjson json(str);
 
@@ -464,7 +468,7 @@ static void unit_15() {
     }
 }
 
-static void unit_16() {
+static void unit_17() {
     static const char jsstr[] = R"({"a":true, "b":{"c":{"d":1, "e":2}}, "c":[0,1,2,3]})";
     flatjson::fjson json{jsstr};
     auto str = json.dump(4);
@@ -492,7 +496,7 @@ R"({
     assert(ss.str() == expected);
 }
 
-static void unit_17() {
+static void unit_18() {
     static const char jsstr[] = R"({"a":[4,3,2,1], "b":[{"a":0,"b":0,"c":1},{"b":1,"a":0,"c":0},{"c":2,"b":0,"a":0}], "c":[0,1,2,3]})";
     flatjson::fjson json{jsstr};
     assert(json.is_valid());
@@ -517,7 +521,7 @@ static void unit_17() {
 
 /*************************************************************************************************/
 
-static void unit_18() {
+static void unit_19() {
     {
         static const char jsstr[] = R"([0])";
 
@@ -579,7 +583,7 @@ static void unit_18() {
 
 /*************************************************************************************************/
 
-static void unit_19() {
+static void unit_20() {
     flatjson::fjson j0;
     assert(j0.begin() == j0.end());
 
@@ -589,7 +593,7 @@ static void unit_19() {
 
 /*************************************************************************************************/
 
-static void unit_20() {
+static void unit_21() {
     static const char jsstr[] = R"([0, 1, 2])";
 
     const flatjson::fjson json{jsstr, jsstr+sizeof(jsstr)-1};
@@ -619,7 +623,7 @@ i=2, NUMBER
 
 /*************************************************************************************************/
 
-static void unit_21_get_keys_cb(void *userdata, const char *ptr, std::size_t len) {
+static void unit_22_get_keys_cb(void *userdata, const char *ptr, std::size_t len) {
     std::size_t &cnt = *static_cast<std::size_t *>(userdata);
 
     assert(len == 1);
@@ -635,7 +639,7 @@ static void unit_21_get_keys_cb(void *userdata, const char *ptr, std::size_t len
     ++cnt;
 }
 
-static void unit_21() {
+static void unit_22() {
     static const char jsstr[] = R"({"a":0, "b":1})";
 
     const flatjson::fjson json{jsstr};
@@ -648,26 +652,25 @@ static void unit_21() {
     const auto *toksbeg= data.first;
     const auto *toksend = data.second;
     std::size_t calls_cnt{};
-    int num = flatjson::fj_get_keys(toksbeg, toksend - toksbeg, &calls_cnt, &unit_21_get_keys_cb);
+    int num = flatjson::fj_get_keys(toksbeg, toksend - toksbeg, &calls_cnt, &unit_22_get_keys_cb);
     assert(num == 2);
     assert(calls_cnt == 2);
+    assert(json.keys_num() == 2);
 
-    auto keys = json.get_keys();
+    auto keys = json.keys();
     for ( auto it = keys.begin(); it != keys.end(); ++it ) {
         auto dist = std::distance(keys.begin(), it);
-        if ( dist == 0 ) {
-            assert(*it == "a");
-        } else if ( dist == 1 ) {
-            assert(*it == "b");
-        } else {
-            assert(!"unreachable!");
+        switch ( dist ) {
+            case 0: { assert(*it == "a"); break; }
+            case 1: { assert(*it == "b"); break; }
+            default:{ assert(!"unreachable!"); }
         }
     }
 }
 
 /*************************************************************************************************/
 
-static void unit_22() {
+static void unit_23() {
     static const char str[] = R"({"bb":0, "b":1})";
     flatjson::fjson json(str);
 
@@ -680,7 +683,7 @@ static void unit_22() {
 
 /*************************************************************************************************/
 
-static void unit_23() {
+static void unit_24() {
     static const char str[] = R"({"bb":0, "b":1})";
 
     flatjson::fj_token<const char *> tokens[4];
@@ -730,7 +733,7 @@ static void unit_23() {
 
 /*************************************************************************************************/
 
-static void unit_24() {
+static void unit_25() {
     static const char str[] = R"({"bb":0, "b":1})";
 
     flatjson::fj_token<const char *> tokens[4];
@@ -756,27 +759,11 @@ static void unit_24() {
     assert(tokens[2].value() == "1");
 
     assert(tokens[3].type() == flatjson::FJ_TYPE_OBJECT_END);
-
-    /////
-    flatjson::fjson json{std::begin(tokens), std::end(tokens)};
-    assert(json.is_valid());
-    assert(json.is_object());
-    assert(json.size() == 2);
-
-    assert(json.begin()->is_number());
-    assert(json.begin()->key() == "bb");
-    assert(json.begin()->value() == "0");
-
-    assert(std::next(json.begin())->is_number());
-    assert(std::next(json.begin())->key() == "b");
-    assert(std::next(json.begin())->value() == "1");
-
-    assert(std::next(std::next(json.begin()))->type() == flatjson::FJ_TYPE_OBJECT_END);
 }
 
 /*************************************************************************************************/
 
-static void unit_25() {
+static void unit_26() {
     static const char str[] = R"({"bb":0, "b":1})";
     const flatjson::fjson json{str};
 
@@ -804,7 +791,7 @@ static void unit_25() {
 
 /*************************************************************************************************/
 
-static void unit_26() {
+static void unit_27() {
     static const char str[] = R"({"a":0, "b":1, "c":{"d":2, "e":3}, "f":4})";
     const flatjson::fjson json{str};
 
@@ -842,7 +829,7 @@ static void unit_26() {
 
 /*************************************************************************************************/
 
-static void unit_27() {
+static void unit_28() {
     static const char str[] = R"({"a":0, "b":[0,1,2]})";
     flatjson::fjson json{str};
 
@@ -872,7 +859,7 @@ i=2, NUMBER
 
 /*************************************************************************************************/
 
-static void unit_28() {
+static void unit_29() {
     static const char str[] = R"({"a":0, "b":1, "c":{"d":2, "e":3}, "f":4})";
     const flatjson::fjson json{str};
 
@@ -929,7 +916,63 @@ static void unit_28() {
 
 /*************************************************************************************************/
 
+static void unit_30() {
+    static const char str[] = R"({"bb":0, "b":1})";
+    flatjson::fj_token<const char *> tokens[5];
+
+    {
+        auto parser = flatjson::fj_make_parser(
+             tokens
+            ,sizeof(tokens)/sizeof(tokens[0])
+            ,std::begin(str)
+            ,std::end(str)
+        );
+
+        auto res = flatjson::fj_parse(&parser);
+        assert(res.ec == flatjson::FJ_EC_OK);
+        assert(res.toknum == 4);
+
+        flatjson::fjson json(std::begin(tokens), std::end(tokens));
+
+        assert(json.is_valid());
+        assert(json.is_object());
+        assert(json.size() == 2);
+
+        assert(json.begin()->is_number());
+        assert(json.begin()->key() == "bb");
+        assert(json.begin()->value() == "0");
+
+        assert(std::next(json.begin())->is_number());
+        assert(std::next(json.begin())->key() == "b");
+        assert(std::next(json.begin())->value() == "1");
+
+        assert(std::next(std::next(json.begin()))->type() == flatjson::FJ_TYPE_OBJECT_END);
+    }
+
+    {
+        flatjson::fjson json(std::begin(tokens), std::end(tokens), std::begin(str), std::end(str));
+
+        assert(json.is_valid());
+        assert(json.is_object());
+        assert(json.size() == 2);
+
+        assert(json.begin()->is_number());
+        assert(json.begin()->key() == "bb");
+        assert(json.begin()->value() == "0");
+
+        assert(std::next(json.begin())->is_number());
+        assert(std::next(json.begin())->key() == "b");
+        assert(std::next(json.begin())->value() == "1");
+
+        assert(std::next(std::next(json.begin()))->type() == flatjson::FJ_TYPE_OBJECT_END);
+    }
+}
+
+/*************************************************************************************************/
+
 int main() {
+    std::cout << "sizeof(fj_token) = " << sizeof(flatjson::fjson::element_type) << std::endl;
+
     auto res = test_conformance();
     if ( res.ec ) {
         std::cout << "test \"" << res.name << "\" FAILED!" << std::endl;
@@ -964,6 +1007,8 @@ int main() {
     FJ_RUN_TEST(unit_26);
     FJ_RUN_TEST(unit_27);
     FJ_RUN_TEST(unit_28);
+    FJ_RUN_TEST(unit_29);
+    FJ_RUN_TEST(unit_30);
 
     return EXIT_SUCCESS;
 }
