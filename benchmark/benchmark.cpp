@@ -12,7 +12,7 @@
 
 // to compile: g++ -std=c++11 parsetest.cpp -O2 -o parsetest
 
-#include "flatjson.hpp"
+#include <flatjson/flatjson.hpp>
 
 #include <iostream>
 #include <fstream>
@@ -38,13 +38,13 @@ int main(int argc, char **argv) {
 		return EXIT_FAILURE;
 	}
 
-	std::cout << "sizeof(fj_token) = " << sizeof(flatjson::fjson::element_type) << std::endl;
+	std::cout << "sizeof(fj_token) = " << sizeof(flatjson::fj_token) << std::endl;
 	const char *fname = argv[1];
 	std::string body = read_file(fname);
 
 	auto t1 = std::chrono::high_resolution_clock::now();
 	
-	flatjson::fjson json(body.c_str(), body.size(), 0);
+	flatjson::fjson json(body.c_str(), body.size());
 	if ( !json.is_valid() ) {
 	    std::cout << "parse error: " << json.error() << ", msg=" << json.error_string() << std::endl;
 
