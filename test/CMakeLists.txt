@@ -6,7 +6,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -Wextra -Werror=return-
 add_definitions(
 	-UNDEBUG
     -D__FJ__SUPPORTS_STDIO
-    -D__FJ__DONT_PACK_TOKENS
+    #-D__FJ__DONT_PACK_TOKENS
 )
 
 include_directories(
