@@ -15,7 +15,6 @@
 #include <ostream>
 #include <vector>
 #include <string>
-#include <memory>
 #include <limits>
 
 #include <cassert>
@@ -27,22 +26,30 @@
 #   include <unistd.h>
 #endif // __FJ__SUPPORTS_STDIO
 
-/*************************************************************************************************/
-
-#if defined(__clang__)
-#   define __FJ__FALLTHROUGH [[clang::fallthrough]]
-#elif defined(__GNUC__)
-#   define __FJ__FALLTHROUGH __attribute__ ((fallthrough))
-#elif defined(_MSC_VER)
-#   define __FJ__FALLTHROUGH
-#else
-#   error "Unknown compiler"
-#endif //
-
-/*************************************************************************************************/
-
 #define __FJ__STRINGIZE_I(x) #x
 #define __FJ__STRINGIZE(x) __FJ__STRINGIZE_I(x)
+
+/*************************************************************************************************/
+
+// FJ_VERSION / 100000     - is the major version
+// FJ_VERSION / 100 % 1000 - is the minor version
+// FJ_VERSION % 100        - is the bugfix level
+
+#define FJ_VERSION_MAJOR 0
+#define FJ_VERSION_MINOR 0
+#define FJ_VERSION_BUGFIX 1
+
+#define FJ_VERSION \
+     FJ_VERSION_MAJOR*100000 \
+    +FJ_VERSION_MINOR*1000 \
+    +FJ_VERSION_BUGFIX*10
+
+#define FJ_VERSION_STRING \
+        __FJ__STRINGIZE(FJ_VERSION_MAJOR) \
+    "." __FJ__STRINGIZE(FJ_VERSION_MINOR) \
+    "." __FJ__STRINGIZE(FJ_VERSION_BUGFIX)
+
+/*************************************************************************************************/
 
 #define __FJ__MAKE_ERROR_MESSAGE(msg) \
     __FILE__ "(" __FJ__STRINGIZE(__LINE__) "): " msg
@@ -53,6 +60,28 @@
 #   define __FJ__CHECK_OVERFLOW(expr, type, err) \
         if ( (expr) >= (std::numeric_limits<type>::max)() ) return err
 #endif //__FLATJSON__SHOULD_CHECK_OVERFLOW
+
+/*************************************************************************************************/
+
+#if __cplusplus >= 201703L
+#   define __FJ__FALLTHROUGH [[fallthrough]]
+#   define __FJ__CONSTEXPR_IF(...) if constexpr (__VA_ARGS__)
+#   include <string_view>
+    namespace flatjson {
+        using string_view = std::string_view;
+    } // ns flatjson
+#else
+#   define __FJ__CONSTEXPR_IF(...) if (__VA_ARGS__)
+#   if defined(__clang__)
+#       define __FJ__FALLTHROUGH [[clang::fallthrough]]
+#   elif defined(__GNUC__)
+#       define __FJ__FALLTHROUGH __attribute__ ((fallthrough))
+#   elif defined(_MSC_VER)
+#       define __FJ__FALLTHROUGH
+#   else
+#       error "Unknown compiler"
+#   endif //
+#endif // __cplusplus >= 201703L
 
 #ifndef __FJ__KLEN_TYPE
 #   define __FJ__KLEN_TYPE std::uint8_t
@@ -76,22 +105,9 @@ struct enable_if_const_char_ptr<const char *> {
     using type = void;
 };
 
-} // ns flatjson
-
 /*************************************************************************************************/
 
-#if __cplusplus >= 201703L
-#   include <string_view>
-#   define __FJ__CONSTEXPR_IF(...) if constexpr (__VA_ARGS__)
-namespace flatjson {
-using string_view = std::string_view;
-} // ns flatjson
-#else
-#   define __FJ__CONSTEXPR_IF(...) if (__VA_ARGS__)
-
-namespace flatjson {
-
-/*************************************************************************************************/
+#if __cplusplus < 201703L
 
 struct string_view {
     string_view() = default;
@@ -141,13 +157,7 @@ private:
     std::size_t m_len;
 };
 
-/*************************************************************************************************/
-
-} // ns flatjson
-
 #endif // __cplusplus >= 201703L
-
-namespace flatjson {
 
 /*************************************************************************************************/
 
@@ -2630,8 +2640,8 @@ inline fjson parse(
 
 // undef internally used macro-vars
 #undef __FJ__FALLTHROUGH
-#undef __FJ__STRINGIZE_I
-#undef __FJ__STRINGIZE
+//#undef __FJ__STRINGIZE_I
+//#undef __FJ__STRINGIZE
 #undef __FJ__MAKE_ERROR_MESSAGE
 #undef __FJ__CHECK_OVERFLOW
 #undef __FJ__KLEN_TYPE

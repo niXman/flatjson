@@ -1125,7 +1125,7 @@ int main() {
 
         auto it2 = fj_iter_at("c", &parser);
         assert(it2.is_null());
-        assert(it2.to_string_view() == "");
+        assert(it2.to_string_view() == "null");
     };
 
     test += FJ_TEST() {
@@ -1974,6 +1974,13 @@ R"({
         assert(dist_1);
         assert(dist_2);
     };
+
+    /*********************************************************************************************/
+
+    std::cout << "version num=" << FJ_VERSION << std::endl;
+    std::cout << "version str=" << FJ_VERSION_STRING << std::endl;
+
+    /*********************************************************************************************/
 
     test.run();
 
