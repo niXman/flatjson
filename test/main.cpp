@@ -677,7 +677,7 @@ int main() {
         auto toknum = fj_parse(parser);
 
         assert(myallocator.allocations() == 1);
-        assert(myallocator.total_alloc() == 72);
+        assert(myallocator.total_alloc() == 80);
 
         assert(fj_is_valid(parser));
         assert(toknum == 7);
@@ -814,9 +814,9 @@ int main() {
     //    std::cout << "total: " << myallocator.total_alloc() << std::endl;
         assert(myallocator.allocations() == 2);
 #ifndef __FJ__DONT_PACK_TOKENS
-        assert(myallocator.total_alloc() == 352);
+        assert(myallocator.total_alloc() == 360);
 #else
-        assert(myallocator.total_alloc() == 520);
+        assert(myallocator.total_alloc() == 528);
 #endif // __FJ__DONT_PACK_TOKENS
 
         assert(fj_is_valid(parser));

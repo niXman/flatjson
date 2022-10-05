@@ -472,7 +472,7 @@ struct fj_parser {
     bool dyn_parser;
 
     // intrusive pointer part
-    std::size_t ref_cnt;
+    std::uint32_t ref_cnt;
 
     static std::size_t inc_refcnt(fj_parser *parser) { return ++parser->ref_cnt; }
     static std::size_t dec_refcnt(fj_parser *parser) { return --parser->ref_cnt; }
@@ -526,21 +526,27 @@ inline void fj_dump_tokens(std::FILE *stream, const char *caption, fj_parser *pa
 
 /*************************************************************************************************/
 
-inline void fj_skip_ws(fj_parser *p) {
+inline void fj_skip_ws(fj_parser *parser) {
     for (
-        ;p->str_cur < p->str_end && (*p->str_cur == ' ' || *p->str_cur == '\t' || *p->str_cur == '\r' || *p->str_cur == '\n')
-        ;++p->str_cur
+        ;parser->str_cur < parser->str_end
+            && (
+                *parser->str_cur == ' '
+             || *parser->str_cur == '\t'
+             || *parser->str_cur == '\r'
+             || *parser->str_cur == '\n'
+        )
+        ;++parser->str_cur
     )
         ;
 }
 
-#define __FJ__CUR_CHAR(p) \
-    ((fj_skip_ws(p)), (p->str_cur >= p->str_end ? ((int)-1) : *(p->str_cur)))
+#define __FJ__CUR_CHAR(pparser) \
+    ((fj_skip_ws(parser)), (parser->str_cur >= parser->str_end ? ((int)-1) : *(parser->str_cur)))
 
-inline int fj_check_and_skip(fj_parser *p, char expected) {
-    char ch = __FJ__CUR_CHAR(p);
+inline int fj_check_and_skip(fj_parser *parser, char expected) {
+    char ch = __FJ__CUR_CHAR(parser);
     if ( ch == expected ) {
-        p->str_cur++;
+        parser->str_cur++;
 
         return FJ_EC_OK;
     }
@@ -597,37 +603,37 @@ inline int fj_expect(fj_parser *p, const char (&s)[ExLen], const char **ptr, std
 }
 
 template<bool ParseMode>
-int fj_parse_string(fj_parser *p, const char **ptr, std::size_t *size) {
-    int ec = fj_check_and_skip(p, '"');
+int fj_parse_string(fj_parser *parser, const char **value, std::size_t *vlen) {
+    int ec = fj_check_and_skip(parser, '"');
     if ( ec ) {
         return ec;
     }
 
     int ch = 0;
-    auto start = p->str_cur;
-    for ( std::size_t len = 0; p->str_cur < p->str_end; p->str_cur += len ) {
-        ch = static_cast<unsigned char>(*(p->str_cur));
+    auto *start = parser->str_cur;
+    for ( std::size_t len = 0; parser->str_cur < parser->str_end; parser->str_cur += len ) {
+        ch = static_cast<unsigned char>(*(parser->str_cur));
         len = fj_utf8_char_len((unsigned char)ch);
         if ( !(ch >= 32 && len > 0) ) {
             return FJ_EC_INVALID;
         }
-        if ( static_cast<std::ptrdiff_t>(len) > (p->str_end - p->str_cur) ) {
+        if ( static_cast<std::ptrdiff_t>(len) > (parser->str_end - parser->str_cur) ) {
             return FJ_EC_INCOMPLETE;
         }
 
         if ( ch == '\\' ) {
-            int n = fj_escape_len(p->str_cur + 1, p->str_end - p->str_cur);
+            int n = fj_escape_len(parser->str_cur + 1, parser->str_end - parser->str_cur);
             if ( n <= 0 ) {
                 return n;
             }
             len += n;
         } else if ( ch == '"' ) {
             __FJ__CONSTEXPR_IF( ParseMode ) {
-                *ptr = start;
-                *size = p->str_cur - start;
+                *value = start;
+                *vlen = parser->str_cur - start;
             }
 
-            ++p->str_cur;
+            ++parser->str_cur;
 
             break;
         }
@@ -637,95 +643,95 @@ int fj_parse_string(fj_parser *p, const char **ptr, std::size_t *size) {
 }
 
 template<bool ParseMode>
-int fj_parse_number(fj_parser *p, const char **ptr, std::size_t *size) {
-    auto start = p->str_cur;
-    if ( __FJ__CUR_CHAR(p) == '-' ) {
-        p->str_cur++;
+int fj_parse_number(fj_parser *parser, const char **value, std::size_t *vlen) {
+    auto start = parser->str_cur;
+    if ( __FJ__CUR_CHAR(parser) == '-' ) {
+        parser->str_cur++;
     }
 
-    if ( p->str_cur >= p->str_end ) {
+    if ( parser->str_cur >= parser->str_end ) {
         return FJ_EC_INCOMPLETE;
     }
-    if ( p->str_cur + 1 < p->str_end && *(p->str_cur) == '0' && *(p->str_cur+1) == 'x' ) {
-        p->str_cur += 2;
+    if ( parser->str_cur + 1 < parser->str_end && *(parser->str_cur) == '0' && *(parser->str_cur+1) == 'x' ) {
+        parser->str_cur += 2;
 
-        if ( p->str_cur >= p->str_end ) {
+        if ( parser->str_cur >= parser->str_end ) {
             return FJ_EC_INCOMPLETE;
         }
-        if ( !details::fj_is_hex_digit(*(p->str_cur)) ) {
+        if ( !details::fj_is_hex_digit(*(parser->str_cur)) ) {
             return FJ_EC_INVALID;
         }
 
-        for ( ; p->str_cur < p->str_end && details::fj_is_hex_digit(*(p->str_cur)); ++p->str_cur )
+        for ( ; parser->str_cur < parser->str_end && details::fj_is_hex_digit(*(parser->str_cur)); ++parser->str_cur )
             ;
     } else {
-        if ( !details::fj_is_digit(*(p->str_cur)) ) {
+        if ( !details::fj_is_digit(*(parser->str_cur)) ) {
             return FJ_EC_INVALID;
         }
-        for ( ; p->str_cur < p->str_end && details::fj_is_digit(*(p->str_cur)); ++p->str_cur )
+        for ( ; parser->str_cur < parser->str_end && details::fj_is_digit(*(parser->str_cur)); ++parser->str_cur )
             ;
 
-        if ( p->str_cur < p->str_end && *(p->str_cur) == '.' ) {
-            p->str_cur++;
+        if ( parser->str_cur < parser->str_end && *(parser->str_cur) == '.' ) {
+            parser->str_cur++;
 
-            if ( p->str_cur >= p->str_end ) {
+            if ( parser->str_cur >= parser->str_end ) {
                 return FJ_EC_INCOMPLETE;
             }
-            if ( !details::fj_is_digit(*(p->str_cur)) ) {
+            if ( !details::fj_is_digit(*(parser->str_cur)) ) {
                 return FJ_EC_INVALID;
             }
 
-            for ( ; p->str_cur < p->str_end && details::fj_is_digit(*(p->str_cur)); ++p->str_cur )
+            for ( ; parser->str_cur < parser->str_end && details::fj_is_digit(*(parser->str_cur)); ++parser->str_cur )
                 ;
         }
-        if ( p->str_cur < p->str_end && (*(p->str_cur) == 'e' || *(p->str_cur) == 'E') ) {
-            p->str_cur++;
+        if ( parser->str_cur < parser->str_end && (*(parser->str_cur) == 'e' || *(parser->str_cur) == 'E') ) {
+            parser->str_cur++;
 
-            if ( p->str_cur >= p->str_end ) {
+            if ( parser->str_cur >= parser->str_end ) {
                 return FJ_EC_INCOMPLETE;
             }
-            if ( *(p->str_cur) == '+' || *(p->str_cur) == '-' ) {
-                p->str_cur++;
+            if ( *(parser->str_cur) == '+' || *(parser->str_cur) == '-' ) {
+                parser->str_cur++;
             }
-            if ( p->str_cur >= p->str_end ) {
+            if ( parser->str_cur >= parser->str_end ) {
                 return FJ_EC_INCOMPLETE;
             }
-            if ( !details::fj_is_digit(*(p->str_cur)) ) {
+            if ( !details::fj_is_digit(*(parser->str_cur)) ) {
                 return FJ_EC_INVALID;
             }
 
-            for ( ; p->str_cur < p->str_end && details::fj_is_digit(*(p->str_cur)); ++p->str_cur )
+            for ( ; parser->str_cur < parser->str_end && details::fj_is_digit(*(parser->str_cur)); ++parser->str_cur )
                 ;
         }
     }
 
-    if ( (p->str_cur - start) > 1 && (start[0] == '0' && start[1] != '.') ) {
+    if ( (parser->str_cur - start) > 1 && (start[0] == '0' && start[1] != '.') ) {
         return FJ_EC_INVALID;
     }
 
     __FJ__CONSTEXPR_IF( ParseMode ) {
-        *ptr = start;
-        *size = p->str_cur - start;
+        *value = start;
+        *vlen = parser->str_cur - start;
     }
 
     return FJ_EC_OK;
 }
 
 template<bool ParseMode>
-int fj_parse_value(fj_parser *p, const char **ptr, std::size_t *size, fj_token_type *toktype, fj_token *parent);
+int fj_parse_value(fj_parser *parser, const char **value, std::size_t *vlen, fj_token_type *toktype, fj_token *parent);
 
 template<bool ParseMode>
-int fj_parse_array(fj_parser *p, fj_token *parent) {
-    int ec = fj_check_and_skip(p, '[');
+int fj_parse_array(fj_parser *parser, fj_token *parent) {
+    int ec = fj_check_and_skip(parser, '[');
     if ( ec ) {
         return ec;
     }
 
-    if ( ParseMode && p->toks_cur == p->toks_end ) {
+    if ( ParseMode && parser->toks_cur == parser->toks_end ) {
         return FJ_EC_NO_FREE_TOKENS;
     }
 
-    auto *startarr = p->toks_cur++;
+    auto *startarr = parser->toks_cur++;
     __FJ__CONSTEXPR_IF( ParseMode ) {
         startarr->m_type = FJ_TYPE_ARRAY;
         startarr->m_parent = parent;
@@ -735,19 +741,18 @@ int fj_parse_array(fj_parser *p, fj_token *parent) {
         }
     }
 
-    while ( __FJ__CUR_CHAR(p) != ']' ) {
-        if ( ParseMode && p->toks_cur == p->toks_end ) {
+    while ( __FJ__CUR_CHAR(parser) != ']' ) {
+        if ( ParseMode && parser->toks_cur == parser->toks_end ) {
             return FJ_EC_NO_FREE_TOKENS;
         }
 
-        auto *pair = p->toks_cur++;
-
-        char ch = __FJ__CUR_CHAR(p);
+        auto *current_token = parser->toks_cur++;
+        char ch = __FJ__CUR_CHAR(parser);
         if ( ch == '{' || ch == '[' ) {
-            p->toks_cur -= 1;
+            parser->toks_cur -= 1;
         } else {
             __FJ__CONSTEXPR_IF( ParseMode ) {
-                pair->m_parent = startarr;
+                current_token->m_parent = startarr;
 
                 __FJ__CHECK_OVERFLOW(startarr->m_childs, __FJ__CHILDS_TYPE, FJ_EC_CHILDS_OVERFLOW);
                 ++startarr->m_childs;
@@ -756,10 +761,10 @@ int fj_parse_array(fj_parser *p, fj_token *parent) {
 
         std::size_t size = 0;
         ec = fj_parse_value<ParseMode>(
-             p
-            ,std::addressof(pair->m_val)
+             parser
+            ,std::addressof(current_token->m_val)
             ,std::addressof(size)
-            ,std::addressof(pair->m_type)
+            ,std::addressof(current_token->m_type)
             ,startarr
         );
         if ( ec ) {
@@ -767,51 +772,51 @@ int fj_parse_array(fj_parser *p, fj_token *parent) {
         }
         __FJ__CONSTEXPR_IF( ParseMode ) {
             __FJ__CHECK_OVERFLOW(size, __FJ__VLEN_TYPE, FJ_EC_VLEN_OVERFLOW);
-            pair->m_vlen = size;
+            current_token->m_vlen = size;
         }
 
-        if ( __FJ__CUR_CHAR(p) == ',' ) {
-            p->str_cur++;
-            if ( *(p->str_cur) == ']' ) {
+        if ( __FJ__CUR_CHAR(parser) == ',' ) {
+            parser->str_cur++;
+            if ( *(parser->str_cur) == ']' ) {
                 return FJ_EC_INVALID;
             }
         }
     }
 
-    ec = fj_check_and_skip(p, ']');
+    ec = fj_check_and_skip(parser, ']');
     if ( ec ) {
         return ec;
     }
 
     __FJ__CONSTEXPR_IF( ParseMode ) {
-        if ( p->toks_cur == p->toks_end ) {
+        if ( parser->toks_cur == parser->toks_end ) {
             return FJ_EC_NO_FREE_TOKENS;
         }
-        auto *endarr = p->toks_cur++;
+        auto *endarr = parser->toks_cur++;
         endarr->m_type = FJ_TYPE_ARRAY_END;
         endarr->m_parent = startarr;
         __FJ__CHECK_OVERFLOW(endarr->m_parent->m_childs, __FJ__CHILDS_TYPE, FJ_EC_CHILDS_OVERFLOW);
         ++endarr->m_parent->m_childs;
         startarr->m_end = endarr;
     } else {
-        ++p->toks_cur;
+        ++parser->toks_cur;
     }
 
     return 0;
 }
 
 template<bool ParseMode>
-int fj_parse_object(fj_parser *p, fj_token *parent) {
-    int ec = fj_check_and_skip(p, '{');
+int fj_parse_object(fj_parser *parser, fj_token *parent) {
+    int ec = fj_check_and_skip(parser, '{');
     if ( ec ) {
         return ec;
     }
 
-    if ( ParseMode && p->toks_cur == p->toks_end ) {
+    if ( ParseMode && parser->toks_cur == parser->toks_end ) {
         return FJ_EC_NO_FREE_TOKENS;
     }
 
-    auto *startobj = p->toks_cur++;
+    auto *startobj = parser->toks_cur++;
     __FJ__CONSTEXPR_IF( ParseMode ) {
         startobj->m_type = FJ_TYPE_OBJECT;
         startobj->m_parent = parent;
@@ -821,8 +826,8 @@ int fj_parse_object(fj_parser *p, fj_token *parent) {
         }
     }
 
-    while ( __FJ__CUR_CHAR(p) != '}' ) {
-        char ch = __FJ__CUR_CHAR(p);
+    while ( __FJ__CUR_CHAR(parser) != '}' ) {
+        char ch = __FJ__CUR_CHAR(parser);
         if ( ch != '"' ) {
             if ( ch == ((int)-1) ) {
                 return FJ_EC_INCOMPLETE;
@@ -831,18 +836,17 @@ int fj_parse_object(fj_parser *p, fj_token *parent) {
             return FJ_EC_INVALID;
         }
 
-        if ( ParseMode && p->toks_cur == p->toks_end ) {
+        if ( ParseMode && parser->toks_cur == parser->toks_end ) {
             return FJ_EC_NO_FREE_TOKENS;
         }
 
-        auto *pair = p->toks_cur++;
-
+        auto *current_token = parser->toks_cur++;
         std::size_t size = 0;
         ec = fj_parse_value<ParseMode>(
-             p
-            ,std::addressof(pair->m_key)
+             parser
+            ,std::addressof(current_token->m_key)
             ,std::addressof(size)
-            ,std::addressof(pair->m_type)
+            ,std::addressof(current_token->m_type)
             ,startobj
         );
         if ( ec ) {
@@ -850,43 +854,43 @@ int fj_parse_object(fj_parser *p, fj_token *parent) {
         }
         __FJ__CONSTEXPR_IF( ParseMode ) {
             __FJ__CHECK_OVERFLOW(size, __FJ__KLEN_TYPE, FJ_EC_KLEN_OVERFLOW);
-            pair->m_klen = size;
+            current_token->m_klen = size;
         }
 
-        ec = fj_check_and_skip(p, ':');
+        ec = fj_check_and_skip(parser, ':');
         if ( ec ) {
             return ec;
         }
 
-        ch = __FJ__CUR_CHAR(p);
+        ch = __FJ__CUR_CHAR(parser);
         if ( ch == '[' || ch == '{' ) {
-            p->toks_cur -= 1;
+            parser->toks_cur -= 1;
             const char *unused_str{};
             std::size_t unused_size{};
             ec = fj_parse_value<ParseMode>(
-                 p
+                 parser
                 ,std::addressof(unused_str)
                 ,std::addressof(unused_size)
-                ,std::addressof(pair->m_type)
+                ,std::addressof(current_token->m_type)
                 ,startobj
             );
         } else {
             __FJ__CONSTEXPR_IF( ParseMode ) {
-                pair->m_parent = startobj;
+                current_token->m_parent = startobj;
                 __FJ__CHECK_OVERFLOW(startobj->m_childs, __FJ__CHILDS_TYPE, FJ_EC_CHILDS_OVERFLOW);
                 ++startobj->m_childs;
             }
 
             ec = fj_parse_value<ParseMode>(
-                 p
-                ,std::addressof(pair->m_val)
+                 parser
+                ,std::addressof(current_token->m_val)
                 ,std::addressof(size)
-                ,std::addressof(pair->m_type)
+                ,std::addressof(current_token->m_type)
                 ,startobj
             );
             __FJ__CONSTEXPR_IF( ParseMode ) {
                 __FJ__CHECK_OVERFLOW(size, __FJ__VLEN_TYPE, FJ_EC_VLEN_OVERFLOW);
-                pair->m_vlen = size;
+                current_token->m_vlen = size;
             }
         }
 
@@ -894,31 +898,31 @@ int fj_parse_object(fj_parser *p, fj_token *parent) {
             return ec;
         }
 
-        if ( __FJ__CUR_CHAR(p) == ',' ) {
-            p->str_cur++;
-            if ( *(p->str_cur) == '}' ) {
+        if ( __FJ__CUR_CHAR(parser) == ',' ) {
+            parser->str_cur++;
+            if ( *(parser->str_cur) == '}' ) {
                 return FJ_EC_INVALID;
             }
         }
     }
 
-    ec = fj_check_and_skip(p, '}');
+    ec = fj_check_and_skip(parser, '}');
     if ( ec ) {
         return ec;
     }
 
     __FJ__CONSTEXPR_IF( ParseMode ) {
-        if ( p->toks_cur == p->toks_end ) {
+        if ( parser->toks_cur == parser->toks_end ) {
             return FJ_EC_NO_FREE_TOKENS;
         }
-        auto *endobj = p->toks_cur++;
+        auto *endobj = parser->toks_cur++;
         endobj->m_type = FJ_TYPE_OBJECT_END;
         endobj->m_parent = startobj;
         __FJ__CHECK_OVERFLOW(endobj->m_parent->m_childs, __FJ__CHILDS_TYPE, FJ_EC_CHILDS_OVERFLOW);
         ++endobj->m_parent->m_childs;
         startobj->m_end = endobj;
     } else {
-        ++p->toks_cur;
+        ++parser->toks_cur;
     }
 
     return FJ_EC_OK;
@@ -926,16 +930,16 @@ int fj_parse_object(fj_parser *p, fj_token *parent) {
 
 template<bool ParseMode>
 int fj_parse_value(
-     fj_parser *p
-    ,const char **ptr
-    ,std::size_t *size
+     fj_parser *parser
+    ,const char **value
+    ,std::size_t *vlen
     ,fj_token_type *toktype
     ,fj_token *parent)
 {
-    auto ch = __FJ__CUR_CHAR(p);
+    char ch = __FJ__CUR_CHAR(parser);
     switch ( ch ) {
         case '{': {
-            int ec = fj_parse_object<ParseMode>(p, parent);
+            int ec = fj_parse_object<ParseMode>(parser, parent);
             if ( ec ) {
                 return ec;
             }
@@ -945,7 +949,7 @@ int fj_parse_value(
             break;
         }
         case '[': {
-            int ec = fj_parse_array<ParseMode>(p, parent);
+            int ec = fj_parse_array<ParseMode>(parser, parent);
             if ( ec ) {
                 return ec;
             }
@@ -955,13 +959,13 @@ int fj_parse_value(
             break;
         }
         case 'n': {
-            int ec = fj_expect<ParseMode>(p, "null", ptr, size);
+            int ec = fj_expect<ParseMode>(parser, "null", value, vlen);
             if ( ec ) {
                 return ec;
             }
             // on root token
-            if ( p->toks_cur == p->toks_beg ) {
-                ++p->toks_cur;
+            if ( parser->toks_cur == parser->toks_beg ) {
+                ++parser->toks_cur;
             }
             __FJ__CONSTEXPR_IF( ParseMode ) {
                 *toktype = FJ_TYPE_NULL;
@@ -969,13 +973,13 @@ int fj_parse_value(
             break;
         }
         case 't': {
-            int ec = fj_expect<ParseMode>(p, "true", ptr, size);
+            int ec = fj_expect<ParseMode>(parser, "true", value, vlen);
             if ( ec ) {
                 return ec;
             }
             // on root token
-            if ( p->toks_cur == p->toks_beg ) {
-                ++p->toks_cur;
+            if ( parser->toks_cur == parser->toks_beg ) {
+                ++parser->toks_cur;
             }
             __FJ__CONSTEXPR_IF( ParseMode ) {
                 *toktype = FJ_TYPE_BOOL;
@@ -983,13 +987,13 @@ int fj_parse_value(
             break;
         }
         case 'f': {
-            int ec = fj_expect<ParseMode>(p, "false", ptr, size);
+            int ec = fj_expect<ParseMode>(parser, "false", value, vlen);
             if ( ec ) {
                 return ec;
             }
             // on root token
-            if ( p->toks_cur == p->toks_beg ) {
-                ++p->toks_cur;
+            if ( parser->toks_cur == parser->toks_beg ) {
+                ++parser->toks_cur;
             }
             __FJ__CONSTEXPR_IF( ParseMode ) {
                 *toktype = FJ_TYPE_BOOL;
@@ -1007,13 +1011,13 @@ int fj_parse_value(
         case '7':
         case '8':
         case '9': {
-            int ec = fj_parse_number<ParseMode>(p, ptr, size);
+            int ec = fj_parse_number<ParseMode>(parser, value, vlen);
             if ( ec ) {
                 return ec;
             }
             // on root token
-            if ( p->toks_cur == p->toks_beg ) {
-                ++p->toks_cur;
+            if ( parser->toks_cur == parser->toks_beg ) {
+                ++parser->toks_cur;
             }
             __FJ__CONSTEXPR_IF( ParseMode ) {
                 *toktype = FJ_TYPE_NUMBER;
@@ -1021,13 +1025,13 @@ int fj_parse_value(
             break;
         }
         case '"': {
-            int ec = fj_parse_string<ParseMode>(p, ptr, size);
+            int ec = fj_parse_string<ParseMode>(parser, value, vlen);
             if ( ec ) {
                 return ec;
             }
             // on root token
-            if ( p->toks_cur == p->toks_beg ) {
-                ++p->toks_cur;
+            if ( parser->toks_cur == parser->toks_beg ) {
+                ++parser->toks_cur;
             }
             __FJ__CONSTEXPR_IF( ParseMode ) {
                 *toktype = FJ_TYPE_STRING;
@@ -2145,16 +2149,18 @@ struct fjson {
 private:
     struct intrusive_ptr {
         using deleter_fn_ptr = void(*)(fj_parser *);
-        intrusive_ptr(fj_parser *parser, deleter_fn_ptr free_fn)
-            :m_parser{parser}
+
+        intrusive_ptr(bool manage, fj_parser *parser, deleter_fn_ptr free_fn)
+            :m_manage{manage}
+            ,m_parser{parser}
             ,m_free_fn{free_fn}
         {
-            if ( m_parser ) {
+            if ( m_manage && m_parser ) {
                 fj_parser::inc_refcnt(m_parser);
             }
         }
-        ~intrusive_ptr() {
-            if ( m_parser ) {
+        virtual ~intrusive_ptr() {
+            if ( m_manage && m_parser ) {
                 auto refcnt = fj_parser::dec_refcnt(m_parser);
                 if ( !refcnt ) {
                     m_free_fn(m_parser);
@@ -2162,30 +2168,40 @@ private:
             }
         }
         intrusive_ptr(const intrusive_ptr &other)
-            :m_parser{other.m_parser}
+            :m_manage{other.m_manage}
+            ,m_parser{other.m_parser}
             ,m_free_fn{other.m_free_fn}
         {
-            fj_parser::inc_refcnt(m_parser);
+            if ( m_manage ) {
+                fj_parser::inc_refcnt(m_parser);
+            }
         }
         intrusive_ptr(intrusive_ptr &&other)
-            :m_parser{other.m_parser}
+            :m_manage{other.m_manage}
+            ,m_parser{other.m_parser}
             ,m_free_fn{other.m_free_fn}
         {
-            other.m_parser = nullptr;
+            other.m_manage  = false;
+            other.m_parser  = nullptr;
             other.m_free_fn = nullptr;
         }
         intrusive_ptr& operator= (const intrusive_ptr &r) {
-            m_parser = r.m_parser;
+            m_manage  = r.m_manage;
+            m_parser  = r.m_parser;
             m_free_fn = r.m_free_fn;
 
-            fj_parser::inc_refcnt(m_parser);
+            if ( m_manage ) {
+                fj_parser::inc_refcnt(m_parser);
+            }
 
             return *this;
         }
         intrusive_ptr& operator= (intrusive_ptr &&r) {
-            m_parser = r.m_parser;
-            m_free_fn = r.m_free_fn;
-            r.m_parser = nullptr;
+            m_manage    = r.m_manage;
+            m_parser    = r.m_parser;
+            m_free_fn   = r.m_free_fn;
+            r.m_manage  = false;
+            r.m_parser  = nullptr;
             r.m_free_fn = nullptr;
 
             return *this;
@@ -2200,6 +2216,7 @@ private:
         fj_parser&       operator*  ()       { return *m_parser; }
 
     private:
+        bool m_manage;
         fj_parser *m_parser;
         deleter_fn_ptr m_free_fn;
     };
@@ -2216,10 +2233,19 @@ public:
     fjson& operator= (fjson &&) = default;
 
     fjson()
-        :m_parser{nullptr, nullptr}
+        :m_parser{false, nullptr, nullptr}
         ,m_beg{}
         ,m_end{}
     {}
+
+    // construct using user-provided already initialized parser
+    fjson(fj_parser *parser)
+        :m_parser{false, parser, [](fj_parser *){}}
+        ,m_beg{fj_iter_begin(parser)}
+        ,m_end{fj_iter_end(parser)}
+    {
+        assert(fj_is_valid(parser));
+    }
 
     // construct and parse using user-provided array of tokens and parser
     template<std::size_t N>
@@ -2230,7 +2256,8 @@ public:
         ,const char (&str)[N]
     )
         :m_parser{
-             (*parser = fj_make_parser(toksbeg, toksend, std::begin(str), std::end(str)), parser)
+             false
+            ,(*parser = fj_make_parser(toksbeg, toksend, std::begin(str), std::end(str)), parser)
             ,[](fj_parser *){}
         }
         ,m_beg{}
@@ -2252,9 +2279,28 @@ public:
         ,const char *strend
     )
         :m_parser{
-              (*parser = fj_make_parser(toksbeg, toksend, strbeg, strend), parser)
-             ,[](fj_parser *){}
+             false
+            ,(*parser = fj_make_parser(toksbeg, toksend, strbeg, strend), parser)
+            ,[](fj_parser *){}
         }
+        ,m_beg{}
+        ,m_end{}
+    {
+        fj_parse(m_parser.get());
+        if ( fj_is_valid(m_parser.get()) ) {
+            m_beg = fj_iter_begin(m_parser.get());
+            m_end = fj_iter_end(m_parser.get());
+        }
+    }
+
+    // construct and parse using user-provided array of tokens and dyn-allocated parser
+    fjson(
+         fj_token *toksbeg
+        ,fj_token *toksend
+        ,const char *strbeg
+        ,const char *strend
+    )
+        :m_parser{true, fj_alloc_parser(toksbeg, toksend, strbeg, strend), fj_free_parser}
         ,m_beg{}
         ,m_end{}
     {
@@ -2274,7 +2320,8 @@ public:
         ,fj_free_fnptr free_fn = std::addressof(free)
     )
         :m_parser{
-             (*parser = fj_make_parser(std::begin(str), std::end(str), alloc_fn, free_fn), parser)
+             true
+            ,(*parser = fj_make_parser(std::begin(str), std::end(str), alloc_fn, free_fn), parser)
             ,fj_free_parser
         }
         ,m_beg{}
@@ -2296,7 +2343,8 @@ public:
         ,fj_free_fnptr free_fn = std::addressof(free)
     )
         :m_parser{
-             (*parser = fj_make_parser(strbeg, strend, alloc_fn, free_fn), parser)
+             true
+            ,(*parser = fj_make_parser(strbeg, strend, alloc_fn, free_fn), parser)
             ,fj_free_parser
         }
         ,m_beg{}
@@ -2317,7 +2365,8 @@ public:
         ,fj_free_fnptr free_fn = std::addressof(free)
     )
         :m_parser{
-             fj_alloc_parser(std::begin(str), std::end(str), alloc_fn, free_fn)
+             true
+            ,fj_alloc_parser(std::begin(str), std::end(str), alloc_fn, free_fn)
             ,fj_free_parser
         }
         ,m_beg{}
@@ -2337,7 +2386,7 @@ public:
         ,fj_alloc_fnptr alloc_fn = std::addressof(malloc)
         ,fj_free_fnptr free_fn = std::addressof(free)
     )
-        :m_parser{fj_alloc_parser(beg, end, alloc_fn, free_fn), fj_free_parser}
+        :m_parser{true, fj_alloc_parser(beg, end, alloc_fn, free_fn), fj_free_parser}
         ,m_beg{}
         ,m_end{}
     {
