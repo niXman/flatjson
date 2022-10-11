@@ -395,7 +395,7 @@ conv_to(const char *ptr, std::size_t len, To) {
         ++ptr;
         auto res = conv_to(ptr, len - 1, UnsignedTo{});
         if ( res > std::numeric_limits<To>::max() ) {
-            assert("overflow detected!");
+            assert(!"overflow detected!");
         }
 
         return -static_cast<To>(res);
@@ -749,7 +749,13 @@ fj_error_code fj_parse_number(fj_parser *parser, const char **value, std::size_t
 }
 
 template<bool ParseMode>
-fj_error_code fj_parse_value(fj_parser *parser, const char **value, std::size_t *vlen, fj_token_type *toktype, fj_token *parent);
+fj_error_code fj_parse_value(
+     fj_parser *parser
+    ,const char **value
+    ,std::size_t *vlen
+    ,fj_token_type *toktype
+    ,fj_token *parent
+);
 
 template<bool ParseMode>
 fj_error_code fj_parse_array(fj_parser *parser, fj_token *parent) {
