@@ -141,10 +141,10 @@ struct string_view {
     friend bool operator==(const string_view &l, const string_view &r) { return l.compare(r) == 0; }
 
     template<typename T, typename = typename enable_if_const_char_ptr<T>::type>
-    friend bool operator!=(const string_view &l, T r) { return !l.compare(r); }
+    friend bool operator!=(const string_view &l, T r) { return !(l == r); }
     template<std::size_t N>
-    friend bool operator!=(const string_view &l, const char (&r)[N]) { return !l.compare(0, N-1, r); }
-    friend bool operator!=(const string_view &l, const string_view &r) { return !l.compare(r); }
+    friend bool operator!=(const string_view &l, const char (&r)[N]) { return !(l == r); }
+    friend bool operator!=(const string_view &l, const string_view &r) { return !(l == r); }
 
     friend std::ostream& operator<< (std::ostream &os, const string_view &s) {
         os.write(s.m_ptr, s.m_len);
@@ -2152,6 +2152,96 @@ inline std::vector<string_view> fj_get_keys(fj_iterator it,const fj_iterator &en
     fj_get_keys(it, end, std::addressof(res), details::get_fj_keys_cb);
 
     return res;
+}
+
+/*************************************************************************************************/
+
+enum class compare_rules {
+     markup_only // just compare JSON structure and keys only.
+    ,length_only // 'markup_only' + compare a length of keys and values.
+    ,full        // 'markup_only' + 'length_only' + compare each value for equality.
+};
+
+enum class compare_result {
+     OK
+    ,type    // differs in token type.
+    ,key     // differs in key. (for objects only)
+    ,length  // 'type' + differs in length.
+    ,value   // 'type' + 'length' + differs values.
+    ,longer  // the right JSON are longer.
+    ,shorter // the right JSON are shorter.
+};
+
+inline compare_result fj_compare(
+     fj_iterator *ldiff
+    ,fj_iterator *rdiff
+    ,const fj_parser *lp
+    ,const fj_parser *rp
+    ,compare_rules cmpr = compare_rules::markup_only)
+{
+    auto ltokens = lp->toks_cur - lp->toks_beg;
+    auto rtokens = rp->toks_cur - rp->toks_beg;
+    if ( ltokens != rtokens ) {
+        if ( ltokens < rtokens ) {
+            return compare_result::longer;
+        } else {
+            return compare_result::shorter;
+        }
+    }
+
+    auto *lit = lp->toks_beg;
+    auto *lend= lp->toks_cur;
+    auto *rit = rp->toks_beg;
+    auto *rend= rp->toks_cur;
+    for ( ; lit < lend && rit < rend; ++lit, ++rit ) {
+        if ( lit->m_type != rit->m_type ) {
+            *ldiff = {lit->m_parent, lit, lit->m_end};
+            *rdiff = {rit->m_parent, rit, rit->m_end};
+
+            return compare_result::type;
+        }
+
+        if ( string_view{lit->m_key, lit->m_klen}
+             != string_view{rit->m_key, rit->m_klen} )
+        {
+            *ldiff = {lit->m_parent, lit, lit->m_end};
+            *rdiff = {rit->m_parent, rit, rit->m_end};
+
+            return compare_result::key;
+        }
+
+        if ( cmpr == compare_rules::markup_only ) {
+            continue;
+        }
+
+        if ( cmpr == compare_rules::length_only ) {
+            if ( details::fj_is_simple_type(lit->m_type) ) {
+                if ( lit->m_vlen != rit->m_vlen ) {
+                    *ldiff = {lit->m_parent, lit, lit->m_end};
+                    *rdiff = {rit->m_parent, rit, rit->m_end};
+
+                    return compare_result::length;
+                }
+            }
+        } else {
+            if ( details::fj_is_simple_type(lit->m_type) ) {
+                if ( string_view{lit->m_val, lit->m_vlen}
+                     != string_view{rit->m_val, rit->m_vlen} )
+                {
+                    *ldiff = {lit->m_parent, lit, lit->m_end};
+                    *rdiff = {rit->m_parent, rit, rit->m_end};
+
+                    return compare_result::value;
+                }
+            }
+        }
+    }
+
+    if ( lit == lend && rit == rend ) {
+        return compare_result::OK;
+    }
+
+    assert(!"unreachable!");
 }
 
 /*************************************************************************************************/

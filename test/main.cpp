@@ -55,14 +55,20 @@ std::string token_to_string(const flatjson::fj_token *t)
 flatjson::fj_token* token_parent(const flatjson::fj_token *t)
 { return t->m_parent; }
 
-#define FJ_TEST() \
+#define FJ_TEST(...) \
     []{ \
         const char *fileline = __FILE__ "(" FJ_STRINGIZE(__LINE__) ")"; \
         const char *ptr = std::strrchr(fileline, '/'); \
         ptr = ptr ? ptr+1 : ptr; \
-        static char res[32]{}; \
-        std::snprintf(res, sizeof(res), "%2d: %s", __COUNTER__, ptr); \
-        return res; \
+        static char buf[256]{}; \
+        int len = std::snprintf(buf, sizeof(buf), "%2d: %s", __COUNTER__, ptr); \
+        static const char notes[] = FJ_STRINGIZE(__VA_ARGS__); \
+        if ( sizeof(notes)-1 != 0 ) { \
+            buf[len] = '('; \
+            std::strcat(buf, notes); \
+            std::strcat(buf, ")"); \
+        } \
+        return buf; \
     }() + []
 
 #define FJ_STRINGIZE_IMPL(x) #x
@@ -1973,6 +1979,178 @@ R"({
         assert(dist_0);
         assert(dist_1);
         assert(dist_2);
+    };
+
+    test += FJ_TEST(fj_compare(markup) test for equality) {
+        using namespace flatjson;
+
+        static const char str0[] = R"({"a":0, "b":1, "c":{"d":2, "e":3}, "f":4})";
+        auto *parser0 = fj_alloc_parser(std::begin(str0), std::end(str0));
+        auto toknum0 = fj_parse(parser0);
+
+        assert(fj_is_valid(parser0));
+        assert(toknum0 == 9);
+        assert(parser0->toks_end == parser0->toks_beg + toknum0);
+
+        static const char str1[] = R"({"a":0, "b":1, "c":{"d":2, "e":3}, "f":4})";
+        auto *parser1 = fj_alloc_parser(std::begin(str1), std::end(str1));
+        auto toknum1 = fj_parse(parser1);
+
+        assert(fj_is_valid(parser1));
+        assert(toknum1 == 9);
+        assert(parser1->toks_end == parser1->toks_beg + toknum1);
+
+        fj_iterator ldiff, rdiff;
+        auto r = fj_compare(&ldiff, &rdiff, parser0, parser1);
+        assert(r == compare_result::OK);
+
+        fj_free_parser(parser1);
+        fj_free_parser(parser0);
+    };
+
+    test += FJ_TEST(fj_compare(markup) test for a different keys) {
+        using namespace flatjson;
+
+        static const char str0[] = R"({"a":0, "b":1, "c":{"d":2, "e":3}, "f":4})";
+        auto *parser0 = fj_alloc_parser(std::begin(str0), std::end(str0));
+        auto toknum0 = fj_parse(parser0);
+
+        assert(fj_is_valid(parser0));
+        assert(toknum0 == 9);
+        assert(parser0->toks_end == parser0->toks_beg + toknum0);
+
+        static const char str1[] = R"({"g":0, "b":1, "c":{"d":2, "e":3}, "f":4})";
+        auto *parser1 = fj_alloc_parser(std::begin(str1), std::end(str1));
+        auto toknum1 = fj_parse(parser1);
+
+        assert(fj_is_valid(parser1));
+        assert(toknum1 == 9);
+        assert(parser1->toks_end == parser1->toks_beg + toknum1);
+
+        fj_iterator ldiff, rdiff;
+        auto r = fj_compare(&ldiff, &rdiff, parser0, parser1);
+        assert(r == compare_result::key);
+
+        assert(ldiff.key() == "a");
+        assert(fj_iter_at("a", parser0).m_cur == ldiff.m_cur);
+        assert(rdiff.key() == "g");
+        assert(fj_iter_at("g", parser1).m_cur == rdiff.m_cur);
+
+        fj_free_parser(parser1);
+        fj_free_parser(parser0);
+    };
+
+    test += FJ_TEST(fj_compare(length_only) test for a different values but with the same length) {
+        using namespace flatjson;
+
+        static const char str0[] = R"({"a":0, "b":12, "c":{"d":2, "e":3}, "f":4})";
+        auto *parser0 = fj_alloc_parser(std::begin(str0), std::end(str0));
+        auto toknum0 = fj_parse(parser0);
+
+        assert(fj_is_valid(parser0));
+        assert(toknum0 == 9);
+        assert(parser0->toks_end == parser0->toks_beg + toknum0);
+
+        static const char str1[] = R"({"a":0, "b":11, "c":{"d":2, "e":3}, "f":4})";
+        auto *parser1 = fj_alloc_parser(std::begin(str1), std::end(str1));
+        auto toknum1 = fj_parse(parser1);
+
+        assert(fj_is_valid(parser1));
+        assert(toknum1 == 9);
+        assert(parser1->toks_end == parser1->toks_beg + toknum1);
+
+        fj_iterator ldiff, rdiff;
+        auto r = fj_compare(&ldiff, &rdiff, parser0, parser1, compare_rules::length_only);
+        assert(r == compare_result::OK);
+
+        fj_free_parser(parser1);
+        fj_free_parser(parser0);
+    };
+
+    test += FJ_TEST(fj_compare(full) test for a different values) {
+        using namespace flatjson;
+
+        static const char str0[] = R"({"a":0, "b":12, "c":{"d":2, "e":3}, "f":4})";
+        auto *parser0 = fj_alloc_parser(std::begin(str0), std::end(str0));
+        auto toknum0 = fj_parse(parser0);
+
+        assert(fj_is_valid(parser0));
+        assert(toknum0 == 9);
+        assert(parser0->toks_end == parser0->toks_beg + toknum0);
+
+        static const char str1[] = R"({"a":0, "b":11, "c":{"d":2, "e":3}, "f":4})";
+        auto *parser1 = fj_alloc_parser(std::begin(str1), std::end(str1));
+        auto toknum1 = fj_parse(parser1);
+
+        assert(fj_is_valid(parser1));
+        assert(toknum1 == 9);
+        assert(parser1->toks_end == parser1->toks_beg + toknum1);
+
+        fj_iterator ldiff, rdiff;
+        auto r = fj_compare(&ldiff, &rdiff, parser0, parser1, compare_rules::full);
+        assert(r == compare_result::value);
+
+        assert(ldiff.key() == "b");
+        assert(fj_iter_at("b", parser0).m_cur == ldiff.m_cur);
+        assert(rdiff.key() == "b");
+        assert(fj_iter_at("b", parser1).m_cur == rdiff.m_cur);
+
+        fj_free_parser(parser1);
+        fj_free_parser(parser0);
+    };
+
+    test += FJ_TEST(fj_compare(markup) test for a different length JSON) {
+        using namespace flatjson;
+
+        static const char str0[] = R"({"a":0, "b":12, "c":{"d":2, "e":3}, "f":4})";
+        auto *parser0 = fj_alloc_parser(std::begin(str0), std::end(str0));
+        auto toknum0 = fj_parse(parser0);
+
+        assert(fj_is_valid(parser0));
+        assert(toknum0 == 9);
+        assert(parser0->toks_end == parser0->toks_beg + toknum0);
+
+        static const char str1[] = R"({"a":0, "b":11, "c":{"d":2, "e":3}, "f":4, "g":5})";
+        auto *parser1 = fj_alloc_parser(std::begin(str1), std::end(str1));
+        auto toknum1 = fj_parse(parser1);
+
+        assert(fj_is_valid(parser1));
+        assert(toknum1 == 10);
+        assert(parser1->toks_end == parser1->toks_beg + toknum1);
+
+        fj_iterator ldiff, rdiff;
+        auto r = fj_compare(&ldiff, &rdiff, parser0, parser1);
+        assert(r == compare_result::longer);
+
+        fj_free_parser(parser1);
+        fj_free_parser(parser0);
+    };
+
+    test += FJ_TEST(fj_compare(markup) test for a different length JSON) {
+        using namespace flatjson;
+
+        static const char str0[] = R"({"a":0, "b":12, "c":{"d":2, "e":3}, "f":4})";
+        auto *parser0 = fj_alloc_parser(std::begin(str0), std::end(str0));
+        auto toknum0 = fj_parse(parser0);
+
+        assert(fj_is_valid(parser0));
+        assert(toknum0 == 9);
+        assert(parser0->toks_end == parser0->toks_beg + toknum0);
+
+        static const char str1[] = R"({"a":0, "b":11, "c":{"d":2, "e":3}})";
+        auto *parser1 = fj_alloc_parser(std::begin(str1), std::end(str1));
+        auto toknum1 = fj_parse(parser1);
+
+        assert(fj_is_valid(parser1));
+        assert(toknum1 == 8);
+        assert(parser1->toks_end == parser1->toks_beg + toknum1);
+
+        fj_iterator ldiff, rdiff;
+        auto r = fj_compare(&ldiff, &rdiff, parser0, parser1);
+        assert(r == compare_result::shorter);
+
+        fj_free_parser(parser1);
+        fj_free_parser(parser0);
     };
 
     /*********************************************************************************************/
