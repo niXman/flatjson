@@ -347,15 +347,15 @@ int main() {
     /*************************************************************************************************/
 
     test += FJ_TEST() {
-        assert(flatjson::details::fj_is_simple_type(flatjson::FJ_TYPE_INVALID) == false);
-        assert(flatjson::details::fj_is_simple_type(flatjson::FJ_TYPE_STRING) == true);
-        assert(flatjson::details::fj_is_simple_type(flatjson::FJ_TYPE_NUMBER) == true);
-        assert(flatjson::details::fj_is_simple_type(flatjson::FJ_TYPE_BOOL) == true);
-        assert(flatjson::details::fj_is_simple_type(flatjson::FJ_TYPE_NULL) == true);
-        assert(flatjson::details::fj_is_simple_type(flatjson::FJ_TYPE_OBJECT) == false);
-        assert(flatjson::details::fj_is_simple_type(flatjson::FJ_TYPE_OBJECT_END) == false);
-        assert(flatjson::details::fj_is_simple_type(flatjson::FJ_TYPE_ARRAY) == false);
-        assert(flatjson::details::fj_is_simple_type(flatjson::FJ_TYPE_ARRAY_END) == false);
+        assert(fj_is_simple_type_macro(flatjson::FJ_TYPE_INVALID) == false);
+        assert(fj_is_simple_type_macro(flatjson::FJ_TYPE_STRING) == true);
+        assert(fj_is_simple_type_macro(flatjson::FJ_TYPE_NUMBER) == true);
+        assert(fj_is_simple_type_macro(flatjson::FJ_TYPE_BOOL) == true);
+        assert(fj_is_simple_type_macro(flatjson::FJ_TYPE_NULL) == true);
+        assert(fj_is_simple_type_macro(flatjson::FJ_TYPE_OBJECT) == false);
+        assert(fj_is_simple_type_macro(flatjson::FJ_TYPE_OBJECT_END) == false);
+        assert(fj_is_simple_type_macro(flatjson::FJ_TYPE_ARRAY) == false);
+        assert(fj_is_simple_type_macro(flatjson::FJ_TYPE_ARRAY_END) == false);
     };
 
     test += FJ_TEST() {

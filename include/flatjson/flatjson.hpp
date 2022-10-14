@@ -37,7 +37,7 @@
 
 #define FJ_VERSION_MAJOR 0
 #define FJ_VERSION_MINOR 0
-#define FJ_VERSION_BUGFIX 1
+#define FJ_VERSION_BUGFIX 2
 
 #define FJ_VERSION \
      FJ_VERSION_MAJOR*100000 \
@@ -214,125 +214,43 @@ inline const char* fj_error_string(fj_error_code e) {
         ,"VLEN_OVERFLOW"
         ,"CHILDS_OVERFLOW"
     };
-    int idx = static_cast<int>(e);
+    auto idx = static_cast<std::int8_t>(e);
     idx = -idx;
-    if ( static_cast<unsigned>(idx) < sizeof(strs)/sizeof(strs[0]) ) {
-        return strs[idx];
-    }
 
-    return "UNKNOWN ERROR";
+    return strs[idx];
 }
 
 /*************************************************************************************************/
 
 namespace details {
 
-#define _FJ_CASE_1(x) \
-    case x:
+#define fj_is_simple_type_macro(v) \
+    (v > ::flatjson::FJ_TYPE_INVALID && v < ::flatjson::FJ_TYPE_OBJECT)
 
-#define _FJ_CASE_3(S) \
-    _FJ_CASE_1(S) _FJ_CASE_1(S+1) _FJ_CASE_1(S+2)
+#define fj_is_digit_macro(ch) \
+    (ch >= '0' && ch <= '9')
 
-#define _FJ_CASE_5(S) \
-    _FJ_CASE_3(S) _FJ_CASE_1(S+3) _FJ_CASE_1(S+4)
+#define fj_is_hex_digit_macro(ch) \
+    (fj_is_digit_macro(ch) || ((ch >= 'a' && ch <= 'f') || (ch >= 'A' && ch <= 'F')))
 
-#define _FJ_CASE_10(S) \
-    _FJ_CASE_5(S) _FJ_CASE_5(S+5)
+#define fj_is_hex_digit4_macro(ch0, ch1, ch2, ch3) \
+    (fj_is_hex_digit_macro(ch0) && fj_is_hex_digit_macro(ch1) \
+        && fj_is_hex_digit_macro(ch2) && fj_is_hex_digit_macro(ch3))
 
-#define _FJ_CASE_20(S) \
-    _FJ_CASE_10(S) _FJ_CASE_10(S+10)
+inline std::size_t fj_utf8_char_len(std::uint8_t ch) {
+    static constexpr std::uint8_t map[] = {
+         1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
+        ,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
+        ,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
+        ,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2
+        ,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2
+        ,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2
+        ,2,2,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4
+    };
+    static_assert(sizeof(map) == UINT8_MAX+1, "");
 
-#define _FJ_CASE_40(S) \
-    _FJ_CASE_20(S) _FJ_CASE_20(S+20)
-
-inline bool fj_is_simple_type(char v) {
-    switch ( static_cast<std::uint8_t>(v) ) {
-        _FJ_CASE_1(0) \
-            return false;
-        _FJ_CASE_3(1) \
-        _FJ_CASE_1(4) \
-            return true;
-        default:
-            return false;
-    }
+    return map[ch];
 }
-
-inline bool fj_is_digit(char ch) {
-    switch ( static_cast<std::uint8_t>(ch) ) {
-        _FJ_CASE_20(0) \
-        _FJ_CASE_20(20) \
-        _FJ_CASE_5(40) \
-        _FJ_CASE_3(45) \
-            return false;
-        _FJ_CASE_10(48) \
-            return true;
-        default:
-            return false;
-    }
-}
-
-inline bool fj_is_hex_digit(char ch) {
-    if ( fj_is_digit(ch) ) {
-        return true;
-    }
-
-    switch ( static_cast<std::uint8_t>(ch) ) {
-        _FJ_CASE_20(0) \
-        _FJ_CASE_20(20) \
-        _FJ_CASE_20(40) \
-        _FJ_CASE_5(60) \
-            return false;
-        _FJ_CASE_3(65) \
-        _FJ_CASE_3(68) \
-            return true;
-        _FJ_CASE_20(71) \
-        _FJ_CASE_3(91) \
-        _FJ_CASE_3(94) \
-            return false;
-         _FJ_CASE_3(97) \
-         _FJ_CASE_3(100) \
-            return true;
-        default:
-            return false;
-    }
-}
-
-inline bool fj_is_hex_digit4(char ch0, char ch1, char ch2, char ch3) {
-    return fj_is_hex_digit(ch0) && fj_is_hex_digit(ch1) && fj_is_hex_digit(ch2) && fj_is_hex_digit(ch3);
-}
-
-inline std::size_t fj_utf8_char_len(char ch) {
-    switch ( static_cast<std::uint8_t>(ch) ) {
-        _FJ_CASE_40(0) \
-        _FJ_CASE_40(40) \
-        _FJ_CASE_40(80) \
-        _FJ_CASE_5 (120) \
-        _FJ_CASE_3 (125) \
-            return 1;
-        _FJ_CASE_40(128) \
-        _FJ_CASE_40(168) \
-        _FJ_CASE_10(208) \
-        _FJ_CASE_5 (218) \
-        _FJ_CASE_1 (223) \
-            return 2;
-        _FJ_CASE_10(224) \
-        _FJ_CASE_5 (234) \
-        _FJ_CASE_1 (239) \
-            return 3;
-        _FJ_CASE_10(240) \
-        _FJ_CASE_5 (250) \
-            return 4;
-        default:
-            assert("unrechable!" == nullptr);
-    }
-}
-
-#undef _FJ_CASE_1
-#undef _FJ_CASE_3
-#undef _FJ_CASE_5
-#undef _FJ_CASE_10
-#undef _FJ_CASE_20
-#undef _FJ_CASE_40
 
 /*************************************************************************************************/
 
@@ -574,7 +492,7 @@ inline fj_error_code fj_escape_len(int *escape_len, const char *s, std::size_t l
             if ( len < 6 ) {
                 return FJ_EC_INCOMPLETE;
             }
-            if ( fj_is_hex_digit4(*(s+1), *(s+2), *(s+3), *(s+4)) ) {
+            if ( fj_is_hex_digit4_macro(*(s+1), *(s+2), *(s+3), *(s+4)) ) {
                 *escape_len = 5;
 
                 return FJ_EC_OK;
@@ -675,26 +593,26 @@ fj_error_code fj_parse_number(fj_parser *parser, const char **value, std::size_t
     if ( parser->str_cur >= parser->str_end ) {
         return FJ_EC_INCOMPLETE;
     }
-    if ( parser->str_cur + 1 < parser->str_end && *(parser->str_cur) == '0' && *(parser->str_cur+1) == 'x' ) {
+    if ( parser->str_cur + 1 < parser->str_end && *(parser->str_cur) == '0'
+         && *(parser->str_cur+1) == 'x' )
+    {
         parser->str_cur += 2;
 
         if ( parser->str_cur >= parser->str_end ) {
             return FJ_EC_INCOMPLETE;
         }
-        if ( !details::fj_is_hex_digit(*(parser->str_cur)) ) {
+        if ( !fj_is_hex_digit_macro(*(parser->str_cur)) ) {
             return FJ_EC_INVALID;
         }
 
-        for ( ; parser->str_cur < parser->str_end
-                && details::fj_is_hex_digit(*(parser->str_cur))
+        for ( ; parser->str_cur < parser->str_end && fj_is_hex_digit_macro(*(parser->str_cur))
               ; ++parser->str_cur )
         {}
     } else {
-        if ( !details::fj_is_digit(*(parser->str_cur)) ) {
+        if ( !fj_is_digit_macro(*(parser->str_cur)) ) {
             return FJ_EC_INVALID;
         }
-        for ( ; parser->str_cur < parser->str_end
-                && details::fj_is_digit(*(parser->str_cur))
+        for ( ; parser->str_cur < parser->str_end && fj_is_digit_macro(*(parser->str_cur))
               ; ++parser->str_cur )
         {}
 
@@ -704,12 +622,11 @@ fj_error_code fj_parse_number(fj_parser *parser, const char **value, std::size_t
             if ( parser->str_cur >= parser->str_end ) {
                 return FJ_EC_INCOMPLETE;
             }
-            if ( !details::fj_is_digit(*(parser->str_cur)) ) {
+            if ( !fj_is_digit_macro(*(parser->str_cur)) ) {
                 return FJ_EC_INVALID;
             }
 
-            for ( ; parser->str_cur < parser->str_end
-                    && details::fj_is_digit(*(parser->str_cur))
+            for ( ; parser->str_cur < parser->str_end && fj_is_digit_macro(*(parser->str_cur))
                   ; ++parser->str_cur )
             {}
         }
@@ -725,12 +642,11 @@ fj_error_code fj_parse_number(fj_parser *parser, const char **value, std::size_t
             if ( parser->str_cur >= parser->str_end ) {
                 return FJ_EC_INCOMPLETE;
             }
-            if ( !details::fj_is_digit(*(parser->str_cur)) ) {
+            if ( !fj_is_digit_macro(*(parser->str_cur)) ) {
                 return FJ_EC_INVALID;
             }
 
-            for ( ; parser->str_cur < parser->str_end
-                    && details::fj_is_digit(*(parser->str_cur))
+            for ( ; parser->str_cur < parser->str_end && fj_is_digit_macro(*(parser->str_cur))
                   ; ++parser->str_cur )
             {}
         }
@@ -1414,7 +1330,7 @@ inline std::size_t fj_tokens(const fj_parser *parser) {
 }
 
 inline std::size_t fj_members(const fj_parser *parser) {
-    return (!details::fj_is_simple_type(parser->toks_beg->m_type))
+    return (!fj_is_simple_type_macro(parser->toks_beg->m_type))
        ? parser->toks_beg->m_childs - 1
        : static_cast<std::size_t>(parser->toks_beg->m_type != FJ_TYPE_INVALID)
     ;
@@ -1446,7 +1362,7 @@ inline bool fj_is_string(const fj_parser *parser)
 { return parser->toks_beg->m_type == FJ_TYPE_STRING; }
 
 inline bool fj_is_simple_type(const fj_parser *parser)
-{ return details::fj_is_simple_type(parser->toks_beg->m_type); }
+{ return fj_is_simple_type_macro(parser->toks_beg->m_type); }
 
 /*************************************************************************************************/
 // iterators
@@ -1471,7 +1387,7 @@ struct fj_iterator {
     bool is_bool() const { return type() == FJ_TYPE_BOOL; }
     bool is_number() const { return type() == FJ_TYPE_NUMBER; }
     bool is_string() const { return type() == FJ_TYPE_STRING; }
-    bool is_simple_type() const { return details::fj_is_simple_type(type()); }
+    bool is_simple_type() const { return fj_is_simple_type_macro(type()); }
 
     string_view to_string_view() const { return value(); }
     std::string to_string() const { auto s = to_string_view(); return {s.data(), s.size()}; }
@@ -1609,7 +1525,7 @@ inline fj_iterator fj_iter_at(const char *key, std::size_t klen, const fj_parser
     assert(parser);
     assert(parser->toks_beg);
 
-    bool is_simple = details::fj_is_simple_type(parser->toks_beg->m_type);
+    bool is_simple = fj_is_simple_type_macro(parser->toks_beg->m_type);
     fj_iterator beg = {
          parser->toks_beg
         ,parser->toks_beg + static_cast<std::size_t>(!is_simple)
@@ -1625,7 +1541,7 @@ fj_iterator fj_iter_at(T key, const fj_parser *parser) {
     assert(parser);
     assert(parser->toks_beg);
 
-    bool is_simple = details::fj_is_simple_type(parser->toks_beg->m_type);
+    bool is_simple = fj_is_simple_type_macro(parser->toks_beg->m_type);
     fj_iterator beg = {
          parser->toks_beg
         ,parser->toks_beg + static_cast<std::size_t>(!is_simple)
@@ -1641,7 +1557,7 @@ fj_iterator fj_iter_at(const char (&key)[N], const fj_parser *parser) {
     assert(parser);
     assert(parser->toks_beg);
 
-    bool is_simple = details::fj_is_simple_type(parser->toks_beg->m_type);
+    bool is_simple = fj_is_simple_type_macro(parser->toks_beg->m_type);
     fj_iterator beg = {
          parser->toks_beg
         ,parser->toks_beg + static_cast<std::size_t>(!is_simple)
@@ -1748,7 +1664,7 @@ inline fj_iterator fj_iter_at(std::size_t idx, const fj_parser *parser) {
     assert(parser);
     assert(parser->toks_beg);
 
-    bool is_simple = details::fj_is_simple_type(parser->toks_beg->m_type);
+    bool is_simple = fj_is_simple_type_macro(parser->toks_beg->m_type);
     fj_iterator beg = {
          parser->toks_beg
         ,parser->toks_beg + static_cast<std::size_t>(!is_simple)
@@ -2215,7 +2131,7 @@ inline compare_result fj_compare(
         }
 
         if ( cmpr == compare_rules::length_only ) {
-            if ( details::fj_is_simple_type(lit->m_type) ) {
+            if ( fj_is_simple_type_macro(lit->m_type) ) {
                 if ( lit->m_vlen != rit->m_vlen ) {
                     *ldiff = {lit->m_parent, lit, lit->m_end};
                     *rdiff = {rit->m_parent, rit, rit->m_end};
@@ -2224,7 +2140,7 @@ inline compare_result fj_compare(
                 }
             }
         } else {
-            if ( details::fj_is_simple_type(lit->m_type) ) {
+            if ( fj_is_simple_type_macro(lit->m_type) ) {
                 if ( string_view{lit->m_val, lit->m_vlen}
                      != string_view{rit->m_val, rit->m_vlen} )
                 {
