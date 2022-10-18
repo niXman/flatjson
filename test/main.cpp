@@ -1774,6 +1774,7 @@ R"({
 
         auto from_file = read_file(fname);
         assert(!from_file.empty());
+        std::remove(fname);
 
         auto string = fj_to_string(beg, end, 4);
         assert(from_file == string);
@@ -1806,6 +1807,7 @@ R"({
 
         auto from_file = read_file(fname);
         assert(!from_file.empty());
+        std::remove(fname);
 
         auto string = fj_to_string(beg, end, 4);
         assert(from_file == string);
@@ -1828,10 +1830,7 @@ R"({
         static const char *fname = "unit_28.json";
 
         int ec{};
-        auto fh = details::file_open(fname, &ec);
-        if ( ec ) {
-            std::cout << "details::file_open(): ec=" << ec << std::endl;
-        }
+        auto fh = details::file_create(fname, &ec);
         assert(details::file_handle_valid(fh) && ec == 0);
 
         auto beg = fj_iter_begin(parser);
@@ -1842,6 +1841,7 @@ R"({
 
         auto from_file = read_file(fname);
         assert(!from_file.empty());
+        std::remove(fname);
 
         auto string = fj_to_string(beg, end, 4);
         assert(from_file == string);
