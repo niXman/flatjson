@@ -283,7 +283,7 @@ conv_to(const char *ptr, std::size_t len, To) {
     if ( *ptr == '-' ) {
         ++ptr;
         auto res = conv_to(ptr, len - 1, UnsignedTo{});
-        if ( res > std::numeric_limits<To>::max() ) {
+        if ( res > static_cast<UnsignedTo>(std::numeric_limits<To>::max()) ) {
             assert(!"overflow detected!");
         }
 
