@@ -653,8 +653,10 @@ fj_error_code fj_parse_array(fj_parser *parser, fj_token *parent) {
         return ec;
     }
 
-    if ( ParseMode && parser->toks_cur == parser->toks_end ) {
-        return FJ_EC_NO_FREE_TOKENS;
+    if ( ParseMode ) {
+        if ( parser->toks_cur == parser->toks_end ) {
+            return FJ_EC_NO_FREE_TOKENS;
+        }
     }
 
     auto *startarr = parser->toks_cur++;
