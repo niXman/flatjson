@@ -94,7 +94,8 @@ jobs:
             ;;
           esac
           make
-          ./flatjson
+          ./flatjson-test
+
   vs2019_2022_build: # job id, can be any string
     name: Visual Studio Build
     strategy:
@@ -205,4 +206,4 @@ jobs:
             ;;
           esac
           cmake --build .
-          flatjson.exe
+          flatjson-test.exe
