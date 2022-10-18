@@ -108,4 +108,4 @@ jobs:
             ;;
           esac
           cmake --build .
-          flatjson-test.exe
+          Debug/flatjson-test.exe
