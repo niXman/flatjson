@@ -1754,7 +1754,7 @@ R"({
 
 #ifdef _MSC_VER
         std::FILE *stream = nullptr;
-        std::fopen_s(&stream, fname, "w");
+        fopen_s(&stream, fname, "w");
 #else
         auto *stream = std::fopen(fname, "w");
 #endif
