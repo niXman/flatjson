@@ -177,7 +177,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@master
       - name: Build & Test
-        shell: pwsh
+        shell: bash
         env:
           TRIPLET: ${{ matrix.triplet }}
           DONT_PACK_TOKENS: ${{ matrix.dont_pack_tokens }}
