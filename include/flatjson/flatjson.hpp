@@ -267,7 +267,7 @@ conv_to(const char *ptr, std::size_t len, To) {
         case 1 : res += ((str[len - 1 ] - '0') * _1)    ;
             break;
         default:
-            assert("unreachable!" == nullptr);
+            assert(!"unreachable!");
     }
 
     return static_cast<To>(res);
@@ -544,7 +544,7 @@ fj_error_code fj_parse_string(fj_parser *parser, const char **value, std::size_t
 
         if ( ch == '\\' ) {
             int n = 0;
-            auto ec = fj_escape_len(&n, parser->str_cur + 1, parser->str_end - parser->str_cur);
+            ec = fj_escape_len(&n, parser->str_cur + 1, parser->str_end - parser->str_cur);
             if ( ec != FJ_EC_OK ) {
                 return ec;
             }
