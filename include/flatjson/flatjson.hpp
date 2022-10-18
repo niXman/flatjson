@@ -668,8 +668,10 @@ fj_error_code fj_parse_array(fj_parser *parser, fj_token *parent) {
     }
 
     while ( __FJ__CUR_CHAR(parser) != ']' ) {
-        if ( ParseMode && parser->toks_cur == parser->toks_end ) {
-            return FJ_EC_NO_FREE_TOKENS;
+        if ( ParseMode ) {
+            if ( parser->toks_cur == parser->toks_end ) {
+                return FJ_EC_NO_FREE_TOKENS;
+            }
         }
 
         auto *current_token = parser->toks_cur++;
@@ -701,7 +703,7 @@ fj_error_code fj_parse_array(fj_parser *parser, fj_token *parent) {
         }
         __FJ__CONSTEXPR_IF( ParseMode ) {
             __FJ__CHECK_OVERFLOW(size, __FJ__VLEN_TYPE, FJ_EC_VLEN_OVERFLOW);
-            current_token->m_vlen = size;
+            current_token->m_vlen = static_cast<__FJ__VLEN_TYPE>(size);
         }
 
         if ( __FJ__CUR_CHAR(parser) == ',' ) {
@@ -791,7 +793,7 @@ fj_error_code fj_parse_object(fj_parser *parser, fj_token *parent) {
         }
         __FJ__CONSTEXPR_IF( ParseMode ) {
             __FJ__CHECK_OVERFLOW(size, __FJ__KLEN_TYPE, FJ_EC_KLEN_OVERFLOW);
-            current_token->m_klen = size;
+            current_token->m_klen = static_cast<__FJ__KLEN_TYPE>(size);
         }
 
         ec = fj_check_and_skip(parser, ':');
@@ -827,7 +829,7 @@ fj_error_code fj_parse_object(fj_parser *parser, fj_token *parent) {
             );
             __FJ__CONSTEXPR_IF( ParseMode ) {
                 __FJ__CHECK_OVERFLOW(size, __FJ__VLEN_TYPE, FJ_EC_VLEN_OVERFLOW);
-                current_token->m_vlen = size;
+                current_token->m_vlen = static_cast<__FJ__VLEN_TYPE>(size);
             }
         }
 
