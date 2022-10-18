@@ -95,3 +95,92 @@ jobs:
           esac
           make
           ./flatjson
+  vs2019_2022_build: # job id, can be any string
+    name: Visual Studio Build
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            generator: "Visual Studio 17 2022"
+            platform: x64
+            dont_pack_tokens: 0
+            no_exception: 0
+
+          - os: windows-latest
+            generator: "Visual Studio 17 2022"
+            platform: x32
+            dont_pack_tokens: 0
+            no_exception: 0
+            
+          - os: windows-latest
+            generator: "Visual Studio 17 2022"
+            platform: x64
+            dont_pack_tokens: 1
+            no_exception: 0
+
+          - os: windows-latest
+            generator: "Visual Studio 17 2022"
+            platform: x32
+            dont_pack_tokens: 1
+            no_exception: 0
+
+          - os: windows-latest
+            generator: "Visual Studio 17 2022"
+            platform: x64
+            dont_pack_tokens: 1
+            no_exception: 1
+
+          - os: windows-latest
+            generator: "Visual Studio 17 2022"
+            platform: x32
+            dont_pack_tokens: 1
+            no_exception: 1
+            
+          - os: windows-2019
+            generator: "Visual Studio 16 2019"
+            platform: x64
+            dont_pack_tokens: 0
+            no_exception: 0
+            
+          - os: windows-2019
+            generator: "Visual Studio 16 2019"
+            platform: x32
+            dont_pack_tokens: 0
+            no_exception: 0
+            
+          - os: windows-2019
+            generator: "Visual Studio 16 2019"
+            platform: x64
+            dont_pack_tokens: 1
+            no_exception: 0
+            
+          - os: windows-2019
+            generator: "Visual Studio 16 2019"
+            platform: x32
+            dont_pack_tokens: 1
+            no_exception: 0
+            
+          - os: windows-2019
+            generator: "Visual Studio 16 2019"
+            platform: x64
+            dont_pack_tokens: 1
+            no_exception: 1
+            
+          - os: windows-2019
+            generator: "Visual Studio 16 2019"
+            platform: x32
+            dont_pack_tokens: 1
+            no_exception: 1
+            
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@master
+      - name: Build & Test
+        shell: pwsh
+        env:
+          TRIPLET: ${{ matrix.triplet }}
+          DONT_PACK_TOKENS: ${{ matrix.dont_pack_tokens }}
+          NO_EXCEPTIONS: ${{ matrix.no_exception }}
+        run: |
+          echo "TRIPLET=$TRIPLET, DONT_PACK_TOKENS=$DONT_PACK_TOKENS, NO_EXCEPTIONS=$NO_EXCEPTIONS"
