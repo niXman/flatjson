@@ -185,24 +185,24 @@ jobs:
           DONT_PACK_TOKENS: ${{ matrix.dont_pack_tokens }}
           NO_EXCEPTIONS: ${{ matrix.no_exception }}
         run: |
-          echo "PLATFORM=$PLATFORM, CMAKE_GENERATOR=$CMAKE_GENERATOR, DONT_PACK_TOKENS=$DONT_PACK_TOKENS, NO_EXCEPTIONS=$NO_EXCEPTIONS"
+          echo "PLATFORM=$PLATFORM, CMAKE_GENERATOR=\"$CMAKE_GENERATOR\", DONT_PACK_TOKENS=$DONT_PACK_TOKENS, NO_EXCEPTIONS=$NO_EXCEPTIONS"
           cd test
           case "$DONT_PACK_TOKENS$NO_EXCEPTIONS" in
             "00")
               echo "with exceptions enabled and with packed the tokens"
-              CXX=$USE_CC cmake . -G "$CMAKE_GENERATOR" -DCMAKE_BUILD_TYPE=Release
+              CXX=$USE_CC cmake . -G "$CMAKE_GENERATOR" -DCMAKE_CXX_COMPILER=clang-cl -DCMAKE_BUILD_TYPE=Release
             ;;
             "01")
               echo "WITHOUT exceptions and with packed the tokens"
-              CXX=$USE_CC cmake . -G "$CMAKE_GENERATOR" -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS="-fno-exceptions"
+              CXX=$USE_CC cmake . -G "$CMAKE_GENERATOR" -DCMAKE_CXX_COMPILER=clang-cl -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS="-fno-exceptions"
             ;;
             "10")
               echo "with exceptions and WITHOUT packing the tokens"
-              CXX=$USE_CC cmake . -G "$CMAKE_GENERATOR" -DCMAKE_BUILD_TYPE=Release -D__FJ__DONT_PACK_TOKENS=ON
+              CXX=$USE_CC cmake . -G "$CMAKE_GENERATOR" -DCMAKE_CXX_COMPILER=clang-cl -DCMAKE_BUILD_TYPE=Release -D__FJ__DONT_PACK_TOKENS=ON
             ;;
             "11")
               echo "WITHOUT exceptions and WITHOUT packing the tokens"
-              CXX=$USE_CC cmake . -G "$CMAKE_GENERATOR" -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS="-fno-exceptions" -D__FJ__DONT_PACK_TOKENS=ON
+              CXX=$USE_CC cmake . -G "$CMAKE_GENERATOR" -DCMAKE_CXX_COMPILER=clang-cl -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS="-fno-exceptions" -D__FJ__DONT_PACK_TOKENS=ON
             ;;
           esac
           cmake --build .
