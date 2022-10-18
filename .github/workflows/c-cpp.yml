@@ -79,18 +79,20 @@ jobs:
           case "$DONT_PACK_TOKENS$NO_EXCEPTIONS" in
             "00")
               echo "with exceptions enabled and with packed the tokens"
-              CC=$USE_CC cmake . -DCMAKE_BUILD_TYPE=Release && make && ./flatjson
+              CC=$USE_CC cmake . -DCMAKE_BUILD_TYPE=Release
             ;;
             "01")
               echo "WITHOUT exceptions and with packed the tokens"
-              CC=$USE_CC cmake . -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS="-fno-exceptions" && make && && ./flatjson
+              CC=$USE_CC cmake . -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS="-fno-exceptions"
             ;;
             "10")
               echo "with exceptions and WITHOUT packing the tokens"
-              CC=$USE_CC cmake . -DCMAKE_BUILD_TYPE=Release -D__FJ__DONT_PACK_TOKENS && make && ./flatjson
+              CC=$USE_CC cmake . -DCMAKE_BUILD_TYPE=Release -D__FJ__DONT_PACK_TOKENS
             ;;
               echo "WITHOUT exceptions and WITHOUT packing the tokens"
-              CC=$USE_CC cmake . -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS="-fno-exceptions" -D__FJ__DONT_PACK_TOKENS && make && ./flatjson
+              CC=$USE_CC cmake . -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS="-fno-exceptions" -D__FJ__DONT_PACK_TOKENS
             "11")
             ;;
           esac
+          make
+          ./flatjson
