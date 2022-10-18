@@ -53,7 +53,7 @@ jobs:
             cc: clang++-latest
             dont_pack_tokens: 1
 
-runs-on: ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout
         uses: actions/checkout@master
