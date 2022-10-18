@@ -782,19 +782,11 @@ int main() {
         //myallocator.dump(std::cout);
         assert(myallocator.allocations() == 1);
         auto total_allocated = myallocator.total_alloc();
-#ifndef __FJ__DONT_PACK_TOKENS
         if ( sizeof(void *) == 4 ) {
-            assert(total_allocated == 154);
+            assert(total_allocated == 168);
         } else {
-            assert(total_allocated == 266);
+            assert(total_allocated == 280);
         }
-#else
-        if ( sizeof(void *) == 4 ) {
-            assert(total_allocated == 224);
-        } else {
-            assert(total_allocated == 448);
-        }
-#endif // __FJ__DONT_PACK_TOKENS
 
         assert(fj_is_valid(&parser));
         assert(toknum == 7);
@@ -861,20 +853,11 @@ int main() {
     //    std::cout << "total: " << myallocator.total_alloc() << std::endl;
         assert(myallocator.allocations() == 2);
         auto total_allocated = myallocator.total_alloc();
-#ifndef __FJ__DONT_PACK_TOKENS
         if ( sizeof(void *) == 4 ) {
-            assert(total_allocated == 198);
+            assert(total_allocated == 212);
         } else {
-            assert(total_allocated == 346);
+            assert(total_allocated == 360);
         }
-
-#else
-        if ( sizeof(void *) == 4 ) {
-            assert(total_allocated == 268);
-        } else {
-            assert(total_allocated == 528);
-        }
-#endif // __FJ__DONT_PACK_TOKENS
 
         assert(fj_is_valid(parser));
         assert(toknum == 7);
