@@ -49,11 +49,11 @@ jobs:
           case "$DONT_PACK_TOKENS" in
             "0")
               echo "with packing the tokens"
-              CXX=$USE_CC cmake . -DCMAKE_BUILD_TYPE=Release
+              CXX=$USE_CC cmake --no-warn-unused-cli . -DCMAKE_BUILD_TYPE=Release
             ;;
             "1")
               echo "WITHOUT packing the tokens"
-              CXX=$USE_CC cmake . -DCMAKE_BUILD_TYPE=Release -D__FJ__DONT_PACK_TOKENS=ON
+              CXX=$USE_CC cmake --no-warn-unused-cli . -DCMAKE_BUILD_TYPE=Release -D__FJ__DONT_PACK_TOKENS=ON
             ;;
           esac
           make
@@ -100,11 +100,11 @@ jobs:
           case "$DONT_PACK_TOKENS" in
             "0")
               echo "with exceptions enabled and with packed the tokens"
-              cmake . -G "$CMAKE_GENERATOR" -DCMAKE_BUILD_TYPE=Release
+              cmake --no-warn-unused-cli . -G "$CMAKE_GENERATOR" -DCMAKE_BUILD_TYPE=Release
             ;;
             "1")
               echo "WITHOUT exceptions and with packed the tokens"
-              cmake . -G "$CMAKE_GENERATOR" -DCMAKE_BUILD_TYPE=Release -D__FJ__DONT_PACK_TOKENS=ON
+              cmake --no-warn-unused-cli . -G "$CMAKE_GENERATOR" -DCMAKE_BUILD_TYPE=Release -D__FJ__DONT_PACK_TOKENS=ON
             ;;
           esac
           cmake --build .
