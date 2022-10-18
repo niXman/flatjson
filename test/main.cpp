@@ -1757,7 +1757,7 @@ R"({
         fopen_s(&stream, fname, "w");
 #else
         auto *stream = std::fopen(fname, "w");
-#endif
+#endif // _MSC_VER
         assert(stream);
 
         auto beg = fj_iter_begin(parser);
@@ -1775,6 +1775,7 @@ R"({
         fj_free_parser(parser);
     };
 
+#ifndef _MSC_VER
     test += FJ_TEST(test for serialization to file descriptor) {
         using namespace flatjson;
 
@@ -1796,6 +1797,39 @@ R"({
         fj_serialize(fd, beg, end, 4);
 
         ::close(fd);
+
+        auto from_file = read_file(fname);
+        assert(!from_file.empty());
+
+        auto string = fj_to_string(beg, end, 4);
+        assert(from_file == string);
+
+        fj_free_parser(parser);
+    };
+#endif // _MSC_VER
+
+    test += FJ_TEST(test for serialization to file_handle) {
+        using namespace flatjson;
+
+        static const char str[] = R"({"a":0, "b":1, "c":{"d":2, "e":3}, "f":4})";
+        auto *parser = fj_alloc_parser(str);
+        auto toknum = fj_parse(parser);
+
+        assert(fj_is_valid(parser));
+        assert(toknum == 9);
+        assert(parser->toks_end == parser->toks_beg + toknum);
+
+        static const char *fname = "unit_28.json";
+
+        int ec{};
+        auto fh = details::file_open(fname, &ec);
+        assert(details::file_handle_valid(fh) && ec == 0);
+
+        auto beg = fj_iter_begin(parser);
+        auto end = fj_iter_end(parser);
+        fj_serialize(fh, beg, end, 4);
+
+        assert(details::file_close(fh, &ec) && ec == 0);
 
         auto from_file = read_file(fname);
         assert(!from_file.empty());

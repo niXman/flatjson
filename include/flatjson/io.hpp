@@ -65,6 +65,7 @@ inline bool file_exists(const char_type *fname);
 inline std::size_t file_size(const char_type *fname, int *ec = nullptr);
 inline std::size_t file_size(fj_file_handle_type fd, int *ec = nullptr);
 inline std::size_t file_chsize(fj_file_handle_type fd, std::size_t fsize, int *ec = nullptr);
+inline bool file_handle_valid(fj_file_handle_type fh);
 inline fj_file_handle_type file_open(const char_type *fname, int *ec = nullptr);
 inline fj_file_handle_type file_create(const char_type *fname, int *ec = nullptr);
 inline std::size_t file_read(fj_file_handle_type fd, void *ptr, std::size_t size, int *ec = nullptr);
@@ -126,6 +127,10 @@ std::size_t file_chsize(fj_file_handle_type fd, std::size_t fsize, int *ec) {
     }
 
     return fsize;
+}
+
+bool file_handle_valid(fj_file_handle_type fh) {
+    return fh != -1;
 }
 
 fj_file_handle_type file_open(const char_type *fname, int *ec) {
@@ -361,6 +366,10 @@ std::size_t file_chsize(fj_file_handle_type fd, std::size_t fsize, int *ec) {
     }
 
     return fsize;
+}
+
+bool file_handle_valid(fj_file_handle_type fh) {
+    return fh != INVALID_HANDLE_VALUE;
 }
 
 fj_file_handle_type file_open(const char_type *fname, int *ec) {
