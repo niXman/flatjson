@@ -257,11 +257,13 @@ int parse_file(const char *path, const char *fname) {
     std::string p{path};
     p += fname;
 
-    int fd{}, lec{};
+    int lec{};
     auto fsize = flatjson::details::file_size(p.c_str(), &lec);
     if ( lec ) {
         return flatjson::fj_error_code::FJ_EC_INVALID;
     }
+
+    flatjson::details::fj_file_handle_type fd{};
     const char *addr = static_cast<const char *>(flatjson::details::mmap_for_read(&fd, p.c_str(), &lec));
     if ( lec ) {
         return flatjson::fj_error_code::FJ_EC_INVALID;
