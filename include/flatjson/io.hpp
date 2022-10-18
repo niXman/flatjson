@@ -313,7 +313,7 @@ bool munmap_file(const void *addr, fj_file_handle_type fd, int *ec) {
 #elif defined(WIN32)
 
 bool file_exists(const char_type *fname) {
-    auto attr = ::GetFileAttributes(szPath);
+    auto attr = ::GetFileAttributes(fname);
 
     return (attr != INVALID_FILE_ATTRIBUTES &&
         !(attr & FILE_ATTRIBUTE_DIRECTORY));
@@ -321,20 +321,20 @@ bool file_exists(const char_type *fname) {
 
 std::size_t file_size(const char_type *fname, int *ec) {
     WIN32_FILE_ATTRIBUTE_DATA fad;
-    if ( !::GetFileAttributesEx(name, ::GET_FILEEX_INFO_LEVELS::GetFileExInfoStandard, &fad) ) {
+    if ( !::GetFileAttributesEx(fname, ::GET_FILEEX_INFO_LEVELS::GetFileExInfoStandard, &fad) ) {
         int lec = ::GetLastError();
         if ( ec ) { *ec = lec; }
 
         return 0;
     }
 
-    std::uint64_t fsize = static_cast<std::uint64_t>(fad.nFileSizeHigh << 32 | fad.nFileSizeLow);
+    std::uint64_t fsize = static_cast<std::uint64_t>(fad.nFileSizeHigh << 32) | fad.nFileSizeLow;
     return fsize;
 }
 
 std::size_t file_size(fj_file_handle_type fd, int *ec) {
     LARGE_INTEGER fsize;
-    if ( !::GetFileSizeEx(hfd, &fsize) ) {
+    if ( !::GetFileSizeEx(fd, &fsize) ) {
         int lec = ::GetLastError();
         if ( ec ) { *ec = lec; }
 
