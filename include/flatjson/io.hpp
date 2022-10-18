@@ -50,7 +50,7 @@ using io_vector_type = iovec;
 #   define __FJ_IO_VECTOR_SIZE(vec) vec->iov_len
 #elif defined(WIN32)
 using fj_file_handle_type = HANDLE;
-using char_type = _TCHAR;
+using char_type = TCHAR;
 using io_vector_type = FILE_SEGMENT_ELEMENT;
 #   define __FJ_INIT_IO_VECTOR(vec, ptr, size) \
         vec.Buffer = PtrToPtr64(ptr); vec.Alignment = size;
