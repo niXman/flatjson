@@ -1752,7 +1752,12 @@ R"({
 
         static const char *fname = "unit_27.json";
 
+#ifdef _MSC_VER
+        std::FILE *stream = nullptr;
+        std::fopen_s(&stream, fname, "w");
+#else
         auto *stream = std::fopen(fname, "w");
+#endif
         assert(stream);
 
         auto beg = fj_iter_begin(parser);
