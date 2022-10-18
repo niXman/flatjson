@@ -15,42 +15,22 @@ jobs:
         include:
           - os: ubuntu-22.04
             triplet: x64-linux
-            cc: gcc
+            cc: g++
             dont_pack_tokens: 0
             
           - os: ubuntu-22.04
             triplet: x64-linux
-            cc: gcc
+            cc: g++
             dont_pack_tokens: 1
             
-          - os: ubuntu-22.04
-            triplet: x64-linux
-            cc: gcc-latest
-            dont_pack_tokens: 0
-
-          - os: ubuntu-22.04
-            triplet: x364-linux
-            cc: gcc-latest
-            dont_pack_tokens: 1
-
           - os: macos-latest
             triplet: x64-osx
             cc: clang++
             dont_pack_tokens: 0
             
           - os: macos-latest
-            triplet: x32-osx
-            cc: clang++
-            dont_pack_tokens: 1
-
-          - os: macos-latest
             triplet: x64-osx
-            cc: clang-latest
-            dont_pack_tokens: 0
-            
-          - os: macos-latest
-            triplet: x32-osx
-            cc: clang-latest
+            cc: clang++
             dont_pack_tokens: 1
 
     runs-on: ${{ matrix.os }}
