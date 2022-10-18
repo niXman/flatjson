@@ -30,7 +30,6 @@ The header-only implementation of an extremely fast zero allocation and zero cop
                :alt: CI build status
                :target: https://github.com/nixman/flatjson/actions/workflows/c-cpp.yml
 
-
 |release-badge| |code-size-badge| |repo-size-badge| |ci-badge|
 
 CI Job Matrix
