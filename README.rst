@@ -54,3 +54,8 @@ CI Job Matrix
 +---------------+--------------------+-----------------------+
 | OSX           | Apple Clang++      | packed tokens         |
 +---------------+--------------------+-----------------------+
+
+LICENSE
+------------
+
+License under the Apache-2.0(http://www.apache.org/licenses/)
