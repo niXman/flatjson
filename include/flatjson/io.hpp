@@ -19,7 +19,7 @@
 #include <cstdio>
 
 // OS headers inclusion
-#if defined(__linux__)
+#if defined(__linux__) || defined(__APPLE__)
 #   include <sys/types.h>
 #   include <sys/stat.h>
 #   include <sys/mman.h>
@@ -28,8 +28,6 @@
 #   include <unistd.h>
 #elif defined(WIN32)
 #   include <windows.h>
-#elif defined(__APPLE__)
-#   error "NOT IMPLEMENTED!"
 #else
 #   error "UNKNOWN PLATFORM!"
 #endif // OS detection
@@ -40,7 +38,7 @@ namespace details {
 /*************************************************************************************************/
 // declarations
 
-#if defined(__linux__)
+#if defined(__linux__) || defined(__APPLE__)
 using fj_file_handle_type = int;
 using char_type = char;
 using io_vector_type = iovec;
@@ -56,8 +54,6 @@ using io_vector_type = FILE_SEGMENT_ELEMENT;
         vec.Buffer = PtrToPtr64(ptr); vec.Alignment = size;
 #   define __FJ_IO_VECTOR_PTR(vec) vec->Buffer
 #   define __FJ_IO_VECTOR_SIZE(vec) vec->Alignment
-#elif defined(__APPLE__)
-#   error "NOT IMPLEMENTED!"
 #else
 #   error "UNKNOWN PLATFORM!"
 #endif // OS detection
@@ -88,7 +84,7 @@ inline bool munmap_file(const void *addr, fj_file_handle_type fd, int *ec = null
 /*************************************************************************************************/
 // implementations
 
-#if defined(__linux__)
+#if defined(__linux__) || defined(__APPLE__)
 bool file_exists(const char_type *fname) {
     return ::access(fname, 0) == 0;
 }
