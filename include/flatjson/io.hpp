@@ -328,7 +328,7 @@ std::size_t file_size(const char_type *fname, int *ec) {
         return 0;
     }
 
-    std::uint64_t fsize = static_cast<std::uint64_t>(fad.nFileSizeHigh << 32) | fad.nFileSizeLow;
+    std::size_t fsize = fad.nFileSizeLow;
     return fsize;
 }
 
