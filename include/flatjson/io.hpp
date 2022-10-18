@@ -386,7 +386,7 @@ fj_file_handle_type file_open(const char_type *fname, int *ec) {
         int lec = ::GetLastError();
         if ( ec ) { *ec = lec; }
 
-        return fj_file_handle_type{};
+        return fd;
     }
 
     return fd;
@@ -396,7 +396,7 @@ fj_file_handle_type file_create(const char_type *fname, int *ec) {
     fj_file_handle_type fd = ::CreateFile(
          fname
         ,GENERIC_WRITE
-        ,0
+        ,FILE_SHARE_READ
         ,nullptr
         ,CREATE_NEW|TRUNCATE_EXISTING
         ,FILE_ATTRIBUTE_NORMAL
@@ -406,7 +406,7 @@ fj_file_handle_type file_create(const char_type *fname, int *ec) {
         int lec = ::GetLastError();
         if ( ec ) { *ec = lec; }
 
-        return fj_file_handle_type{};
+        return fd;
     }
 
     return fd;
