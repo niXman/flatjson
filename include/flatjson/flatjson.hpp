@@ -54,15 +54,15 @@
 #   endif //
 #endif // __cplusplus >= 201703L
 
-#ifndef __FJ__KLEN_TYPE
-#   define __FJ__KLEN_TYPE std::uint8_t
-#endif // __FJ__KLEN_TYPE
-#ifndef __FJ__VLEN_TYPE
-#   define __FJ__VLEN_TYPE std::uint16_t
-#endif // __FJ__VLEN_TYPE
-#ifndef __FJ__CHILDS_TYPE
-#   define __FJ__CHILDS_TYPE std::uint16_t
-#endif // __FJ__CHILDS_TYPE
+#ifndef FJ_KLEN_TYPE
+#   define FJ_KLEN_TYPE std::uint8_t
+#endif // FJ_KLEN_TYPE
+#ifndef FJ_VLEN_TYPE
+#   define FJ_VLEN_TYPE std::uint16_t
+#endif // FJ_VLEN_TYPE
+#ifndef FJ_CHILDS_TYPE
+#   define FJ_CHILDS_TYPE std::uint16_t
+#endif // FJ_CHILDS_TYPE
 
 /*************************************************************************************************/
 
@@ -331,24 +331,24 @@ conv_to(const char *ptr, std::size_t len, To) { return {ptr, len}; }
 
 /*************************************************************************************************/
 
-#ifndef __FJ__DONT_PACK_TOKENS
+#ifndef FJ_DONT_PACK_TOKENS
 #pragma pack(push, 1)
-#endif // __FJ__DONT_PACK_TOKENS
+#endif // FJ_DONT_PACK_TOKENS
 
 struct fj_token {
     const char *m_key;
     const char *m_val;
     fj_token *m_parent;
     fj_token *m_end; // pointing to the last token for arrays and objects
+    FJ_VLEN_TYPE m_vlen;
+    FJ_CHILDS_TYPE m_childs;
+    FJ_KLEN_TYPE m_klen;
     fj_token_type m_type;
-    __FJ__KLEN_TYPE m_klen;
-    __FJ__VLEN_TYPE m_vlen;
-    __FJ__CHILDS_TYPE m_childs;
 };
 
-#ifndef __FJ__DONT_PACK_TOKENS
+#ifndef FJ_DONT_PACK_TOKENS
 #pragma pack(pop)
-#endif // __FJ__DONT_PACK_TOKENS
+#endif // FJ_DONT_PACK_TOKENS
 
 /*************************************************************************************************/
 
@@ -664,7 +664,7 @@ fj_error_code fj_parse_array(fj_parser *parser, fj_token *parent) {
         startarr->m_type = FJ_TYPE_ARRAY;
         startarr->m_parent = parent;
         if ( startarr->m_parent ) {
-            __FJ__CHECK_OVERFLOW(startarr->m_parent->m_childs, __FJ__CHILDS_TYPE, FJ_EC_CHILDS_OVERFLOW);
+            __FJ__CHECK_OVERFLOW(startarr->m_parent->m_childs, FJ_CHILDS_TYPE, FJ_EC_CHILDS_OVERFLOW);
             ++startarr->m_parent->m_childs;
         }
     }
@@ -687,7 +687,7 @@ fj_error_code fj_parse_array(fj_parser *parser, fj_token *parent) {
             __FJ__CONSTEXPR_IF( ParseMode ) {
                 current_token->m_parent = startarr;
 
-                __FJ__CHECK_OVERFLOW(startarr->m_childs, __FJ__CHILDS_TYPE, FJ_EC_CHILDS_OVERFLOW);
+                __FJ__CHECK_OVERFLOW(startarr->m_childs, FJ_CHILDS_TYPE, FJ_EC_CHILDS_OVERFLOW);
                 ++startarr->m_childs;
             }
         }
@@ -704,8 +704,8 @@ fj_error_code fj_parse_array(fj_parser *parser, fj_token *parent) {
             return ec;
         }
         __FJ__CONSTEXPR_IF( ParseMode ) {
-            __FJ__CHECK_OVERFLOW(size, __FJ__VLEN_TYPE, FJ_EC_VLEN_OVERFLOW);
-            current_token->m_vlen = static_cast<__FJ__VLEN_TYPE>(size);
+            __FJ__CHECK_OVERFLOW(size, FJ_VLEN_TYPE, FJ_EC_VLEN_OVERFLOW);
+            current_token->m_vlen = static_cast<FJ_VLEN_TYPE>(size);
         }
 
         if ( __FJ__CUR_CHAR(parser) == ',' ) {
@@ -729,7 +729,7 @@ fj_error_code fj_parse_array(fj_parser *parser, fj_token *parent) {
         *endarr = fj_token{};
         endarr->m_type = FJ_TYPE_ARRAY_END;
         endarr->m_parent = startarr;
-        __FJ__CHECK_OVERFLOW(endarr->m_parent->m_childs, __FJ__CHILDS_TYPE, FJ_EC_CHILDS_OVERFLOW);
+        __FJ__CHECK_OVERFLOW(endarr->m_parent->m_childs, FJ_CHILDS_TYPE, FJ_EC_CHILDS_OVERFLOW);
         ++endarr->m_parent->m_childs;
         startarr->m_end = endarr;
     } else {
@@ -757,7 +757,7 @@ fj_error_code fj_parse_object(fj_parser *parser, fj_token *parent) {
         startobj->m_type = FJ_TYPE_OBJECT;
         startobj->m_parent = parent;
         if ( startobj->m_parent ) {
-            __FJ__CHECK_OVERFLOW(startobj->m_parent->m_childs, __FJ__CHILDS_TYPE, FJ_EC_CHILDS_OVERFLOW);
+            __FJ__CHECK_OVERFLOW(startobj->m_parent->m_childs, FJ_CHILDS_TYPE, FJ_EC_CHILDS_OVERFLOW);
             ++startobj->m_parent->m_childs;
         }
     }
@@ -794,8 +794,8 @@ fj_error_code fj_parse_object(fj_parser *parser, fj_token *parent) {
             return ec;
         }
         __FJ__CONSTEXPR_IF( ParseMode ) {
-            __FJ__CHECK_OVERFLOW(size, __FJ__KLEN_TYPE, FJ_EC_KLEN_OVERFLOW);
-            current_token->m_klen = static_cast<__FJ__KLEN_TYPE>(size);
+            __FJ__CHECK_OVERFLOW(size, FJ_KLEN_TYPE, FJ_EC_KLEN_OVERFLOW);
+            current_token->m_klen = static_cast<FJ_KLEN_TYPE>(size);
         }
 
         ec = fj_check_and_skip(parser, ':');
@@ -818,7 +818,7 @@ fj_error_code fj_parse_object(fj_parser *parser, fj_token *parent) {
         } else {
             __FJ__CONSTEXPR_IF( ParseMode ) {
                 current_token->m_parent = startobj;
-                __FJ__CHECK_OVERFLOW(startobj->m_childs, __FJ__CHILDS_TYPE, FJ_EC_CHILDS_OVERFLOW);
+                __FJ__CHECK_OVERFLOW(startobj->m_childs, FJ_CHILDS_TYPE, FJ_EC_CHILDS_OVERFLOW);
                 ++startobj->m_childs;
             }
 
@@ -830,8 +830,8 @@ fj_error_code fj_parse_object(fj_parser *parser, fj_token *parent) {
                 ,startobj
             );
             __FJ__CONSTEXPR_IF( ParseMode ) {
-                __FJ__CHECK_OVERFLOW(size, __FJ__VLEN_TYPE, FJ_EC_VLEN_OVERFLOW);
-                current_token->m_vlen = static_cast<__FJ__VLEN_TYPE>(size);
+                __FJ__CHECK_OVERFLOW(size, FJ_VLEN_TYPE, FJ_EC_VLEN_OVERFLOW);
+                current_token->m_vlen = static_cast<FJ_VLEN_TYPE>(size);
             }
         }
 
@@ -860,7 +860,7 @@ fj_error_code fj_parse_object(fj_parser *parser, fj_token *parent) {
         *endobj = fj_token{};
         endobj->m_type = FJ_TYPE_OBJECT_END;
         endobj->m_parent = startobj;
-        __FJ__CHECK_OVERFLOW(endobj->m_parent->m_childs, __FJ__CHILDS_TYPE, FJ_EC_CHILDS_OVERFLOW);
+        __FJ__CHECK_OVERFLOW(endobj->m_parent->m_childs, FJ_CHILDS_TYPE, FJ_EC_CHILDS_OVERFLOW);
         ++endobj->m_parent->m_childs;
         startobj->m_end = endobj;
     } else {
@@ -1153,8 +1153,8 @@ inline std::size_t fj_num_tokens(fj_error_code *ecptr, const char *beg, const ch
         }
     }
 
-    assert(vlen <= std::numeric_limits<__FJ__VLEN_TYPE>::max());
-    parser.toks_beg->m_vlen = static_cast<__FJ__VLEN_TYPE>(vlen);
+    assert(vlen <= std::numeric_limits<FJ_VLEN_TYPE>::max());
+    parser.toks_beg->m_vlen = static_cast<FJ_VLEN_TYPE>(vlen);
 
     std::size_t toknum = parser.toks_cur - parser.toks_beg;
 
@@ -1317,8 +1317,8 @@ inline std::size_t fj_parse(fj_parser *parser) {
         ,&(parser->toks_beg->m_type)
         ,nullptr
     );
-    assert(vlen <= std::numeric_limits<__FJ__VLEN_TYPE>::max());
-    parser->toks_beg->m_vlen = static_cast<__FJ__VLEN_TYPE>(vlen);
+    assert(vlen <= std::numeric_limits<FJ_VLEN_TYPE>::max());
+    parser->toks_beg->m_vlen = static_cast<FJ_VLEN_TYPE>(vlen);
     parser->toks_beg->m_end = parser->toks_cur;
     parser->toks_end = parser->toks_cur;
 
@@ -2557,9 +2557,9 @@ inline fjson parse(
 // undef internally used macro-vars
 #undef __FJ__FALLTHROUGH
 #undef __FJ__CHECK_OVERFLOW
-#undef __FJ__KLEN_TYPE
-#undef __FJ__VLEN_TYPE
-#undef __FJ__CHILDS_TYPE
+#undef FJ_KLEN_TYPE
+#undef FJ_VLEN_TYPE
+#undef FJ_CHILDS_TYPE
 #undef __FJ__CUR_CHAR
 
 /*************************************************************************************************/
