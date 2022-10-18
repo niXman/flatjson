@@ -395,10 +395,10 @@ fj_file_handle_type file_open(const char_type *fname, int *ec) {
 fj_file_handle_type file_create(const char_type *fname, int *ec) {
     fj_file_handle_type fd = ::CreateFile(
          fname
-        ,GENERIC_WRITE
-        ,FILE_SHARE_READ
+        ,GENERIC_READ|GENERIC_WRITE
+        ,FILE_SHARE_WRITE
         ,nullptr
-        ,CREATE_NEW|TRUNCATE_EXISTING
+        ,CREATE_ALWAYS
         ,FILE_ATTRIBUTE_NORMAL
         ,nullptr
     );
