@@ -82,7 +82,7 @@ inline const void* mmap_for_read(fj_file_handle_type *fd, const char_type *fname
 inline void* mmap_for_write(fj_file_handle_type fd, std::size_t size, int *ec = nullptr);
 inline void* mmap_for_write(fj_file_handle_type *fd, const char_type *fname, std::size_t size, int *ec = nullptr);
 inline bool munmap_file(const void *addr, std::size_t size, int *ec = nullptr);
-inline bool munmap_file(const void *addr, fj_file_handle_type fd, int *ec = nullptr);
+inline bool munmap_file_fd(const void *addr, fj_file_handle_type fd, int *ec = nullptr);
 
 /*************************************************************************************************/
 // implementations
@@ -291,7 +291,7 @@ bool munmap_file(const void *addr, std::size_t size, int *ec) {
     return true;
 }
 
-bool munmap_file(const void *addr, fj_file_handle_type fd, int *ec) {
+bool munmap_file_fd(const void *addr, fj_file_handle_type fd, int *ec) {
     int lec{};
     auto fsize = file_size(fd, &lec);
     if ( lec ) {
@@ -552,7 +552,7 @@ bool munmap_file(const void *addr, std::size_t /*size*/, int *ec) {
     return true;
 }
 
-bool munmap_file(const void *addr, fj_file_handle_type fd, int *ec) {
+bool munmap_file_fd(const void *addr, fj_file_handle_type fd, int *ec) {
     int lec{};
     if ( !munmap_file(addr, std::size_t{}, &lec) ) {
         if ( ec ) { *ec = lec; }
