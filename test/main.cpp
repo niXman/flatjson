@@ -503,7 +503,7 @@ int main() {
 
         auto beg = fj_iter_begin(parser);
         assert(beg.is_object());
-        assert(beg.m_beg = parser->toks_beg);
+        assert(beg.m_beg == parser->toks_beg);
 
         auto end = fj_iter_end(parser);
         assert(end.m_cur == beg.m_end);
