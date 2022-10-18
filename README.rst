@@ -38,5 +38,5 @@ The header-only implementation of an extremely fast zero allocation and zero cop
                  :alt: Language grade: C/C++
                  :target: https://lgtm.com/projects/g/nixman/flatjson/context:cpp
 
-|release-badge| |code-size-badge| |repo-size-badge| |ci-badge| |codecov-badge| |lgtm-badge| |forks-badge| |stars-badge|
+|release-badge| |code-size-badge| |repo-size-badge| |ci-badge| |codecov-badge| |lgtm-badge|
 
