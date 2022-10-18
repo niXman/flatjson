@@ -59,7 +59,7 @@ flatjson::fj_token* token_parent(const flatjson::fj_token *t)
         int len = std::snprintf(buf, sizeof(buf), "%2d: %s", __COUNTER__, ptr); \
         static const char notes[] = FJ_STRINGIZE(__VA_ARGS__); \
         if ( sizeof(notes)-1 != 0 ) { \
-            std::snprintf(buf+len+1, sizeof(buf)-len, "(%s)", notes); \
+            std::snprintf(buf+len, sizeof(buf)-len, "(%s)", notes); \
         } \
         return buf; \
     }() + []
@@ -272,7 +272,7 @@ int parse_file(const char *path, const char *fname) {
     flatjson::fj_error_code ec{};
     flatjson::fj_num_tokens(&ec, addr, addr + fsize);
 
-    flatjson::details::munmap_file(addr, fd, &lec);
+    flatjson::details::munmap_file_fd(addr, fd, &lec);
     if ( lec ) {
         std::cout << "parse_file(): munmap_file: err=" << lec << std::endl;
     }
@@ -325,6 +325,11 @@ test_result test_conformance() {
 }
 
 /*************************************************************************************************/
+
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable:4127)
+#endif
 
 int main() {
     std::cout << "sizeof(fj_token) = " << sizeof(flatjson::fj_token) << std::endl;
@@ -2324,3 +2329,7 @@ R"({
 }
 
 /*************************************************************************************************/
+
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
