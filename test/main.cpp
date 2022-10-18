@@ -67,90 +67,6 @@ flatjson::fj_token* token_parent(const flatjson::fj_token *t)
 #define FJ_STRINGIZE_IMPL(x) #x
 #define FJ_STRINGIZE(x) FJ_STRINGIZE_IMPL(x)
 
-#define FJ_CAT_IMPL(l, r) l##r
-#define FJ_CAT(l, r) FJ_CAT_IMPL(l, r)
-
-#define FJ_NARG(...) FJ_NARG_(__VA_ARGS__, FJ_RSEQ_N())
-#define FJ_NARG_(...) FJ_ARG_N(__VA_ARGS__)
-
-#define FJ_ARG_N( \
-    _1, _2, _3, _4, _5, _6, _7, _8, _9 ,_10, \
-    _11,_12,_13,_14,_15,_16,_17,_18,_19,_20, \
-    _21,_22,_23,_24,_25,_26,_27,_28,_29,_30, \
-    _31,_32,_33,_34,_35,_36,_37,_38,_39,_40, \
-    _41,_42,_43,_44,_45,_46,_47,_48,_49,_50, \
-    _51,_52,_53,_54,_55,_56,_57,_58,_59,_60, \
-    _61,_62,_63,N,...) N
-
-#define FJ_RSEQ_N() \
-    63,62,61,60,                   \
-    59,58,57,56,55,54,53,52,51,50, \
-    49,48,47,46,45,44,43,42,41,40, \
-    39,38,37,36,35,34,33,32,31,30, \
-    29,28,27,26,25,24,23,22,21,20, \
-    19,18,17,16,15,14,13,12,11,10, \
-    9,8,7,6,5,4,3,2,1,0
-
-#define FJ_SWITCH_CASE_ENUM_1(idx, test, _0) \
-    case idx: { \
-        test _0; \
-        break; \
-    }
-#define FJ_SWITCH_CASE_ENUM_2(m, _0, _1) \
-    FJ_SWITCH_CASE_ENUM_1(0, m, _0) FJ_SWITCH_CASE_ENUM_1(1, m, _1)
-#define FJ_SWITCH_CASE_ENUM_3(m, _0, _1, _2) \
-    FJ_SWITCH_CASE_ENUM_2(m, _0, _1) FJ_SWITCH_CASE_ENUM_1(2, m, _2)
-#define FJ_SWITCH_CASE_ENUM_4(m, _0, _1, _2, _3) \
-    FJ_SWITCH_CASE_ENUM_3(m, _0, _1, _2) FJ_SWITCH_CASE_ENUM_1(3, m, _3)
-#define FJ_SWITCH_CASE_ENUM_5(m, _0, _1, _2, _3, _4) \
-    FJ_SWITCH_CASE_ENUM_4(m, _0, _1, _2, _3) FJ_SWITCH_CASE_ENUM_1(4, m, _4)
-#define FJ_SWITCH_CASE_ENUM_6(m, _0, _1, _2, _3, _4, _5) \
-    FJ_SWITCH_CASE_ENUM_5(m, _0, _1, _2, _3, _4) FJ_SWITCH_CASE_ENUM_1(5, m, _5)
-#define FJ_SWITCH_CASE_ENUM_7(m, _0, _1, _2, _3, _4, _5, _6) \
-    FJ_SWITCH_CASE_ENUM_6(m, _0, _1, _2, _3, _4, _5) FJ_SWITCH_CASE_ENUM_1(6, m, _6)
-#define FJ_SWITCH_CASE_ENUM_8(m, _0, _1, _2, _3, _4, _5, _6, _7) \
-    FJ_SWITCH_CASE_ENUM_7(m, _0, _1, _2, _3, _4, _5, _6) FJ_SWITCH_CASE_ENUM_1(7, m, _7)
-#define FJ_SWITCH_CASE_ENUM_9(m, _0, _1, _2, _3, _4, _5, _6, _7, _8) \
-    FJ_SWITCH_CASE_ENUM_8(m, _0, _1, _2, _3, _4, _5, _6, _7) FJ_SWITCH_CASE_ENUM_1(8, m, _8)
-#define FJ_SWITCH_CASE_ENUM_10(m, _0, _1, _2, _3, _4, _5, _6, _7, _8, _9) \
-    FJ_SWITCH_CASE_ENUM_9(m, _0, _1, _2, _3, _4, _5, _6, _7, _8) FJ_SWITCH_CASE_ENUM_1(9, m, _9)
-
-#define FJ_SWITCH_CASE_ENUM_IMPL(n, m, ...) \
-    FJ_CAT(FJ_SWITCH_CASE_ENUM_, n)(m, __VA_ARGS__)
-
-/*************************************************************************************************/
-
-#define FJ_SWITCH_COMPARE_KEY_VAL(_key, _type, _val) \
-    assert(it.key() == _key); \
-    assert(it._type()); \
-    assert(it.value() == _val);
-
-#define FJ_SWITCH_COMPARE_VAL(_type, _val) \
-    assert(it._type()); \
-    assert(it.value() == _val);
-
-#define FJ_SWITCH_COMPARE_TYPE(_type, _expr) \
-    assert(it._type()); \
-    assert(_expr);
-
-#define FJ_SWITCH_FOR_KEY_VAL(idx, it, ...) \
-    switch ( idx ) { \
-        FJ_SWITCH_CASE_ENUM_IMPL(FJ_NARG(__VA_ARGS__), FJ_SWITCH_COMPARE_KEY_VAL, __VA_ARGS__) \
-        default: assert(!"unreachable!"); \
-    }
-
-#define FJ_SWITCH_FOR_VAL(idx, it, ...) \
-    switch ( idx ) { \
-        FJ_SWITCH_CASE_ENUM_IMPL(FJ_NARG(__VA_ARGS__), FJ_SWITCH_COMPARE_VAL, __VA_ARGS__) \
-        default: assert(!"unreachable!"); \
-    }
-
-#define FJ_SWITCH_FOR_TYPE(idx, it, ...) \
-    switch ( idx ) { \
-        FJ_SWITCH_CASE_ENUM_IMPL(FJ_NARG(__VA_ARGS__), FJ_SWITCH_COMPARE_TYPE, __VA_ARGS__) \
-        default: assert(!"unreachable!"); \
-    }
-
 /*************************************************************************************************/
 
 template<typename F>
@@ -1087,13 +1003,39 @@ int main() {
 
         auto idx = 0;
         for ( auto it = fj_iter_next(beg); fj_iter_not_equal(it, end); it = fj_iter_next(it), ++idx ) {
-            FJ_SWITCH_FOR_KEY_VAL(idx, it
-                ,("a", is_bool, "true")
-                ,("b", is_bool, "false")
-                ,("c", is_null, "null")
-                ,("d", is_number, "0")
-                ,("e", is_string, "e")
-            )
+            switch ( idx ) {
+                case 0: {
+                    assert(it.key() == "a");
+                    assert(it.is_bool());
+                    assert(it.value() == "true");
+                    break;
+                }
+                case 1: {
+                    assert(it.key() == "b");
+                    assert(it.is_bool());
+                    assert(it.value() == "false");
+                    break;
+                }
+                case 2: {
+                    assert(it.key() == "c");
+                    assert(it.is_null());
+                    assert(it.value() == "null");
+                    break;
+                }
+                case 3: {
+                    assert(it.key() == "d");
+                    assert(it.is_number());
+                    assert(it.value() == "0");
+                    break;
+                }
+                case 4: {
+                    assert(it.key() == "e");
+                    assert(it.is_string());
+                    assert(it.value() == "e");
+                    break;
+                }
+                default: assert(!"unreachable!");
+            }
         }
         assert(idx == 5);
     };
@@ -1125,12 +1067,29 @@ int main() {
         bool case_3 = false;
         auto idx = 0;
         for ( auto it = fj_iter_next(beg); fj_iter_not_equal(it, end); it = fj_iter_next(it), ++idx ) {
-            FJ_SWITCH_FOR_TYPE(idx, it
-                ,(is_number, case_0 = it.m_cur->m_type == FJ_TYPE_NUMBER && *(it.m_cur->m_val) == '4')
-                ,(is_number, case_1 = it.m_cur->m_type == FJ_TYPE_NUMBER && *(it.m_cur->m_val) == '3')
-                ,(is_number, case_2 = it.m_cur->m_type == FJ_TYPE_NUMBER && *(it.m_cur->m_val) == '2')
-                ,(is_number, case_3 = it.m_cur->m_type == FJ_TYPE_NUMBER && *(it.m_cur->m_val) == '1')
-            )
+            switch (idx) {
+                case 0: {
+                    assert(it.is_number());
+                    case_0 = it.m_cur->m_type == FJ_TYPE_NUMBER && *(it.m_cur->m_val) == '4';
+                    break;
+                }
+                case 1: {
+                    assert(it.is_number());
+                    case_1 = it.m_cur->m_type == FJ_TYPE_NUMBER && *(it.m_cur->m_val) == '3';
+                    break;
+                }
+                case 2: {
+                    assert(it.is_number());
+                    case_2 = it.m_cur->m_type == FJ_TYPE_NUMBER && *(it.m_cur->m_val) == '2';
+                    break;
+                }
+                case 3: {
+                    assert(it.is_number());
+                    case_3 = it.m_cur->m_type == FJ_TYPE_NUMBER && *(it.m_cur->m_val) == '1';
+                    break;
+                }
+                default: assert(!"unreachable!");
+            }
         }
 
         assert(case_0);
@@ -1168,12 +1127,29 @@ int main() {
         bool case_3 = false;
         auto idx = 0;
         for ( auto it = fj_iter_next(beg); fj_iter_not_equal(it, end); it = fj_iter_next(it), ++idx ) {
-            FJ_SWITCH_FOR_TYPE(idx, it
-                ,(is_array, case_0 = (it.m_cur+1)->m_type == FJ_TYPE_NUMBER && *((it.m_cur+1)->m_val) == '4')
-                ,(is_array, case_1 = (it.m_cur+1)->m_type == FJ_TYPE_NUMBER && *((it.m_cur+1)->m_val) == '3')
-                ,(is_array, case_2 = (it.m_cur+1)->m_type == FJ_TYPE_NUMBER && *((it.m_cur+1)->m_val) == '2')
-                ,(is_array, case_3 = (it.m_cur+1)->m_type == FJ_TYPE_NUMBER && *((it.m_cur+1)->m_val) == '1')
-            )
+            switch ( idx ) {
+                case 0: {
+                    assert(it.is_array());
+                    case_0 = (it.m_cur+1)->m_type == FJ_TYPE_NUMBER && *((it.m_cur+1)->m_val) == '4';
+                    break;
+                }
+                case 1: {
+                    assert(it.is_array());
+                    case_1 = (it.m_cur+1)->m_type == FJ_TYPE_NUMBER && *((it.m_cur+1)->m_val) == '3';
+                    break;
+                }
+                case 2: {
+                    assert(it.is_array());
+                    case_2 = (it.m_cur+1)->m_type == FJ_TYPE_NUMBER && *((it.m_cur+1)->m_val) == '2';
+                    break;
+                }
+                case 3: {
+                    assert(it.is_array());
+                    case_3 = (it.m_cur+1)->m_type == FJ_TYPE_NUMBER && *((it.m_cur+1)->m_val) == '1';
+                    break;
+                }
+                default: assert(!"unreachable!");
+            }
         }
 
         assert(case_0);
@@ -1554,12 +1530,37 @@ int main() {
         bool case_3 = false;
         auto idx = 0;
         for ( auto it = fj_iter_next(beg); fj_iter_not_equal(it, end); it = fj_iter_next(it), ++idx ) {
-            FJ_SWITCH_FOR_KEY_VAL(idx, it
-                ,("a", is_number, "0" && (case_0 = true))
-                ,("b", is_number, "1" && (case_1 = true))
-                ,("c", is_object, ""  && (case_2 = true))
-                ,("f", is_number, "4" && (case_3 = true))
-            );
+            switch ( idx ) {
+                case 0: {
+                    assert(it.key() == "a");
+                    assert(it.is_number());
+                    assert(it.value() == "0");
+                    case_0 = true;
+                    break;
+                }
+                case 1: {
+                    assert(it.key() == "b");
+                    assert(it.is_number());
+                    assert(it.value() == "1");
+                    case_1 = true;
+                    break;
+                }
+                case 2: {
+                    assert(it.key() == "c");
+                    assert(it.is_object());
+                    assert(it.value() == "");
+                    case_2 = true;
+                    break;
+                }
+                case 3: {
+                    assert(it.key() == "f");
+                    assert(it.is_number());
+                    assert(it.value() == "4");
+                    case_3 = true;
+                    break;
+                }
+                default: assert(!"unreachable!");
+            }
         }
 
         assert(case_0);
