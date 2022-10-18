@@ -74,7 +74,6 @@ jobs:
           NO_EXCEPTIONS: ${{ matrix.no_exception }}
         run: |
           echo "TRIPLET=$TRIPLET, USE_CC=$USE_CC, DONT_PACK_TOKENS=$DONT_PACK_TOKENS, NO_EXCEPTIONS=$NO_EXCEPTIONS"
-          git status
           cd test
           case "$DONT_PACK_TOKENS$NO_EXCEPTIONS" in
             "00")
@@ -89,9 +88,9 @@ jobs:
               echo "with exceptions and WITHOUT packing the tokens"
               CC=$USE_CC cmake . -DCMAKE_BUILD_TYPE=Release -D__FJ__DONT_PACK_TOKENS
             ;;
+            "11")
               echo "WITHOUT exceptions and WITHOUT packing the tokens"
               CC=$USE_CC cmake . -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS="-fno-exceptions" -D__FJ__DONT_PACK_TOKENS
-            "11")
             ;;
           esac
           make
