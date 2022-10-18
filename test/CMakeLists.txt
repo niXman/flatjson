@@ -1,21 +1,28 @@
 cmake_minimum_required(VERSION 3.1)
-project(flatjson)
+project(flatjson-test)
 
-set(CMAKE_CXX_FLAGS
-    "${CMAKE_CXX_FLAGS} \
-        -std=c++11 -Wall -Wextra -Werror=return-type \
-        -fsanitize=address"
-)
+set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD_REQUIRED True)
+
+if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    set(CMAKE_CXX_FLAGS
+        "${CMAKE_CXX_FLAGS} \
+        -std=c++11 -Wall -Wextra -Werror=return-type -fsanitize=address"
+    )
+    if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-omit-frame-pointer")
+    endif()
+elseif (CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
+  # using Intel C++
+elseif (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    set(CMAKE_CXX_FLAGS
+        "${CMAKE_CXX_FLAGS} /W4 /WX"
+    )
+endif()
 
 add_definitions(
-	-UNDEBUG
-    -D__FJ__SUPPORTS_STDIO
-    #-D__FJ__DONT_PACK_TOKENS
+    -UNDEBUG
 )
-
-if (CMAKE_BUILD_TYPE STREQUAL "Debug")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-omit-frame-pointer")
-endif()
 
 include_directories(
     ../include
@@ -33,5 +40,4 @@ add_executable(${PROJECT_NAME} ${SOURCES})
 
 target_link_libraries(
 	${PROJECT_NAME}
-	pthread
 )
