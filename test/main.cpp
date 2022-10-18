@@ -50,10 +50,16 @@ std::string token_to_string(const flatjson::fj_token *t)
 flatjson::fj_token* token_parent(const flatjson::fj_token *t)
 { return t->m_parent; }
 
+#ifdef WIN32
+static const TCHAR dir_separator = '\\';
+#else
+static const char dir_separator = '/';
+#endif // WIN32
+
 #define FJ_TEST(...) \
     []{ \
         const char *fileline = __FILE__ "(" FJ_STRINGIZE(__LINE__) ")"; \
-        const char *ptr = std::strrchr(fileline, '/'); \
+        const char *ptr = std::strrchr(fileline, dir_separator); \
         ptr = ptr ? ptr+1 : ptr; \
         static char buf[256]{}; \
         int len = std::snprintf(buf, sizeof(buf), "%2d: %s", __COUNTER__, ptr); \
@@ -1823,6 +1829,9 @@ R"({
 
         int ec{};
         auto fh = details::file_open(fname, &ec);
+        if ( ec ) {
+            std::cout << "details::file_open(): ec=" << ec << std::endl;
+        }
         assert(details::file_handle_valid(fh) && ec == 0);
 
         auto beg = fj_iter_begin(parser);
