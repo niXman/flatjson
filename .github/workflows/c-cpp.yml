@@ -15,49 +15,49 @@ jobs:
         include:
           - os: ubuntu-22.04
             triplet: x64-linux
-            cc: gcc
+            cc: g++
             dont_pack_tokens: 0
             no_exception: 0
             
           - os: ubuntu-22.04
             triplet: x32-linux
-            cc: gcc
+            cc: g++
             dont_pack_tokens: 0
             no_exception: 0
             
           - os: ubuntu-22.04
             triplet: x64-linux
-            cc: gcc
+            cc: g++
             dont_pack_tokens: 1
             no_exception: 0
 
           - os: ubuntu-22.04
             triplet: x32-linux
-            cc: gcc
+            cc: g++
             dont_pack_tokens: 1
             no_exception: 0
 
           - os: ubuntu-22.04
             triplet: x64-linux
-            cc: gcc
+            cc: g++
             dont_pack_tokens: 1
             no_exception: 1
 
           - os: ubuntu-22.04
             triplet: x32-linux
-            cc: gcc
+            cc: g++
             dont_pack_tokens: 1
             no_exception: 1
             
           - os: macos-latest
             triplet: x64-osx
-            cc: clang
+            cc: clang++
             dont_pack_tokens: 0
             no_exception: 0
             
           - os: macos-latest
             triplet: x32-osx
-            cc: clang
+            cc: clang++
             dont_pack_tokens: 0
             no_exception: 0
             
@@ -72,3 +72,27 @@ jobs:
           NO_EXCEPTIONS: ${{ matrix.no_exception }}
         run: |
           echo "TRIPLET=$TRIPLET, USE_CC=$USE_CC, DONT_PACK_TOKENS=$DONT_PACK_TOKENS, NO_EXCEPTIONS=$NO_EXCEPTIONS"
+          git status
+          cd test
+          case "$DONT_PACK_TOKENS$NO_EXCEPTIONS" in
+            "00")
+              echo "with exceptions enabled and with packed the tokens" && \
+              CC=$USE_CC cmake . -DCMAKE_BUILD_TYPE=Release && \
+              ./flatjson
+            ;;
+            "01")
+              echo "WITHOUT exceptions and with packed the tokens" && \
+              CC=$USE_CC cmake . -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS="-fno-exceptions" && \
+              ./flatjson
+            ;;
+            "10")
+              echo "with exceptions and WITHOUT packing the tokens" && \
+              CC=$USE_CC cmake . -DCMAKE_BUILD_TYPE=Release -D__FJ__DONT_PACK_TOKENS && \
+              ./flatjson
+            ;;
+              echo "WITHOUT exceptions and WITHOUT packing the tokens" && \
+              CC=$USE_CC cmake . -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS="-fno-exceptions" -D__FJ__DONT_PACK_TOKENS && \
+              ./flatjson
+            "11")
+            ;;
+          esac
