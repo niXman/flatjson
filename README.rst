@@ -33,3 +33,25 @@ The header-only implementation of an extremely fast zero allocation and zero cop
 
 |release-badge| |code-size-badge| |repo-size-badge| |ci-badge|
 
+CI Job Matrix
+----------------
+
++---------------+--------------------+-----------------------+
+| Target System | Toolchain          | Note                  |
++===============+====================+=======================+
+| Linux         | G++                | non-packed tokens     |
++---------------+--------------------+-----------------------+
+| Linux         | G++                | packed tokens         |
++---------------+--------------------+-----------------------+
+| Windows       | Visual Studio 2022 | non-packed tokens     |
++---------------+--------------------+-----------------------+
+| Windows       | Visual Studio 2022 | packed tokens         |
++---------------+--------------------+-----------------------+
+| Windows       | Visual Studio 2019 | non-packed tokens     |
++---------------+--------------------+-----------------------+
+| Windows       | Visual Studio 2019 | packed tokens         |
++---------------+--------------------+-----------------------+
+| OSX           | Apple Clang++      | non-packed tokens     |
++---------------+--------------------+-----------------------+
+| OSX           | Apple Clang++      | packed tokens         |
++---------------+--------------------+-----------------------+
