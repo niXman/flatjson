@@ -30,13 +30,6 @@ The header-only implementation of an extremely fast zero allocation and zero cop
                :alt: CI build status
                :target: https://github.com/nixman/flatjson/actions/workflows/c-cpp.yml
 
-.. |codecov-badge|  image:: https://codecov.io/gh/nixman/flatjson/branch/master/graph/badge.svg
-                    :alt: Coveralls coverage
-                    :target: https://codecov.io/gh/nixman/flatjson
 
-.. |lgtm-badge|  image:: https://img.shields.io/lgtm/grade/cpp/g/nixman/flatjson.svg?logo=lgtm&logoWidth=18
-                 :alt: Language grade: C/C++
-                 :target: https://lgtm.com/projects/g/nixman/flatjson/context:cpp
-
-|release-badge| |code-size-badge| |repo-size-badge| |ci-badge| |codecov-badge| |lgtm-badge|
+|release-badge| |code-size-badge| |repo-size-badge| |ci-badge|
 
