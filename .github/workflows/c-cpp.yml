@@ -179,8 +179,30 @@ jobs:
       - name: Build & Test
         shell: bash
         env:
-          TRIPLET: ${{ matrix.triplet }}
+          CMAKE_GENERATOR: ${{ matrix.generator }}
+          PLATFORM: ${{ matrix.platform }}
           DONT_PACK_TOKENS: ${{ matrix.dont_pack_tokens }}
           NO_EXCEPTIONS: ${{ matrix.no_exception }}
         run: |
           echo "TRIPLET=$TRIPLET, DONT_PACK_TOKENS=$DONT_PACK_TOKENS, NO_EXCEPTIONS=$NO_EXCEPTIONS"
+          cd test
+          case "$DONT_PACK_TOKENS$NO_EXCEPTIONS" in
+            "00")
+              echo "with exceptions enabled and with packed the tokens"
+              CXX=$USE_CC cmake . -G "$CMAKE_GENERATOR" -DCMAKE_BUILD_TYPE=Release
+            ;;
+            "01")
+              echo "WITHOUT exceptions and with packed the tokens"
+              CXX=$USE_CC cmake . -G "$CMAKE_GENERATOR" -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS="-fno-exceptions"
+            ;;
+            "10")
+              echo "with exceptions and WITHOUT packing the tokens"
+              CXX=$USE_CC cmake . -G "$CMAKE_GENERATOR" -DCMAKE_BUILD_TYPE=Release -D__FJ__DONT_PACK_TOKENS=ON
+            ;;
+            "11")
+              echo "WITHOUT exceptions and WITHOUT packing the tokens"
+              CXX=$USE_CC cmake . -G "$CMAKE_GENERATOR" -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS="-fno-exceptions" -D__FJ__DONT_PACK_TOKENS=ON
+            ;;
+          esac
+          cmake . --build
+          flatjson.exe
