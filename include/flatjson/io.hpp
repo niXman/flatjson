@@ -554,7 +554,7 @@ bool munmap_file(const void *addr, std::size_t /*size*/, int *ec) {
 
 bool munmap_file(const void *addr, fj_file_handle_type fd, int *ec) {
     int lec{};
-    if ( !munmap_file(addr, 0, &lec) ) {
+    if ( !munmap_file(addr, std::size_t{}, &lec) ) {
         if ( ec ) { *ec = lec; }
         return false;
     }

@@ -59,9 +59,7 @@ flatjson::fj_token* token_parent(const flatjson::fj_token *t)
         int len = std::snprintf(buf, sizeof(buf), "%2d: %s", __COUNTER__, ptr); \
         static const char notes[] = FJ_STRINGIZE(__VA_ARGS__); \
         if ( sizeof(notes)-1 != 0 ) { \
-            buf[len] = '('; \
-            std::strcat(buf, notes); \
-            std::strcat(buf, ")"); \
+            std::snprintf(buf+len+1, sizeof(buf)-len, "(%s)", notes); \
         } \
         return buf; \
     }() + []
@@ -274,7 +272,7 @@ int parse_file(const char *path, const char *fname) {
 
     flatjson::details::munmap_file(addr, fd, &lec);
     if ( lec ) {
-        std::cout << ::strerror(lec) << std::endl;
+        std::cout << "parse_file(): munmap_file: err=" << lec << std::endl;
     }
 
     return ec;
