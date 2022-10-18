@@ -17,50 +17,22 @@ jobs:
             triplet: x64-linux
             cc: g++
             dont_pack_tokens: 0
-            no_exception: 0
             
           - os: ubuntu-22.04
             triplet: x32-linux
             cc: g++
             dont_pack_tokens: 0
-            no_exception: 0
             
           - os: ubuntu-22.04
             triplet: x64-linux
             cc: g++
             dont_pack_tokens: 1
-            no_exception: 0
 
           - os: ubuntu-22.04
             triplet: x32-linux
             cc: g++
             dont_pack_tokens: 1
-            no_exception: 0
 
-          - os: ubuntu-22.04
-            triplet: x64-linux
-            cc: g++
-            dont_pack_tokens: 1
-            no_exception: 1
-
-          - os: ubuntu-22.04
-            triplet: x32-linux
-            cc: g++
-            dont_pack_tokens: 1
-            no_exception: 1
-            
-          - os: macos-latest
-            triplet: x64-osx
-            cc: clang++
-            dont_pack_tokens: 0
-            no_exception: 0
-            
-          - os: macos-latest
-            triplet: x32-osx
-            cc: clang++
-            dont_pack_tokens: 0
-            no_exception: 0
-            
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout
@@ -71,26 +43,17 @@ jobs:
           TRIPLET: ${{ matrix.triplet }}
           USE_CC: ${{ matrix.cc }}
           DONT_PACK_TOKENS: ${{ matrix.dont_pack_tokens }}
-          NO_EXCEPTIONS: ${{ matrix.no_exception }}
         run: |
-          echo "TRIPLET=$TRIPLET, USE_CC=$USE_CC, DONT_PACK_TOKENS=$DONT_PACK_TOKENS, NO_EXCEPTIONS=$NO_EXCEPTIONS"
+          echo "TRIPLET=$TRIPLET, USE_CC=$USE_CC, DONT_PACK_TOKENS=$DONT_PACK_TOKENS"
           cd test
-          case "$DONT_PACK_TOKENS$NO_EXCEPTIONS" in
-            "00")
-              echo "with exceptions enabled and with packed the tokens"
+          case "$DONT_PACK_TOKENS" in
+            "0")
+              echo "with packing the tokens"
               CXX=$USE_CC cmake . -DCMAKE_BUILD_TYPE=Release
             ;;
-            "01")
-              echo "WITHOUT exceptions and with packed the tokens"
-              CXX=$USE_CC cmake . -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS="-fno-exceptions"
-            ;;
-            "10")
-              echo "with exceptions and WITHOUT packing the tokens"
+            "1")
+              echo "WITHOUT packing the tokens"
               CXX=$USE_CC cmake . -DCMAKE_BUILD_TYPE=Release -D__FJ__DONT_PACK_TOKENS=ON
-            ;;
-            "11")
-              echo "WITHOUT exceptions and WITHOUT packing the tokens"
-              CXX=$USE_CC cmake . -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS="-fno-exceptions" -D__FJ__DONT_PACK_TOKENS=ON
             ;;
           esac
           make
@@ -105,73 +68,41 @@ jobs:
             generator: "Visual Studio 17 2022"
             platform: x64
             dont_pack_tokens: 0
-            no_exception: 0
 
           - os: windows-latest
             generator: "Visual Studio 17 2022"
             platform: x32
             dont_pack_tokens: 0
-            no_exception: 0
             
           - os: windows-latest
             generator: "Visual Studio 17 2022"
             platform: x64
             dont_pack_tokens: 1
-            no_exception: 0
 
           - os: windows-latest
             generator: "Visual Studio 17 2022"
             platform: x32
             dont_pack_tokens: 1
-            no_exception: 0
-
-          - os: windows-latest
-            generator: "Visual Studio 17 2022"
-            platform: x64
-            dont_pack_tokens: 1
-            no_exception: 1
-
-          - os: windows-latest
-            generator: "Visual Studio 17 2022"
-            platform: x32
-            dont_pack_tokens: 1
-            no_exception: 1
             
           - os: windows-2019
             generator: "Visual Studio 16 2019"
             platform: x64
             dont_pack_tokens: 0
-            no_exception: 0
             
           - os: windows-2019
             generator: "Visual Studio 16 2019"
             platform: x32
             dont_pack_tokens: 0
-            no_exception: 0
             
           - os: windows-2019
             generator: "Visual Studio 16 2019"
             platform: x64
             dont_pack_tokens: 1
-            no_exception: 0
             
           - os: windows-2019
             generator: "Visual Studio 16 2019"
             platform: x32
             dont_pack_tokens: 1
-            no_exception: 0
-            
-          - os: windows-2019
-            generator: "Visual Studio 16 2019"
-            platform: x64
-            dont_pack_tokens: 1
-            no_exception: 1
-            
-          - os: windows-2019
-            generator: "Visual Studio 16 2019"
-            platform: x32
-            dont_pack_tokens: 1
-            no_exception: 1
             
     runs-on: ${{ matrix.os }}
     steps:
@@ -183,26 +114,17 @@ jobs:
           CMAKE_GENERATOR: ${{ matrix.generator }}
           PLATFORM: ${{ matrix.platform }}
           DONT_PACK_TOKENS: ${{ matrix.dont_pack_tokens }}
-          NO_EXCEPTIONS: ${{ matrix.no_exception }}
         run: |
-          echo "PLATFORM=$PLATFORM, CMAKE_GENERATOR=\"$CMAKE_GENERATOR\", DONT_PACK_TOKENS=$DONT_PACK_TOKENS, NO_EXCEPTIONS=$NO_EXCEPTIONS"
+          echo "PLATFORM=$PLATFORM, CMAKE_GENERATOR=\"$CMAKE_GENERATOR\", DONT_PACK_TOKENS=$DONT_PACK_TOKENS"
           cd test
-          case "$DONT_PACK_TOKENS$NO_EXCEPTIONS" in
-            "00")
+          case "$DONT_PACK_TOKENS" in
+            "0")
               echo "with exceptions enabled and with packed the tokens"
               cmake . -G "$CMAKE_GENERATOR" -DCMAKE_BUILD_TYPE=Release
             ;;
-            "01")
+            "1")
               echo "WITHOUT exceptions and with packed the tokens"
-              cmake . -G "$CMAKE_GENERATOR" -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS="-fno-exceptions"
-            ;;
-            "10")
-              echo "with exceptions and WITHOUT packing the tokens"
               cmake . -G "$CMAKE_GENERATOR" -DCMAKE_BUILD_TYPE=Release -D__FJ__DONT_PACK_TOKENS=ON
-            ;;
-            "11")
-              echo "WITHOUT exceptions and WITHOUT packing the tokens"
-              cmake . -G "$CMAKE_GENERATOR" -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS="-fno-exceptions" -D__FJ__DONT_PACK_TOKENS=ON
             ;;
           esac
           cmake --build .
