@@ -1685,7 +1685,7 @@ inline fj_iterator fj_iter_find(std::size_t idx, fj_iterator it, const fj_iterat
         }
     }
 
-    assert(!"unreachable!");
+    return end;
 }
 
 } // ns details
@@ -1993,6 +1993,7 @@ enum class compare_mode {
 
 enum class compare_result {
      OK
+    ,UNEXPECTED
     ,type    // differs in token type.
     ,key     // differs in key. (for objects only)
     ,length  // differs in length.
@@ -2088,11 +2089,10 @@ inline compare_result fj_compare(
         }
     }
 
-    if ( left_it == left_end && right_it == right_end ) {
-        return compare_result::OK;
-    }
-
-    assert(!"unreachable!");
+    return (left_it == left_end && right_it == right_end)
+        ? compare_result::OK
+        : compare_result::UNEXPECTED
+    ;
 }
 
 /*************************************************************************************************/
