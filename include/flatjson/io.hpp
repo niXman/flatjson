@@ -553,6 +553,7 @@ bool munmap_file(const void *addr, std::size_t /*size*/, int *ec) {
 }
 
 bool munmap_file(const void *addr, fj_file_handle_type fd, int *ec) {
+    int lec{};
     if ( !munmap_file(addr, 0, &lec) ) {
         if ( ec ) { *ec = lec; }
         return false;
@@ -1048,7 +1049,7 @@ inline std::size_t fj_packed_state_size(const fj_parser *parser) {
         auto bytes_parent_offset = details::fj_bytes_required(parent_off);
         auto bytes_childs_num    = details::fj_bytes_required(childs);
         auto bytes_end_offset    = details::fj_bytes_required(end_off);
-        std::size_t per_token =
+        std::uint32_t per_token =
               bytes_type
             + bytes_key_offset
             + bytes_key_len
@@ -1136,12 +1137,12 @@ inline std::size_t fj_pack_state(char *dst, std::size_t size, const fj_parser *p
     };
 
     char *ptr = dst;
-    std::uint32_t json_str_len = parser->str_cur - parser->str_beg;
+    std::uint32_t json_str_len = static_cast<std::uint32_t>(parser->str_cur - parser->str_beg);
     std::memcpy(ptr, &json_str_len, sizeof(json_str_len));
     ptr += sizeof(json_str_len);
     std::memcpy(ptr, parser->str_beg, json_str_len);
     ptr += json_str_len;
-    std::uint32_t toks_num = parser->toks_cur - parser->toks_beg;
+    std::uint32_t toks_num = static_cast<std::uint32_t>(parser->toks_cur - parser->toks_beg);
     std::memcpy(ptr, &toks_num, sizeof(toks_num));
     ptr += sizeof(toks_num);
 
@@ -1227,11 +1228,11 @@ inline bool fj_unpack_state(fj_parser *parser, char *ptr, std::size_t size) {
         prev_val = ((prev && prev->m_val) ? prev->m_val : prev_val);
         it->m_type   = static_cast<fj_token_type>(type);
         it->m_key    = (key_off ? (prev_key ? prev_key + key_off : parser->str_beg + key_off): nullptr);
-        it->m_klen   = key_len;
+        it->m_klen   = static_cast<decltype(it->m_klen)>(key_len);
         it->m_val    = (val_off ? (prev_val ? prev_val + val_off : parser->str_beg + val_off): nullptr);
-        it->m_vlen   = val_len;
+        it->m_vlen   = static_cast<decltype(it->m_vlen)>(val_len);
         it->m_parent = (parent_off ? it - parent_off : nullptr);
-        it->m_childs = childs;
+        it->m_childs = static_cast<decltype(it->m_childs)>(childs);
         it->m_end    = (end_off ? it + end_off : nullptr);
     }
     parser->error = FJ_EC_OK;
