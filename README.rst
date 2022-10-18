@@ -1,22 +1,42 @@
-[![Build Status](https://travis-ci.org/niXman/flatjson.svg?branch=master)](https://travis-ci.org/niXman/flatjson)
+libcopp
+============
 
-# flatjson
+The header-only implementation of an extremely fast zero allocation and zero copying JSON parser
 
-The [header-only implementation](https://github.com/niXman/flatjson/blob/master/include/flatjson/flatjson.hpp) of extremely fast zero allocation and zero copy JSON parser
+.. image:: https://img.shields.io/github/forks/nixman/flatjson?style=social
+.. image:: https://img.shields.io/github/stars/nixman/flatjson?style=social
 
-# Example
+.. |release-badge| image:: https://img.shields.io/github/v/release/nixman/flatjson
+               :alt: Release
+               :target: https://github.com/nixman/flatjson/releases
 
-```cpp
-const char *jsstr = R"({"a":true, "b":null})";
-flatjson::fjson json{jsstr};
-assert(json.is_valid());
-assert(json.is_object());
-assert(json.size() == 2);
+.. |code-size-badge| image:: https://img.shields.io/github/languages/code-size/nixman/libcopp
+                     :alt: Code size
+                     :target: https://github.com/nixman/libcopp
 
-auto a = json.at("a");
-assert(a.is_bool());
-assert(a.to_bool() == true);
+.. |repo-size-badge| image:: https://img.shields.io/github/repo-size/nixman/libcopp
+                     :alt: Repo size
+                     :target: https://github.com/nixman/libcopp
 
-auto b = json.at("b");
-assert(b.is_null());
-```
+.. |forks-badge| image:: https://img.shields.io/github/forks/nixman/libcopp?style=social
+                  :alt: Forks
+                  :target: https://github.com/nixman/libcopp
+
+.. |stars-badge| image:: https://img.shields.io/github/stars/nixman/libcopp?style=social
+                 :alt: Stars
+                 :target: https://github.com/nixman/libcopp
+
+.. |ci-badge|  image:: https://github.com/nixman/libcopp/actions/workflows/main.yml/badge.svg
+               :alt: CI build status
+               :target: https://github.com/nixman/libcopp/actions/workflows/main.yml
+
+.. |codecov-badge|  image:: https://codecov.io/gh/nixman/libcopp/branch/v2/graph/badge.svg
+                    :alt: Coveralls coverage
+                    :target: https://codecov.io/gh/nixman/libcopp
+
+.. |lgtm-badge|  image:: https://img.shields.io/lgtm/grade/cpp/g/nixman/libcopp.svg?logo=lgtm&logoWidth=18
+                 :alt: Language grade: C/C++
+                 :target: https://lgtm.com/projects/g/nixman/libcopp/context:cpp
+
+|release-badge| |code-size-badge| |repo-size-badge| |ci-badge| |codecov-badge| |lgtm-badge| |forks-badge| |stars-badge|
+
