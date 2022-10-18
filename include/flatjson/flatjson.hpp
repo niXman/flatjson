@@ -1547,6 +1547,8 @@ inline fj_iterator fj_iter_find(const char *key, std::size_t len, fj_iterator it
     }
 
     assert(!"unreachable!");
+
+    return end;
 }
 
 } // ns details
@@ -1684,6 +1686,8 @@ inline fj_iterator fj_iter_find(std::size_t idx, fj_iterator it, const fj_iterat
             }
         }
     }
+
+    assert(!"unreachable!");
 
     return end;
 }
