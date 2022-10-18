@@ -404,7 +404,7 @@ fj_file_handle_type file_create(const char_type *fname, int *ec) {
 }
 
 std::size_t file_read(fj_file_handle_type fd, void *ptr, std::size_t size, int *ec) {
-    if ( !::ReadFile(fd, ptr, size, nullptr, nullptr) ) {
+    if ( !::ReadFile(fd, ptr, static_cast<DWORD>(size), nullptr, nullptr) ) {
         int lec = ::GetLastError();
         if ( ec ) { *ec = lec; }
 
@@ -415,7 +415,7 @@ std::size_t file_read(fj_file_handle_type fd, void *ptr, std::size_t size, int *
 }
 
 std::size_t file_write(fj_file_handle_type fd, const void *ptr, std::size_t size, int *ec) {
-    if ( !::WriteFile(fd, ptr, size, nullptr, nullptr) ) {
+    if ( !::WriteFile(fd, ptr, static_cast<DWORD>(size), nullptr, nullptr) ) {
         int lec = ::GetLastError();
         if ( ec ) { *ec = lec; }
 
@@ -493,7 +493,7 @@ const void* mmap_for_read(fj_file_handle_type *fd, const char_type *fname, int *
     return addr;
 }
 
-void* mmap_for_write(fj_file_handle_type fd, std::size_t size, int *ec) {
+void* mmap_for_write(fj_file_handle_type fd, std::size_t /*size*/, int *ec) {
     auto map = ::CreateFileMapping(fd, nullptr, PAGE_READWRITE, 0, 0, nullptr);
     if ( !map ) {
         int lec = ::GetLastError();
@@ -517,7 +517,7 @@ void* mmap_for_write(fj_file_handle_type fd, std::size_t size, int *ec) {
 
 void* mmap_for_write(fj_file_handle_type *fd, const char_type *fname, std::size_t size, int *ec) {
     int lec{};
-    int lfd = file_create(fname, &lec);
+    auto lfd = file_create(fname, &lec);
     if ( lec ) {
         if ( ec ) { *ec = lec; }
         return nullptr;
