@@ -331,10 +331,6 @@ conv_to(const char *ptr, std::size_t len, To) { return {ptr, len}; }
 
 /*************************************************************************************************/
 
-#ifndef FJ_DONT_PACK_TOKENS
-#pragma pack(push, 1)
-#endif // FJ_DONT_PACK_TOKENS
-
 struct fj_token {
     const char *m_key;
     const char *m_val;
@@ -345,10 +341,6 @@ struct fj_token {
     FJ_KLEN_TYPE m_klen;
     fj_token_type m_type;
 };
-
-#ifndef FJ_DONT_PACK_TOKENS
-#pragma pack(pop)
-#endif // FJ_DONT_PACK_TOKENS
 
 /*************************************************************************************************/
 
