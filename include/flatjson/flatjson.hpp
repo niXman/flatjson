@@ -336,14 +336,14 @@ conv_to(const char *ptr, std::size_t len, To) { return {ptr, len}; }
 #endif // __FJ__DONT_PACK_TOKENS
 
 struct fj_token {
-    fj_token_type m_type;
     const char *m_key;
-    __FJ__KLEN_TYPE m_klen;
     const char *m_val;
-    __FJ__VLEN_TYPE m_vlen;
     fj_token *m_parent;
-    __FJ__CHILDS_TYPE m_childs;
     fj_token *m_end; // pointing to the last token for arrays and objects
+    fj_token_type m_type;
+    __FJ__KLEN_TYPE m_klen;
+    __FJ__VLEN_TYPE m_vlen;
+    __FJ__CHILDS_TYPE m_childs;
 };
 
 #ifndef __FJ__DONT_PACK_TOKENS

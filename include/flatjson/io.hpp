@@ -175,7 +175,7 @@ std::size_t file_write(
     ,int *ec)
 {
     auto wr = ::writev(fd, iovector, num);
-    if ( wr != -1 ) {
+    if ( wr == -1 ) {
         if ( ec ) { *ec = errno; }
 
         return 0;
