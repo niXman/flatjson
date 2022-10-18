@@ -19,21 +19,41 @@ jobs:
             dont_pack_tokens: 0
             
           - os: ubuntu-22.04
-            triplet: x32-linux
-            cc: g++
-            dont_pack_tokens: 0
-            
-          - os: ubuntu-22.04
             triplet: x64-linux
             cc: g++
             dont_pack_tokens: 1
+            
+          - os: ubuntu-22.04
+            triplet: x64-linux
+            cc: g++-latest
+            dont_pack_tokens: 0
 
           - os: ubuntu-22.04
-            triplet: x32-linux
-            cc: g++
+            triplet: x364-linux
+            cc: g++-latest
             dont_pack_tokens: 1
 
-    runs-on: ${{ matrix.os }}
+          - os: macos-latest
+            triplet: x64-osx
+            cc: clang++
+            dont_pack_tokens: 0
+            
+          - os: macos-latest
+            triplet: x32-osx
+            cc: clang++
+            dont_pack_tokens: 1
+
+          - os: macos-latest
+            triplet: x64-osx
+            cc: clang++-latest
+            dont_pack_tokens: 0
+            
+          - os: macos-latest
+            triplet: x32-osx
+            cc: clang++-latest
+            dont_pack_tokens: 1
+
+runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout
         uses: actions/checkout@master
@@ -71,19 +91,9 @@ jobs:
 
           - os: windows-latest
             generator: "Visual Studio 17 2022"
-            platform: x32
-            dont_pack_tokens: 0
-            
-          - os: windows-latest
-            generator: "Visual Studio 17 2022"
             platform: x64
             dont_pack_tokens: 1
 
-          - os: windows-latest
-            generator: "Visual Studio 17 2022"
-            platform: x32
-            dont_pack_tokens: 1
-            
           - os: windows-2019
             generator: "Visual Studio 16 2019"
             platform: x64
@@ -91,17 +101,7 @@ jobs:
             
           - os: windows-2019
             generator: "Visual Studio 16 2019"
-            platform: x32
-            dont_pack_tokens: 0
-            
-          - os: windows-2019
-            generator: "Visual Studio 16 2019"
             platform: x64
-            dont_pack_tokens: 1
-            
-          - os: windows-2019
-            generator: "Visual Studio 16 2019"
-            platform: x32
             dont_pack_tokens: 1
             
     runs-on: ${{ matrix.os }}
