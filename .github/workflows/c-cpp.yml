@@ -78,19 +78,19 @@ jobs:
           case "$DONT_PACK_TOKENS$NO_EXCEPTIONS" in
             "00")
               echo "with exceptions enabled and with packed the tokens"
-              CC=$USE_CC cmake . -DCMAKE_BUILD_TYPE=Release
+              CXX=$USE_CC cmake . -DCMAKE_BUILD_TYPE=Release
             ;;
             "01")
               echo "WITHOUT exceptions and with packed the tokens"
-              CC=$USE_CC cmake . -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS="-fno-exceptions"
+              CXX=$USE_CC cmake . -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS="-fno-exceptions"
             ;;
             "10")
               echo "with exceptions and WITHOUT packing the tokens"
-              CC=$USE_CC cmake . -DCMAKE_BUILD_TYPE=Release -D__FJ__DONT_PACK_TOKENS
+              CXX=$USE_CC cmake . -DCMAKE_BUILD_TYPE=Release -D__FJ__DONT_PACK_TOKENS
             ;;
             "11")
               echo "WITHOUT exceptions and WITHOUT packing the tokens"
-              CC=$USE_CC cmake . -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS="-fno-exceptions" -D__FJ__DONT_PACK_TOKENS
+              CXX=$USE_CC cmake . -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS="-fno-exceptions" -D__FJ__DONT_PACK_TOKENS
             ;;
           esac
           make
