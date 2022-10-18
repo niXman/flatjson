@@ -1,0 +1,65 @@
+name: C/C++ CI
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+jobs:
+  unix_build: # job id, can be any string
+    name: Unix Build
+    # This job runs on Linux
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            triplet: x64-linux
+            cc: gcc
+            
+          - os: ubuntu-22.04
+            triplet: x32-linux
+            cc: gcc
+            
+          - os: ubuntu-22.04
+            triplet: x64-linux
+            cc: gcc-latest
+
+          - os: ubuntu-22.04
+            triplet: x32-linux
+            cc: gcc-latest
+            
+          - os: ubuntu-22.04
+            triplet: x64-linux
+            cc: gcc
+            mode: memcheck
+            
+          - os: ubuntu-22.04
+            triplet: x32-linux
+            cc: gcc
+            mode: memcheck
+
+          - os: ubuntu-22.04
+            triplet: x64-linux
+            cc: gcc-latest
+            no_exception: 1
+            
+          - os: ubuntu-22.04
+            triplet: x32-linux
+            cc: gcc-latest
+            no_exception: 1
+            
+          - os: macos-latest
+            triplet: x64-osx
+            cc: clang-latest
+            
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Build & Test
+        shell: bash
+        env:
+          TRIPLET: ${{ matrix.triplet }}
+          USE_CC: ${{ matrix.cc }}
+          CI_MODE: ${{ matrix.mode }}
+        run: |
+          echo "TRIPLET=$TRIPLET, USE_CC=$USE_CC, CI_MODE=$CI_MODE"
