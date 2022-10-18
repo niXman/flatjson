@@ -190,19 +190,19 @@ jobs:
           case "$DONT_PACK_TOKENS$NO_EXCEPTIONS" in
             "00")
               echo "with exceptions enabled and with packed the tokens"
-              CXX=$USE_CC cmake . -G "$CMAKE_GENERATOR" -DCMAKE_CXX_COMPILER=clang-cl -DCMAKE_BUILD_TYPE=Release
+              cmake . -G "$CMAKE_GENERATOR" -DCMAKE_CXX_COMPILER=clang-cl -DCMAKE_BUILD_TYPE=Release
             ;;
             "01")
               echo "WITHOUT exceptions and with packed the tokens"
-              CXX=$USE_CC cmake . -G "$CMAKE_GENERATOR" -DCMAKE_CXX_COMPILER=clang-cl -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS="-fno-exceptions"
+              cmake . -G "$CMAKE_GENERATOR" -DCMAKE_CXX_COMPILER=clang-cl -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS="-fno-exceptions"
             ;;
             "10")
               echo "with exceptions and WITHOUT packing the tokens"
-              CXX=$USE_CC cmake . -G "$CMAKE_GENERATOR" -DCMAKE_CXX_COMPILER=clang-cl -DCMAKE_BUILD_TYPE=Release -D__FJ__DONT_PACK_TOKENS=ON
+              cmake . -G "$CMAKE_GENERATOR" -DCMAKE_CXX_COMPILER=clang-cl -DCMAKE_BUILD_TYPE=Release -D__FJ__DONT_PACK_TOKENS=ON
             ;;
             "11")
               echo "WITHOUT exceptions and WITHOUT packing the tokens"
-              CXX=$USE_CC cmake . -G "$CMAKE_GENERATOR" -DCMAKE_CXX_COMPILER=clang-cl -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS="-fno-exceptions" -D__FJ__DONT_PACK_TOKENS=ON
+              cmake . -G "$CMAKE_GENERATOR" -DCMAKE_CXX_COMPILER=clang-cl -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS="-fno-exceptions" -D__FJ__DONT_PACK_TOKENS=ON
             ;;
           esac
           cmake --build .
