@@ -23,21 +23,13 @@ jobs:
             
           - os: ubuntu-22.04
             triplet: x64-linux
-            cc: gcc-latest
+            cc: gcc
+            dont_pack_tokens: 1
 
           - os: ubuntu-22.04
             triplet: x32-linux
-            cc: gcc-latest
-            
-          - os: ubuntu-22.04
-            triplet: x64-linux
             cc: gcc
-            mode: memcheck
-            
-          - os: ubuntu-22.04
-            triplet: x32-linux
-            cc: gcc
-            mode: memcheck
+            dont_pack_tokens: 1
 
           - os: ubuntu-22.04
             triplet: x64-linux
@@ -61,5 +53,7 @@ jobs:
           TRIPLET: ${{ matrix.triplet }}
           USE_CC: ${{ matrix.cc }}
           CI_MODE: ${{ matrix.mode }}
+          NO_EXCEPTIONS: ${{ matrix.no_exception }}
+          DONT_PACK_TOKENS: ${{ matrix.dont_pack_tokens }}
         run: |
           echo "TRIPLET=$TRIPLET, USE_CC=$USE_CC, CI_MODE=$CI_MODE"
