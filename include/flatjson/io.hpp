@@ -49,11 +49,14 @@ using io_vector_type = iovec;
 #elif defined(WIN32)
 using fj_file_handle_type = HANDLE;
 using char_type = TCHAR;
-using io_vector_type = FILE_SEGMENT_ELEMENT;
+struct io_vector_type {
+    const void *iov_base;
+    std::size_t iov_len;
+};
 #   define __FJ_INIT_IO_VECTOR(vec, ptr, size) \
-        vec.Buffer = PtrToPtr64(ptr); vec.Alignment = size;
-#   define __FJ_IO_VECTOR_PTR(vec) vec->Buffer
-#   define __FJ_IO_VECTOR_SIZE(vec) vec->Alignment
+        vec.iov_base = ptr; vec.iov_len = size;
+#   define __FJ_IO_VECTOR_PTR(vec) vec->iov_base
+#   define __FJ_IO_VECTOR_SIZE(vec) vec->iov_len
 #else
 #   error "UNKNOWN PLATFORM!"
 #endif // OS detection
@@ -308,7 +311,260 @@ bool munmap_file(const void *addr, fj_file_handle_type fd, int *ec) {
 }
 
 #elif defined(WIN32)
-#elif defined(__APPLE__)
+
+bool file_exists(const char_type *fname) {
+    auto attr = ::GetFileAttributes(szPath);
+
+    return (attr != INVALID_FILE_ATTRIBUTES &&
+        !(attr & FILE_ATTRIBUTE_DIRECTORY));
+}
+
+std::size_t file_size(const char_type *fname, int *ec) {
+    WIN32_FILE_ATTRIBUTE_DATA fad;
+    if ( !::GetFileAttributesEx(name, ::GET_FILEEX_INFO_LEVELS::GetFileExInfoStandard, &fad) ) {
+        int lec = ::GetLastError();
+        if ( ec ) { *ec = lec; }
+
+        return 0;
+    }
+
+    std::uint64_t fsize = static_cast<std::uint64_t>(fad.nFileSizeHigh << 32 | fad.nFileSizeLow);
+    return fsize;
+}
+
+std::size_t file_size(fj_file_handle_type fd, int *ec) {
+    LARGE_INTEGER fsize;
+    if ( !::GetFileSizeEx(hfd, &fsize) ) {
+        int lec = ::GetLastError();
+        if ( ec ) { *ec = lec; }
+
+        return 0;
+    }
+
+    return static_cast<std::size_t>(fsize.QuadPart);
+}
+
+std::size_t file_chsize(fj_file_handle_type fd, std::size_t fsize, int *ec) {
+    auto ret = ::SetFilePointer(fd, static_cast<LONG>(fsize), nullptr, FILE_BEGIN);
+    if ( ret == INVALID_SET_FILE_POINTER ) {
+        int lec = ::GetLastError();
+        if ( ec ) { *ec = lec; }
+
+        return 0;
+    }
+    bool ok = ::SetEndOfFile(fd);
+    if ( !ok ) {
+        int lec = ::GetLastError();
+        if ( ec ) { *ec = lec; }
+
+        return 0;
+    }
+
+    return fsize;
+}
+
+fj_file_handle_type file_open(const char_type *fname, int *ec) {
+    fj_file_handle_type fd = ::CreateFile(
+         fname
+        ,GENERIC_READ
+        ,FILE_SHARE_READ
+        ,nullptr
+        ,OPEN_EXISTING
+        ,FILE_ATTRIBUTE_NORMAL
+        ,nullptr
+    );
+    if ( fd == INVALID_HANDLE_VALUE ) {
+        int lec = ::GetLastError();
+        if ( ec ) { *ec = lec; }
+
+        return fj_file_handle_type{};
+    }
+
+    return fd;
+}
+
+fj_file_handle_type file_create(const char_type *fname, int *ec) {
+    fj_file_handle_type fd = ::CreateFile(
+         fname
+        ,GENERIC_WRITE
+        ,0
+        ,nullptr
+        ,CREATE_NEW|TRUNCATE_EXISTING
+        ,FILE_ATTRIBUTE_NORMAL
+        ,nullptr
+    );
+    if ( fd == INVALID_HANDLE_VALUE ) {
+        int lec = ::GetLastError();
+        if ( ec ) { *ec = lec; }
+
+        return fj_file_handle_type{};
+    }
+
+    return fd;
+}
+
+std::size_t file_read(fj_file_handle_type fd, void *ptr, std::size_t size, int *ec) {
+    if ( !::ReadFile(fd, ptr, size, nullptr, nullptr) ) {
+        int lec = ::GetLastError();
+        if ( ec ) { *ec = lec; }
+
+        return 0;
+    }
+
+    return size;
+}
+
+std::size_t file_write(fj_file_handle_type fd, const void *ptr, std::size_t size, int *ec) {
+    if ( !::WriteFile(fd, ptr, size, nullptr, nullptr) ) {
+        int lec = ::GetLastError();
+        if ( ec ) { *ec = lec; }
+
+        return 0;
+    }
+
+    return size;
+}
+
+std::size_t file_write(
+     fj_file_handle_type fd
+    ,const io_vector_type *iovector
+    ,std::size_t num
+    ,std::size_t total_bytes
+    ,int *ec)
+{
+    for ( const auto *it = iovector, *end = iovector + num; it != end; ++it ) {
+        int lec{};
+        file_write(fd, __FJ_IO_VECTOR_PTR(it), __FJ_IO_VECTOR_SIZE(it), &lec);
+        if ( lec ) {
+            if ( ec ) { *ec = lec; }
+
+            return 0;
+        }
+    }
+
+    return total_bytes;
+}
+
+bool file_close(fj_file_handle_type fd, int *ec) {
+    if ( !::CloseHandle(fd) ) {
+        int lec = ::GetLastError();
+        if ( ec ) { *ec = lec; }
+
+        return false;
+    }
+
+    return true;
+}
+
+const void* mmap_for_read(fj_file_handle_type fd, std::size_t /*size*/, int *ec) {
+    auto map = ::CreateFileMapping(fd, nullptr, PAGE_READONLY, 0, 0, nullptr);
+    if ( !map ) {
+        int lec = ::GetLastError();
+        if ( ec ) { *ec = lec; }
+
+        return nullptr;
+    }
+
+    void *addr = ::MapViewOfFile(map, FILE_MAP_READ, 0, 0, 0);
+    if ( !addr ) {
+        int lec = ::GetLastError();
+        if ( ec ) { *ec = lec; }
+
+        ::UnmapViewOfFile(map);
+
+        return nullptr;
+    }
+
+    return addr;
+}
+
+const void* mmap_for_read(fj_file_handle_type *fd, const char_type *fname, int *ec) {
+    auto fdd = file_open(fname, ec);
+    if ( fdd == INVALID_HANDLE_VALUE ) {
+        return nullptr;
+    }
+    *fd = fdd;
+
+    auto *addr = mmap_for_read(fdd, 0, ec);
+    if ( !addr ) {
+        return nullptr;
+    }
+
+    return addr;
+}
+
+void* mmap_for_write(fj_file_handle_type fd, std::size_t size, int *ec) {
+    auto map = ::CreateFileMapping(fd, nullptr, PAGE_READWRITE, 0, 0, nullptr);
+    if ( !map ) {
+        int lec = ::GetLastError();
+        if ( ec ) { *ec = lec; }
+
+        return nullptr;
+    }
+
+    void *addr = ::MapViewOfFile(map, FILE_MAP_WRITE, 0, 0, 0);
+    if ( !addr ) {
+        int lec = ::GetLastError();
+        if ( ec ) { *ec = lec; }
+
+        ::UnmapViewOfFile(map);
+
+        return nullptr;
+    }
+
+    return addr;
+}
+
+void* mmap_for_write(fj_file_handle_type *fd, const char_type *fname, std::size_t size, int *ec) {
+    int lec{};
+    int lfd = file_create(fname, &lec);
+    if ( lec ) {
+        if ( ec ) { *ec = lec; }
+        return nullptr;
+    }
+
+    auto fsize = file_chsize(lfd, size, &lec);
+    if ( lec ) {
+        if ( ec ) { *ec = lec;  }
+        file_close(lfd, &lec);
+        return nullptr;
+    }
+
+    auto *addr = mmap_for_write(lfd, fsize, &lec);
+    if ( !addr ) {
+        if ( ec ) { *ec = lec; }
+        file_close(lfd, &lec);
+        return nullptr;
+    }
+    *fd = lfd;
+
+    return addr;
+}
+
+bool munmap_file(const void *addr, std::size_t /*size*/, int *ec) {
+    if ( !::UnmapViewOfFile(addr) ) {
+        int lec = ::GetLastError();
+        if ( ec ) { *ec = lec; }
+
+        return false;
+    }
+
+    return true;
+}
+
+bool munmap_file(const void *addr, fj_file_handle_type fd, int *ec) {
+    if ( !munmap_file(addr, 0, &lec) ) {
+        if ( ec ) { *ec = lec; }
+        return false;
+    }
+    if ( !file_close(fd, &lec) ) {
+        if ( ec ) { *ec = lec; }
+        return false;
+    }
+
+    return true;
+}
+
 #else
 #   error "UNKNOWN PLATFORM!"
 #endif // OS detection
