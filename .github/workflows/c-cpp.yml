@@ -78,9 +78,8 @@ jobs:
           cd test
           case "$DONT_PACK_TOKENS$NO_EXCEPTIONS" in
             "00")
-              echo "with exceptions enabled and with packed the tokens" && \
-              CC=$USE_CC cmake . -DCMAKE_BUILD_TYPE=Release && \
-              ./flatjson
+              echo "with exceptions enabled and with packed the tokens"
+              CC=$USE_CC cmake . -DCMAKE_BUILD_TYPE=Release && make && ./flatjson
             ;;
             "01")
               echo "WITHOUT exceptions and with packed the tokens" && \
