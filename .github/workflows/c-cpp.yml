@@ -86,11 +86,11 @@ jobs:
             ;;
             "10")
               echo "with exceptions and WITHOUT packing the tokens"
-              CXX=$USE_CC cmake . -DCMAKE_BUILD_TYPE=Release -D__FJ__DONT_PACK_TOKENS
+              CXX=$USE_CC cmake . -DCMAKE_BUILD_TYPE=Release -D__FJ__DONT_PACK_TOKENS=ON
             ;;
             "11")
               echo "WITHOUT exceptions and WITHOUT packing the tokens"
-              CXX=$USE_CC cmake . -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS="-fno-exceptions" -D__FJ__DONT_PACK_TOKENS
+              CXX=$USE_CC cmake . -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS="-fno-exceptions" -D__FJ__DONT_PACK_TOKENS=ON
             ;;
           esac
           make
