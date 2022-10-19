@@ -33,23 +33,22 @@
 #endif // OS detection
 
 namespace flatjson {
-namespace details {
 
 /*************************************************************************************************/
 // declarations
 
 #if defined(__linux__) || defined(__APPLE__)
-using fj_file_handle_type = int;
+using file_handle = int;
 using char_type = char;
-using io_vector_type = iovec;
+using io_vector = iovec;
 #   define __FJ_INIT_IO_VECTOR(vec, ptr, size) \
         vec.iov_base = ptr; vec.iov_len = size;
 #   define __FJ_IO_VECTOR_PTR(vec) vec->iov_base
 #   define __FJ_IO_VECTOR_SIZE(vec) vec->iov_len
 #elif defined(WIN32)
-using fj_file_handle_type = HANDLE;
+using file_handle = HANDLE;
 using char_type = TCHAR;
-struct io_vector_type {
+struct io_vector {
     const void *iov_base;
     std::size_t iov_len;
 };
@@ -63,27 +62,27 @@ struct io_vector_type {
 
 inline bool file_exists(const char_type *fname);
 inline std::size_t file_size(const char_type *fname, int *ec = nullptr);
-inline std::size_t file_size(fj_file_handle_type fd, int *ec = nullptr);
-inline std::size_t file_chsize(fj_file_handle_type fd, std::size_t fsize, int *ec = nullptr);
-inline bool file_handle_valid(fj_file_handle_type fh);
-inline fj_file_handle_type file_open(const char_type *fname, int *ec = nullptr);
-inline fj_file_handle_type file_create(const char_type *fname, int *ec = nullptr);
-inline std::size_t file_read(fj_file_handle_type fd, void *ptr, std::size_t size, int *ec = nullptr);
-inline std::size_t file_write(fj_file_handle_type fd, const void *ptr, std::size_t size, int *ec = nullptr);
+inline std::size_t file_size(file_handle fd, int *ec = nullptr);
+inline std::size_t file_chsize(file_handle fd, std::size_t fsize, int *ec = nullptr);
+inline bool file_handle_valid(file_handle fh);
+inline file_handle file_open(const char_type *fname, int *ec = nullptr);
+inline file_handle file_create(const char_type *fname, int *ec = nullptr);
+inline std::size_t file_read(file_handle fd, void *ptr, std::size_t size, int *ec = nullptr);
+inline std::size_t file_write(file_handle fd, const void *ptr, std::size_t size, int *ec = nullptr);
 inline std::size_t file_write(
-     fj_file_handle_type fd
-    ,const io_vector_type *iovector
+     file_handle fd
+    ,const io_vector *iovector
     ,std::size_t num
     ,std::size_t total_bytes
     ,int *ec = nullptr
 );
-inline bool file_close(fj_file_handle_type fd, int *ec = nullptr);
-inline const void* mmap_for_read(fj_file_handle_type fd, std::size_t size, int *ec = nullptr);
-inline const void* mmap_for_read(fj_file_handle_type *fd, const char_type *fname, int *ec = nullptr);
-inline void* mmap_for_write(fj_file_handle_type fd, std::size_t size, int *ec = nullptr);
-inline void* mmap_for_write(fj_file_handle_type *fd, const char_type *fname, std::size_t size, int *ec = nullptr);
+inline bool file_close(file_handle fd, int *ec = nullptr);
+inline const void* mmap_for_read(file_handle fd, std::size_t size, int *ec = nullptr);
+inline const void* mmap_for_read(file_handle *fd, const char_type *fname, int *ec = nullptr);
+inline void* mmap_for_write(file_handle fd, std::size_t size, int *ec = nullptr);
+inline void* mmap_for_write(file_handle *fd, const char_type *fname, std::size_t size, int *ec = nullptr);
 inline bool munmap_file(const void *addr, std::size_t size, int *ec = nullptr);
-inline bool munmap_file_fd(const void *addr, fj_file_handle_type fd, int *ec = nullptr);
+inline bool munmap_file_fd(const void *addr, file_handle fd, int *ec = nullptr);
 
 /*************************************************************************************************/
 // implementations
@@ -103,7 +102,7 @@ std::size_t file_size(const char_type *fname, int *ec) {
     return st.st_size;
 }
 
-std::size_t file_size(fj_file_handle_type fd, int *ec) {
+std::size_t file_size(file_handle fd, int *ec) {
     struct ::stat st;
     if ( ::fstat(fd, &st) != 0 ) {
         if ( ec ) { *ec = errno; }
@@ -113,7 +112,7 @@ std::size_t file_size(fj_file_handle_type fd, int *ec) {
     return st.st_size;
 }
 
-std::size_t file_chsize(fj_file_handle_type fd, std::size_t fsize, int *ec) {
+std::size_t file_chsize(file_handle fd, std::size_t fsize, int *ec) {
     if ( ::ftruncate(fd, fsize) != 0 ) {
         if ( ec ) { *ec = errno; }
         return 0;
@@ -129,11 +128,11 @@ std::size_t file_chsize(fj_file_handle_type fd, std::size_t fsize, int *ec) {
     return fsize;
 }
 
-bool file_handle_valid(fj_file_handle_type fh) {
+bool file_handle_valid(file_handle fh) {
     return fh != -1;
 }
 
-fj_file_handle_type file_open(const char_type *fname, int *ec) {
+file_handle file_open(const char_type *fname, int *ec) {
     int fd = ::open(fname, O_RDONLY);
     if ( fd == -1 ) {
         if ( ec ) { *ec = errno; }
@@ -143,7 +142,7 @@ fj_file_handle_type file_open(const char_type *fname, int *ec) {
     return fd;
 }
 
-fj_file_handle_type file_create(const char_type *fname, int *ec) {
+file_handle file_create(const char_type *fname, int *ec) {
     int fd = ::open(fname, O_RDWR|O_CREAT, S_IRUSR|S_IWUSR);
     if ( fd == -1 ) {
         if ( ec ) { *ec = errno; }
@@ -153,7 +152,7 @@ fj_file_handle_type file_create(const char_type *fname, int *ec) {
     return fd;
 }
 
-std::size_t file_read(fj_file_handle_type fd, void *ptr, std::size_t size, int *ec) {
+std::size_t file_read(file_handle fd, void *ptr, std::size_t size, int *ec) {
     auto rd = static_cast<std::size_t>(::read(fd, ptr, size));
     if ( rd != size ) {
         if ( ec ) { *ec = errno; }
@@ -162,7 +161,7 @@ std::size_t file_read(fj_file_handle_type fd, void *ptr, std::size_t size, int *
     return rd;
 }
 
-std::size_t file_write(fj_file_handle_type fd, const void *ptr, std::size_t size, int *ec) {
+std::size_t file_write(file_handle fd, const void *ptr, std::size_t size, int *ec) {
     auto wr = static_cast<std::size_t>(::write(fd, ptr, size));
     if ( wr != size ) {
         if ( ec ) { *ec = errno; }
@@ -172,8 +171,8 @@ std::size_t file_write(fj_file_handle_type fd, const void *ptr, std::size_t size
 }
 
 std::size_t file_write(
-     fj_file_handle_type fd
-    ,const io_vector_type *iovector
+     file_handle fd
+    ,const io_vector *iovector
     ,std::size_t num
     ,std::size_t total_bytes
     ,int *ec)
@@ -191,7 +190,7 @@ std::size_t file_write(
     return wr;
 }
 
-bool file_close(fj_file_handle_type fd, int *ec) {
+bool file_close(file_handle fd, int *ec) {
     bool ok = ::close(fd) == 0;
     if ( !ok ) {
         if ( ec ) { *ec = errno; }
@@ -202,7 +201,7 @@ bool file_close(fj_file_handle_type fd, int *ec) {
     return true;
 }
 
-const void* mmap_for_read(fj_file_handle_type fd, std::size_t size, int *ec) {
+const void* mmap_for_read(file_handle fd, std::size_t size, int *ec) {
     void *addr = ::mmap(nullptr, size, PROT_READ, MAP_SHARED, fd, 0);
     if ( addr == MAP_FAILED ) {
         if ( ec ) { *ec = errno; }
@@ -220,7 +219,7 @@ const void* mmap_for_read(fj_file_handle_type fd, std::size_t size, int *ec) {
     return addr;
 }
 
-const void* mmap_for_read(fj_file_handle_type *fd, const char_type *fname, int *ec) {
+const void* mmap_for_read(file_handle *fd, const char_type *fname, int *ec) {
     int lec{};
     int lfd = file_open(fname, &lec);
     if ( lec ) {
@@ -241,7 +240,7 @@ const void* mmap_for_read(fj_file_handle_type *fd, const char_type *fname, int *
     return addr;
 }
 
-void* mmap_for_write(fj_file_handle_type fd, std::size_t size, int *ec) {
+void* mmap_for_write(file_handle fd, std::size_t size, int *ec) {
     void *addr = ::mmap(nullptr, size, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
     if ( addr == MAP_FAILED ) {
         if ( ec ) { *ec = errno; }
@@ -259,7 +258,7 @@ void* mmap_for_write(fj_file_handle_type fd, std::size_t size, int *ec) {
     return addr;
 }
 
-void* mmap_for_write(fj_file_handle_type *fd, const char_type *fname, std::size_t size, int *ec) {
+void* mmap_for_write(file_handle *fd, const char_type *fname, std::size_t size, int *ec) {
     int lec{};
     int lfd = file_create(fname, &lec);
     if ( lec ) {
@@ -296,7 +295,7 @@ bool munmap_file(const void *addr, std::size_t size, int *ec) {
     return true;
 }
 
-bool munmap_file_fd(const void *addr, fj_file_handle_type fd, int *ec) {
+bool munmap_file_fd(const void *addr, file_handle fd, int *ec) {
     int lec{};
     auto fsize = file_size(fd, &lec);
     if ( lec ) {
@@ -337,7 +336,7 @@ std::size_t file_size(const char_type *fname, int *ec) {
     return fsize;
 }
 
-std::size_t file_size(fj_file_handle_type fd, int *ec) {
+std::size_t file_size(file_handle fd, int *ec) {
     LARGE_INTEGER fsize;
     if ( !::GetFileSizeEx(fd, &fsize) ) {
         int lec = ::GetLastError();
@@ -349,7 +348,7 @@ std::size_t file_size(fj_file_handle_type fd, int *ec) {
     return static_cast<std::size_t>(fsize.QuadPart);
 }
 
-std::size_t file_chsize(fj_file_handle_type fd, std::size_t fsize, int *ec) {
+std::size_t file_chsize(file_handle fd, std::size_t fsize, int *ec) {
     auto ret = ::SetFilePointer(fd, static_cast<LONG>(fsize), nullptr, FILE_BEGIN);
     if ( ret == INVALID_SET_FILE_POINTER ) {
         int lec = ::GetLastError();
@@ -368,12 +367,12 @@ std::size_t file_chsize(fj_file_handle_type fd, std::size_t fsize, int *ec) {
     return fsize;
 }
 
-bool file_handle_valid(fj_file_handle_type fh) {
+bool file_handle_valid(file_handle fh) {
     return fh != INVALID_HANDLE_VALUE;
 }
 
-fj_file_handle_type file_open(const char_type *fname, int *ec) {
-    fj_file_handle_type fd = ::CreateFile(
+file_handle file_open(const char_type *fname, int *ec) {
+    file_handle fd = ::CreateFile(
          fname
         ,GENERIC_READ
         ,FILE_SHARE_READ
@@ -392,8 +391,8 @@ fj_file_handle_type file_open(const char_type *fname, int *ec) {
     return fd;
 }
 
-fj_file_handle_type file_create(const char_type *fname, int *ec) {
-    fj_file_handle_type fd = ::CreateFile(
+file_handle file_create(const char_type *fname, int *ec) {
+    file_handle fd = ::CreateFile(
          fname
         ,GENERIC_READ|GENERIC_WRITE
         ,FILE_SHARE_WRITE
@@ -412,7 +411,7 @@ fj_file_handle_type file_create(const char_type *fname, int *ec) {
     return fd;
 }
 
-std::size_t file_read(fj_file_handle_type fd, void *ptr, std::size_t size, int *ec) {
+std::size_t file_read(file_handle fd, void *ptr, std::size_t size, int *ec) {
     if ( !::ReadFile(fd, ptr, static_cast<DWORD>(size), nullptr, nullptr) ) {
         int lec = ::GetLastError();
         if ( ec ) { *ec = lec; }
@@ -423,7 +422,7 @@ std::size_t file_read(fj_file_handle_type fd, void *ptr, std::size_t size, int *
     return size;
 }
 
-std::size_t file_write(fj_file_handle_type fd, const void *ptr, std::size_t size, int *ec) {
+std::size_t file_write(file_handle fd, const void *ptr, std::size_t size, int *ec) {
     if ( !::WriteFile(fd, ptr, static_cast<DWORD>(size), nullptr, nullptr) ) {
         int lec = ::GetLastError();
         if ( ec ) { *ec = lec; }
@@ -435,8 +434,8 @@ std::size_t file_write(fj_file_handle_type fd, const void *ptr, std::size_t size
 }
 
 std::size_t file_write(
-     fj_file_handle_type fd
-    ,const io_vector_type *iovector
+     file_handle fd
+    ,const io_vector *iovector
     ,std::size_t num
     ,std::size_t total_bytes
     ,int *ec)
@@ -454,7 +453,7 @@ std::size_t file_write(
     return total_bytes;
 }
 
-bool file_close(fj_file_handle_type fd, int *ec) {
+bool file_close(file_handle fd, int *ec) {
     if ( !::CloseHandle(fd) ) {
         int lec = ::GetLastError();
         if ( ec ) { *ec = lec; }
@@ -465,7 +464,7 @@ bool file_close(fj_file_handle_type fd, int *ec) {
     return true;
 }
 
-const void* mmap_for_read(fj_file_handle_type fd, std::size_t /*size*/, int *ec) {
+const void* mmap_for_read(file_handle fd, std::size_t /*size*/, int *ec) {
     auto map = ::CreateFileMapping(fd, nullptr, PAGE_READONLY, 0, 0, nullptr);
     if ( !map ) {
         int lec = ::GetLastError();
@@ -487,7 +486,7 @@ const void* mmap_for_read(fj_file_handle_type fd, std::size_t /*size*/, int *ec)
     return addr;
 }
 
-const void* mmap_for_read(fj_file_handle_type *fd, const char_type *fname, int *ec) {
+const void* mmap_for_read(file_handle *fd, const char_type *fname, int *ec) {
     auto fdd = file_open(fname, ec);
     if ( fdd == INVALID_HANDLE_VALUE ) {
         return nullptr;
@@ -502,7 +501,7 @@ const void* mmap_for_read(fj_file_handle_type *fd, const char_type *fname, int *
     return addr;
 }
 
-void* mmap_for_write(fj_file_handle_type fd, std::size_t /*size*/, int *ec) {
+void* mmap_for_write(file_handle fd, std::size_t /*size*/, int *ec) {
     auto map = ::CreateFileMapping(fd, nullptr, PAGE_READWRITE, 0, 0, nullptr);
     if ( !map ) {
         int lec = ::GetLastError();
@@ -524,7 +523,7 @@ void* mmap_for_write(fj_file_handle_type fd, std::size_t /*size*/, int *ec) {
     return addr;
 }
 
-void* mmap_for_write(fj_file_handle_type *fd, const char_type *fname, std::size_t size, int *ec) {
+void* mmap_for_write(file_handle *fd, const char_type *fname, std::size_t size, int *ec) {
     int lec{};
     auto lfd = file_create(fname, &lec);
     if ( lec ) {
@@ -561,7 +560,7 @@ bool munmap_file(const void *addr, std::size_t /*size*/, int *ec) {
     return true;
 }
 
-bool munmap_file_fd(const void *addr, fj_file_handle_type fd, int *ec) {
+bool munmap_file_fd(const void *addr, file_handle fd, int *ec) {
     int lec{};
     if ( !munmap_file(addr, std::size_t{}, &lec) ) {
         if ( ec ) { *ec = lec; }
@@ -579,12 +578,10 @@ bool munmap_file_fd(const void *addr, fj_file_handle_type fd, int *ec) {
 #   error "UNKNOWN PLATFORM!"
 #endif // OS detection
 
-} // ns details
-
 /*************************************************************************************************/
 
 inline std::size_t fj_serialize(
-     details::fj_file_handle_type fd
+     file_handle fd
     ,const fj_iterator &beg
     ,const fj_iterator &end
     ,std::size_t indent = 0
@@ -604,14 +601,14 @@ inline std::size_t fj_serialize(
         ,std::size_t total_bytes
         ,int *ec)
     {
-        auto *fd = static_cast<details::fj_file_handle_type *>(userdata);
-        const details::io_vector_type iovector[4] = {
+        auto *fd = static_cast<file_handle *>(userdata);
+        const io_vector iovector[4] = {
              {const_cast<void *>(ptr0), size0}
             ,{const_cast<void *>(ptr1), size1}
             ,{const_cast<void *>(ptr2), size2}
             ,{const_cast<void *>(ptr3), size3}
         };
-        details::file_write(*fd, iovector, num, total_bytes, ec);
+        file_write(*fd, iovector, num, total_bytes, ec);
     };
 
     int lec{};
@@ -666,13 +663,13 @@ inline std::size_t fj_serialize(
         ,int *ec)
     {
         auto *stream = static_cast<std::FILE*>(userdata);
-        const details::io_vector_type iovector[4] = {
+        const io_vector iovector[4] = {
              {const_cast<void *>(ptr0), size0}
             ,{const_cast<void *>(ptr1), size1}
             ,{const_cast<void *>(ptr2), size2}
             ,{const_cast<void *>(ptr3), size3}
         };
-        const auto *vec = static_cast<const details::io_vector_type *>(iovector);
+        const auto *vec = static_cast<const io_vector *>(iovector);
         for ( auto *iovend = vec + num; vec != iovend; ++vec ) {
             auto wr = std::fwrite(__FJ_IO_VECTOR_PTR(vec), 1, __FJ_IO_VECTOR_SIZE(vec), stream);
             if ( wr != __FJ_IO_VECTOR_SIZE(vec) ) {
@@ -734,14 +731,14 @@ inline std::size_t fj_serialize(
         ,std::size_t /*total_bytes*/
         ,int *ec)
     {
-        const details::io_vector_type iovector[4] = {
+        const io_vector iovector[4] = {
              {const_cast<void *>(ptr0), size0}
             ,{const_cast<void *>(ptr1), size1}
             ,{const_cast<void *>(ptr2), size2}
             ,{const_cast<void *>(ptr3), size3}
         };
         auto *stream = static_cast<std::ostream *>(userdata);
-        const auto *vec = static_cast<const details::io_vector_type *>(iovector);
+        const auto *vec = static_cast<const io_vector *>(iovector);
         for ( auto *iovend = vec + num; vec != iovend; ++vec ) {
             auto ppos = stream->tellp();
             if ( ppos == -1 ) {
@@ -835,7 +832,7 @@ inline std::size_t fj_serialize(
         ,std::size_t /*total_bytes*/
         ,int */*ec*/)
     {
-        const details::io_vector_type iovector[4] = {
+        const io_vector iovector[4] = {
              {const_cast<void *>(ptr0), size0}
             ,{const_cast<void *>(ptr1), size1}
             ,{const_cast<void *>(ptr2), size2}
@@ -843,7 +840,7 @@ inline std::size_t fj_serialize(
         };
 
         auto *puserdata = static_cast<tokens_to_buf_userdata *>(userdata);
-        const auto *vec = static_cast<const details::io_vector_type *>(iovector);
+        const auto *vec = static_cast<const io_vector *>(iovector);
         for ( auto *iovend = vec + num; vec != iovend; ++vec ) {
             std::memcpy(puserdata->ptr, __FJ_IO_VECTOR_PTR(vec), __FJ_IO_VECTOR_SIZE(vec));
             puserdata->ptr += __FJ_IO_VECTOR_SIZE(vec);

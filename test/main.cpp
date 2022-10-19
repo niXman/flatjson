@@ -158,13 +158,15 @@ static void my_free(void *ptr) { return myallocator.free(ptr); }
 /*************************************************************************************************/
 
 std::string read_file(const char *fname) {
-    std::ifstream file(fname);
-    assert(file.good());
+    int ec{};
+    flatjson::file_handle fh{};
+    const char *ptr = static_cast<const char *>(flatjson::mmap_for_read(&fh, fname, &ec));
+    assert(ec == 0);
 
-    std::string str(
-        (std::istreambuf_iterator<char>(file))
-        ,std::istreambuf_iterator<char>())
-    ;
+    auto fsize = flatjson::file_size(fname, &ec);
+    assert(ec == 0);
+
+    std::string str{ptr, ptr + fsize};
     return str;
 }
 
@@ -180,13 +182,13 @@ int parse_file(const char *path, const char *fname) {
     p += fname;
 
     int lec{};
-    auto fsize = flatjson::details::file_size(p.c_str(), &lec);
+    auto fsize = flatjson::file_size(p.c_str(), &lec);
     if ( lec ) {
         return flatjson::fj_error_code::FJ_EC_INVALID;
     }
 
-    flatjson::details::fj_file_handle_type fd{};
-    const char *addr = static_cast<const char *>(flatjson::details::mmap_for_read(&fd, p.c_str(), &lec));
+    flatjson::file_handle fd{};
+    const char *addr = static_cast<const char *>(flatjson::mmap_for_read(&fd, p.c_str(), &lec));
     if ( lec ) {
         return flatjson::fj_error_code::FJ_EC_INVALID;
     }
@@ -194,7 +196,7 @@ int parse_file(const char *path, const char *fname) {
     flatjson::fj_error_code ec{};
     flatjson::fj_num_tokens(&ec, addr, addr + fsize);
 
-    flatjson::details::munmap_file_fd(addr, fd, &lec);
+    flatjson::munmap_file_fd(addr, fd, &lec);
     if ( lec ) {
         std::cout << "parse_file(): munmap_file: err=" << lec << std::endl;
     }
@@ -1813,14 +1815,14 @@ R"({
         static const char *fname = "unit_28.json";
 
         int ec{};
-        auto fh = details::file_create(fname, &ec);
-        assert(details::file_handle_valid(fh) && ec == 0);
+        auto fh = file_create(fname, &ec);
+        assert(file_handle_valid(fh) && ec == 0);
 
         auto beg = fj_iter_begin(parser);
         auto end = fj_iter_end(parser);
         fj_serialize(fh, beg, end, 4);
 
-        assert(details::file_close(fh, &ec) && ec == 0);
+        assert(file_close(fh, &ec) && ec == 0);
 
         auto from_file = read_file(fname);
         assert(!from_file.empty());
