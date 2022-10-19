@@ -935,23 +935,14 @@ inline std::string fj_to_string(
 
 namespace details {
 
-inline std::uint8_t fj_bytes_required(std::uint8_t v) {
-    return v < (1u<<7) ? 1u : 2u;
-}
-
-inline std::uint8_t fj_bytes_required(std::uint16_t v) {
-    return v < (1u<<8)
-        ? fj_bytes_required(static_cast<std::uint8_t>(v))
-        : 3u
-    ;
-}
-
-inline std::uint8_t fj_bytes_required(std::uint32_t v) {
-    return v < (1u<<16)
-        ? fj_bytes_required(static_cast<std::uint16_t>(v))
-        : (v < (1u<<24)) ? 4u : 5u
-    ;
-}
+#define fj_bytes_required_macro(v) \
+    static_cast<std::uint8_t>( \
+        (v < (1u<<16)) \
+            ? (v < (1u<<8)) \
+                ? (v < (1u<<7)) ? 1u : 2u \
+                : 3u \
+            : (v < (1u<<24)) ? 4u : 5u \
+    )
 
 /*************************************************************************************************/
 // iterate through all tokens
@@ -1047,14 +1038,14 @@ inline std::size_t fj_packed_state_size(const fj_parser *parser) {
         ,std::uint32_t end_off)
     {
         auto &udcnt = *static_cast<std::uint32_t *>(userdata);
-        auto bytes_type          = details::fj_bytes_required(type);
-        auto bytes_key_offset    = details::fj_bytes_required(key_off);
-        auto bytes_key_len       = details::fj_bytes_required(key_len);
-        auto bytes_val_offset    = details::fj_bytes_required(val_off);
-        auto bytes_val_len       = details::fj_bytes_required(val_len);
-        auto bytes_parent_offset = details::fj_bytes_required(parent_off);
-        auto bytes_childs_num    = details::fj_bytes_required(childs);
-        auto bytes_end_offset    = details::fj_bytes_required(end_off);
+        auto bytes_type          = fj_bytes_required_macro(type);
+        auto bytes_key_offset    = fj_bytes_required_macro(key_off);
+        auto bytes_key_len       = fj_bytes_required_macro(key_len);
+        auto bytes_val_offset    = fj_bytes_required_macro(val_off);
+        auto bytes_val_len       = fj_bytes_required_macro(val_len);
+        auto bytes_parent_offset = fj_bytes_required_macro(parent_off);
+        auto bytes_childs_num    = fj_bytes_required_macro(childs);
+        auto bytes_end_offset    = fj_bytes_required_macro(end_off);
         std::uint32_t per_token =
               bytes_type
             + bytes_key_offset
@@ -1105,14 +1096,14 @@ inline std::size_t fj_pack_state(char *dst, std::size_t size, const fj_parser *p
         };
 
         auto *ud = static_cast<details::fj_pack_state_userdata *>(userdata);
-        auto bytes_type          = details::fj_bytes_required(type);
-        auto bytes_key_offset    = details::fj_bytes_required(key_off);
-        auto bytes_key_len       = details::fj_bytes_required(key_len);
-        auto bytes_val_offset    = details::fj_bytes_required(val_off);
-        auto bytes_val_len       = details::fj_bytes_required(val_len);
-        auto bytes_parent_offset = details::fj_bytes_required(parent_off);
-        auto bytes_childs_num    = details::fj_bytes_required(childs);
-        auto bytes_end_offset    = details::fj_bytes_required(end_off);
+        auto bytes_type          = fj_bytes_required_macro(type);
+        auto bytes_key_offset    = fj_bytes_required_macro(key_off);
+        auto bytes_key_len       = fj_bytes_required_macro(key_len);
+        auto bytes_val_offset    = fj_bytes_required_macro(val_off);
+        auto bytes_val_len       = fj_bytes_required_macro(val_len);
+        auto bytes_parent_offset = fj_bytes_required_macro(parent_off);
+        auto bytes_childs_num    = fj_bytes_required_macro(childs);
+        auto bytes_end_offset    = fj_bytes_required_macro(end_off);
         std::size_t per_token =
               bytes_type
             + bytes_key_offset
