@@ -2033,19 +2033,28 @@ inline compare_result compare(
             return compare_result::type;
         }
 
-        if ( left_it->key || right_it->key ) {
-            if ( (left_it->key && !right_it->key)
-                || (!left_it->key && right_it->key) )
-            {
-                *left_diff_ptr = {left_it->parent, left_it, left_it->end};
-                *right_diff_ptr = {right_it->parent, right_it, right_it->end};
+        const unsigned left_key = left_it->key != nullptr;
+        const unsigned right_key = right_it->key != nullptr;
+        if ( left_key + right_key == 0 ) { // no one of the key is valid, so they are equal
+            continue;
+        }
 
-                return compare_result::key;
-            } else {
-                if ( (left_it->klen != right_it->klen)
-                     || (string_view{left_it->key, left_it->klen}
-                        != string_view{right_it->key, right_it->klen}) )
-                {
+        if ( left_key + right_key == 1 ) { // only one of the keys is not NULL
+            *left_diff_ptr = {left_it->parent, left_it, left_it->end};
+            *right_diff_ptr = {right_it->parent, right_it, right_it->end};
+
+            return compare_result::key;
+        } else { // both of the keys are non-null
+            if ( (left_it->klen != right_it->klen)
+                 || (string_view{left_it->key, left_it->klen}
+                    != string_view{right_it->key, right_it->klen}) )
+            {
+                // if the keys at the same position is not equal - try to
+                // find, because some of JSON parser can sort object's keys.
+                iterator beg{right_it->parent, right_it->parent + 1, right_it->parent->end};
+                iterator end{right_it->parent, right_it->parent->end, right_it->parent->end};
+                auto it = details::iter_find(left_it->key, left_it->klen, beg, end);
+                if ( iter_equal(it, end) ) {
                     *left_diff_ptr = {left_it->parent, left_it, left_it->end};
                     *right_diff_ptr = {right_it->parent, right_it, right_it->end};
 
