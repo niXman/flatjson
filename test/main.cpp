@@ -167,6 +167,10 @@ std::string read_file(const char *fname) {
     assert(ec == 0);
 
     std::string str{ptr, ptr + fsize};
+
+    flatjson::munmap_file_fd(ptr, fh, &ec);
+    assert(ec == 0);
+
     return str;
 }
 
