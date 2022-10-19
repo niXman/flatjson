@@ -38,21 +38,21 @@ CI Job Matrix
 +---------------+--------------------+-----------------------+
 | Target System | Toolchain          | Note                  |
 +===============+====================+=======================+
-| Linux         | G++                | non-packed tokens     |
+| Linux         | G++                | 32-bit                |
 +---------------+--------------------+-----------------------+
-| Linux         | G++                | packed tokens         |
+| Linux         | G++                | 64-bit                |
 +---------------+--------------------+-----------------------+
-| Windows       | Visual Studio 2022 | non-packed tokens     |
+| Windows       | Visual Studio 2022 | 32-bit                |
 +---------------+--------------------+-----------------------+
-| Windows       | Visual Studio 2022 | packed tokens         |
+| Windows       | Visual Studio 2022 | 64-bit                |
 +---------------+--------------------+-----------------------+
-| Windows       | Visual Studio 2019 | non-packed tokens     |
+| Windows       | Visual Studio 2019 | 32-bit                |
 +---------------+--------------------+-----------------------+
-| Windows       | Visual Studio 2019 | packed tokens         |
+| Windows       | Visual Studio 2019 | 64-bit                |
 +---------------+--------------------+-----------------------+
-| OSX           | Apple Clang++      | non-packed tokens     |
+| OSX           | Apple Clang++      | 32-bit                |
 +---------------+--------------------+-----------------------+
-| OSX           | Apple Clang++      | packed tokens         |
+| OSX           | Apple Clang++      | 64-bit                |
 +---------------+--------------------+-----------------------+
 
 LICENSE
