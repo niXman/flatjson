@@ -1341,6 +1341,10 @@ inline error_code get_error(const parser *p) {
     return p->error;
 }
 
+inline const char* get_error_message(const parser *p) {
+    return error_string(p->error);
+}
+
 inline std::size_t num_tokens(const parser *p) {
     return p->toks_end - p->toks_beg;
 }
