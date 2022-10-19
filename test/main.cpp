@@ -2161,6 +2161,7 @@ R"({
         iterator ldiff, rdiff;
         auto r = compare(&ldiff, &rdiff, parser0, parser1);
         assert(r == compare_result::OK);
+        assert(std::strcmp(compare_result_string(r), "OK") == 0);
 
         free_parser(parser1);
         free_parser(parser0);
@@ -2188,6 +2189,7 @@ R"({
         iterator ldiff, rdiff;
         auto r = compare(&ldiff, &rdiff, parser0, parser1);
         assert(r == compare_result::key);
+        assert(std::strcmp(compare_result_string(r), "values of keys do not match") == 0);
 
         assert(ldiff.key() == "a");
         assert(iter_at("a", parser0).cur == ldiff.cur);
@@ -2247,6 +2249,7 @@ R"({
         iterator ldiff, rdiff;
         auto r = compare(&ldiff, &rdiff, parser0, parser1, compare_mode::full);
         assert(r == compare_result::value);
+        assert(std::strcmp(compare_result_string(r), "value do not match") == 0);
 
         assert(ldiff.key() == "b");
         assert(iter_at("b", parser0).cur == ldiff.cur);
@@ -2279,6 +2282,7 @@ R"({
         iterator ldiff, rdiff;
         auto r = compare(&ldiff, &rdiff, parser0, parser1);
         assert(r == compare_result::longer);
+        assert(std::strcmp(compare_result_string(r), "the right-side JSON is longer") == 0);
 
         free_parser(parser1);
         free_parser(parser0);
@@ -2306,6 +2310,7 @@ R"({
         iterator ldiff, rdiff;
         auto r = compare(&ldiff, &rdiff, parser0, parser1);
         assert(r == compare_result::shorter);
+        assert(std::strcmp(compare_result_string(r), "the right-side JSON is shorter") == 0);
 
         free_parser(parser1);
         free_parser(parser0);

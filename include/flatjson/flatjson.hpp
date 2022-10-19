@@ -1988,6 +1988,23 @@ enum class compare_result {
     ,shorter // the right JSON are shorter.
 };
 
+inline const char* compare_result_string(compare_result r) {
+    switch ( r ) {
+        case compare_result::OK: return "OK";
+        case compare_result::UNEXPECTED: return "UNEXPECTED";
+        case compare_result::type: return "tokens types do not match";
+        case compare_result::key: return "values of keys do not match";
+        case compare_result::length: return "length of values do not match";
+        case compare_result::value: return "value do not match";
+        case compare_result::longer: return "the right-side JSON is longer";
+        case compare_result::shorter: return "the right-side JSON is shorter";
+    }
+
+    assert(!"unreachable!");
+
+    return nullptr;
+}
+
 inline compare_result compare(
      iterator *left_diff_ptr
     ,iterator *right_diff_ptr
