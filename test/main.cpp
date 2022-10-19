@@ -2195,6 +2195,34 @@ R"({
         free_parser(parser0);
     };
 
+    test += FJ_TEST(test 2 for equality for the same JSON but with reordered key for compare(markup)) {
+        using namespace flatjson;
+
+        static const char str0[] = R"({"b":1, "a":0, "c":{"d":2, "e":3}, "f":4})";
+        auto *parser0 = alloc_parser(str0);
+        auto toknum0 = parse(parser0);
+
+        assert(is_valid(parser0));
+        assert(toknum0 == 9);
+        assert(parser0->toks_end == parser0->toks_beg + toknum0);
+
+        static const char str1[] = R"({"a":0, "b":1, "c":{"d":2, "e":3}, "f":4})";
+        auto *parser1 = alloc_parser(str1);
+        auto toknum1 = parse(parser1);
+
+        assert(is_valid(parser1));
+        assert(toknum1 == 9);
+        assert(parser1->toks_end == parser1->toks_beg + toknum1);
+
+        iterator ldiff, rdiff;
+        auto r = compare(&ldiff, &rdiff, parser0, parser1);
+        assert(r == compare_result::OK);
+        assert(std::strcmp(compare_result_string(r), "OK") == 0);
+
+        free_parser(parser1);
+        free_parser(parser0);
+    };
+
     test += FJ_TEST(test for a different keys for compare(markup)) {
         using namespace flatjson;
 
