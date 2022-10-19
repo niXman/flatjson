@@ -22,8 +22,8 @@ static void stack_allocated_parser_and_tokens_for_object() {
     using namespace flatjson;
 
     static const char str[] = R"({"a":true, "b":false, "c":null, "d":0, "e":"e"})";
-    fj_token tokens[10];
-    fj_parser parser;
+    token tokens[10];
+    parser parser;
 
     fjson json{&parser, std::begin(tokens), std::end(tokens), str};
 
@@ -39,8 +39,8 @@ static void stack_allocated_parser_and_tokens_for_object_and_iteration() {
 
     static const char str[] = R"({"a":true, "b":false, "c":null, "d":0, "e":"e"})";
 
-    fj_token tokens[10];
-    fj_parser parser;
+    token tokens[10];
+    parser parser;
 
     fjson json{&parser, std::begin(tokens), std::end(tokens), str};
 
@@ -64,8 +64,8 @@ static void stack_allocated_parser_and_tokens_for_array() {
 
     static const char str[] = R"([4,3,2,1])";
 
-    fj_token tokens[7];
-    fj_parser parser;
+    token tokens[7];
+    parser parser;
 
     fjson json{&parser, std::begin(tokens), std::end(tokens), str};
 
@@ -81,8 +81,8 @@ static void stack_allocated_parser_and_tokens_for_array_and_iteration() {
 
     static const char str[] = R"([4,3,2,1])";
 
-    fj_token tokens[7];
-    fj_parser parser;
+    token tokens[7];
+    parser parser;
 
     fjson json{&parser, std::begin(tokens), std::end(tokens), str};
 
@@ -106,8 +106,8 @@ static void stack_allocated_parser_and_tokens_for_object_and_iteration_on_nested
 
     static const char str[] = R"({"a":true, "b":false, "c":null, "d":{"f":false, "g":3, "h":"4"}, "e":"e"})";
 
-    fj_token tokens[11];
-    fj_parser parser;
+    token tokens[11];
+    parser parser;
 
     fjson json{&parser, std::begin(tokens), std::end(tokens), str};
 
@@ -140,8 +140,8 @@ static void stack_allocated_parser_and_tokens_for_array_and_iteration_on_nested_
 
     static const char str[] = R"([[0,1,2,3], [4,5,6,7], [8,9,10,11]])";
 
-    fj_token tokens[20];
-    fj_parser parser;
+    token tokens[20];
+    parser parser;
 
     fjson json{&parser, std::begin(tokens), std::end(tokens), str};
 
@@ -176,7 +176,7 @@ static void stack_allocated_parser_and_dyn_allocated_tokens_for_object() {
 
     static const char str[] = R"({"a":true, "b":false, "c":null, "d":0, "e":"e"})";
 
-    fj_parser parser;
+    parser parser;
 
     fjson json{&parser, str};
 
@@ -192,7 +192,7 @@ static void stack_allocated_parser_and_dyn_allocated_tokens_for_object_and_itera
 
     static const char str[] = R"({"a":true, "b":false, "c":null, "d":0, "e":"e"})";
 
-    fj_parser parser;
+    parser parser;
 
     fjson json{&parser, str};
 
@@ -216,7 +216,7 @@ static void stack_allocated_parser_and_dyn_allocated_tokens_for_array() {
 
     static const char str[] = R"([4,3,2,1])";
 
-    fj_parser parser;
+    parser parser;
 
     fjson json{&parser, str};
 
@@ -232,7 +232,7 @@ static void stack_allocated_parser_and_dyn_allocated_tokens_for_array_and_iterat
 
     static const char str[] = R"([4,3,2,1])";
 
-    fj_parser parser;
+    parser parser;
 
     fjson json{&parser, str};
 
@@ -256,7 +256,7 @@ static void stack_allocated_parser_and_dyn_allocated_tokens_for_object_and_itera
 
     static const char str[] = R"({"a":true, "b":false, "c":null, "d":{"f":false, "g":3, "h":"4"}, "e":"e"})";
 
-    fj_parser parser;
+    parser parser;
 
     fjson json{&parser, str};
 
@@ -289,7 +289,7 @@ static void stack_allocated_parser_and_dyn_allocated_tokens_for_array_and_iterat
 
     static const char str[] = R"([[0,1,2,3], [4,5,6,7], [8,9,10,11]])";
 
-    fj_parser parser;
+    parser parser;
 
     fjson json{&parser, str};
 
@@ -459,69 +459,69 @@ static void highlevel_api() {
     static const char str[] = R"([[0,1,2,3], [4,5,6,7], [8,9,10,11]])";
     // user-provided parser and tokens
     {
-        flatjson::fj_token tokens[20];
-        flatjson::fj_parser parser;
-        auto json = flatjson::parse(&parser, std::begin(tokens), std::end(tokens), str);
+        flatjson::token tokens[20];
+        flatjson::parser parser;
+        auto json = flatjson::pparse(&parser, std::begin(tokens), std::end(tokens), str);
         assert(json.is_valid());
         assert(json.is_array());
         assert(json.tokens() == 20);
     }
     {
-        flatjson::fj_token tokens[20];
-        flatjson::fj_parser parser;
-        auto json = flatjson::parse(&parser, std::begin(tokens), std::end(tokens), std::begin(str), std::end(str));
+        flatjson::token tokens[20];
+        flatjson::parser parser;
+        auto json = flatjson::pparse(&parser, std::begin(tokens), std::end(tokens), std::begin(str), std::end(str));
         assert(json.is_valid());
         assert(json.is_array());
         assert(json.tokens() == 20);
     }
     {
         const char *ptr = str;
-        flatjson::fj_token tokens[20];
-        flatjson::fj_parser parser;
-        auto json = flatjson::parse(&parser, std::begin(tokens), std::end(tokens), ptr);
+        flatjson::token tokens[20];
+        flatjson::parser parser;
+        auto json = flatjson::pparse(&parser, std::begin(tokens), std::end(tokens), ptr);
         assert(json.is_valid());
         assert(json.is_array());
         assert(json.tokens() == 20);
     }
     // user-provided parser and dyn tokens
     {
-        flatjson::fj_parser parser;
-        auto json = flatjson::parse(&parser, str);
+        flatjson::parser parser;
+        auto json = flatjson::pparse(&parser, str);
         assert(json.is_valid());
         assert(json.is_array());
         assert(json.tokens() == 20);
     }
     {
-        flatjson::fj_parser parser;
-        auto json = flatjson::parse(&parser, std::begin(str), std::end(str));
+        flatjson::parser parser;
+        auto json = flatjson::pparse(&parser, std::begin(str), std::end(str));
         assert(json.is_valid());
         assert(json.is_array());
         assert(json.tokens() == 20);
     }
     {
         const char *ptr = str;
-        flatjson::fj_parser parser;
-        auto json = flatjson::parse(&parser, ptr);
+        flatjson::parser parser;
+        auto json = flatjson::pparse(&parser, ptr);
         assert(json.is_valid());
         assert(json.is_array());
         assert(json.tokens() == 20);
     }
     // dyn parser and dyn tokens
     {
-        auto json = flatjson::parse(str);
+        auto json = flatjson::pparse(str);
         assert(json.is_valid());
         assert(json.is_array());
         assert(json.tokens() == 20);
     }
     {
-        auto json = flatjson::parse(std::begin(str), std::end(str));
+        auto json = flatjson::pparse(std::begin(str), std::end(str));
         assert(json.is_valid());
         assert(json.is_array());
         assert(json.tokens() == 20);
     }
     {
         const char *ptr = str;
-        auto json = flatjson::parse(ptr);
+        auto json = flatjson::pparse(ptr);
         assert(json.is_valid());
         assert(json.is_array());
         assert(json.tokens() == 20);

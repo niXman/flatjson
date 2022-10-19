@@ -580,10 +580,10 @@ bool munmap_file_fd(const void *addr, file_handle fd, int *ec) {
 
 /*************************************************************************************************/
 
-inline std::size_t fj_serialize(
+inline std::size_t serialize(
      file_handle fd
-    ,const fj_iterator &beg
-    ,const fj_iterator &end
+    ,const iterator &beg
+    ,const iterator &end
     ,std::size_t indent = 0
     ,int *ec = nullptr)
 {
@@ -614,18 +614,18 @@ inline std::size_t fj_serialize(
     int lec{};
     std::size_t wr{};
     if ( indent ) {
-        wr = details::fj_walk_through_tokens<false, true>(
-             beg.m_cur
-            ,end.m_end
+        wr = details::walk_through_tokens<false, true>(
+             beg.cur
+            ,end.end
             ,indent
             ,&fd
             ,cb
             ,&lec
         );
     } else {
-        wr = details::fj_walk_through_tokens<false, false>(
-             beg.m_cur
-            ,end.m_end
+        wr = details::walk_through_tokens<false, false>(
+             beg.cur
+            ,end.end
             ,indent
             ,&fd
             ,cb
@@ -641,10 +641,10 @@ inline std::size_t fj_serialize(
     return wr;
 }
 
-inline std::size_t fj_serialize(
+inline std::size_t serialize(
      std::FILE *stream
-    ,const fj_iterator &beg
-    ,const fj_iterator &end
+    ,const iterator &beg
+    ,const iterator &end
     ,std::size_t indent = 0
     ,int *ec = nullptr)
 {
@@ -683,18 +683,18 @@ inline std::size_t fj_serialize(
     int lec{};
     std::size_t wr{};
     if ( indent ) {
-        wr = details::fj_walk_through_tokens<false, true>(
-             beg.m_cur
-            ,end.m_end
+        wr = details::walk_through_tokens<false, true>(
+             beg.cur
+            ,end.end
             ,indent
             ,stream
             ,cb
             ,&lec
         );
     } else {
-        wr = details::fj_walk_through_tokens<false, false>(
-             beg.m_cur
-            ,end.m_end
+        wr = details::walk_through_tokens<false, false>(
+             beg.cur
+            ,end.end
             ,indent
             ,stream
             ,cb
@@ -710,10 +710,10 @@ inline std::size_t fj_serialize(
     return wr;
 }
 
-inline std::size_t fj_serialize(
+inline std::size_t serialize(
      std::ostream &stream
-    ,const fj_token *beg
-    ,const fj_token *end
+    ,const token *beg
+    ,const token *end
     ,std::size_t indent = 0
     ,int *ec = nullptr)
 {
@@ -767,7 +767,7 @@ inline std::size_t fj_serialize(
     int lec{};
     std::size_t wr{};
     if ( indent ) {
-        wr = details::fj_walk_through_tokens<false, true>(
+        wr = details::walk_through_tokens<false, true>(
              beg
             ,end
             ,indent
@@ -776,7 +776,7 @@ inline std::size_t fj_serialize(
             ,&lec
         );
     } else {
-        wr = details::fj_walk_through_tokens<false, false>(
+        wr = details::walk_through_tokens<false, false>(
              beg
             ,end
             ,indent
@@ -794,19 +794,19 @@ inline std::size_t fj_serialize(
     return wr;
 }
 
-inline std::size_t fj_serialize(
+inline std::size_t serialize(
      std::ostream &stream
-    ,const fj_iterator &beg
-    ,const fj_iterator &end
+    ,const iterator &beg
+    ,const iterator &end
     ,std::size_t indent = 0
     ,int *ec = nullptr)
 {
-    return fj_serialize(stream, beg.m_cur, end.m_end, indent, ec);
+    return serialize(stream, beg.cur, end.end, indent, ec);
 }
 
-inline std::size_t fj_serialize(
-     const fj_iterator &beg
-    ,const fj_iterator &end
+inline std::size_t serialize(
+     const iterator &beg
+    ,const iterator &end
     ,char *buf
     ,std::size_t bufsize
     ,std::size_t indent = 0
@@ -850,18 +850,18 @@ inline std::size_t fj_serialize(
     int lec{};
     std::size_t wr{};
     if ( indent ) {
-        wr = details::fj_walk_through_tokens<false, true>(
-             beg.m_cur
-            ,end.m_end
+        wr = details::walk_through_tokens<false, true>(
+             beg.cur
+            ,end.end
             ,indent
             ,&userdata
             ,cb
             ,&lec
         );
     } else {
-        wr = details::fj_walk_through_tokens<false, false>(
-             beg.m_cur
-            ,end.m_end
+        wr = details::walk_through_tokens<false, false>(
+             beg.cur
+            ,end.end
             ,indent
             ,&userdata
             ,cb
@@ -877,27 +877,27 @@ inline std::size_t fj_serialize(
     return wr;
 }
 
-inline std::size_t fj_length_for_string(
-     const fj_iterator &beg
-    ,const fj_iterator &end
+inline std::size_t length_for_string(
+     const iterator &beg
+    ,const iterator &end
     ,std::size_t indent = 0
     ,int *ec = nullptr)
 {
     int lec{};
     std::size_t wr{};
     if ( indent ) {
-        wr = details::fj_walk_through_tokens<true, true>(
-             beg.m_cur
-            ,end.m_end
+        wr = details::walk_through_tokens<true, true>(
+             beg.cur
+            ,end.end
             ,indent
             ,nullptr
             ,nullptr
             ,&lec
         );
     } else {
-        wr = details::fj_walk_through_tokens<true, false>(
-             beg.m_cur
-            ,end.m_end
+        wr = details::walk_through_tokens<true, false>(
+             beg.cur
+            ,end.end
             ,indent
             ,nullptr
             ,nullptr
@@ -913,17 +913,17 @@ inline std::size_t fj_length_for_string(
     return wr;
 }
 
-inline std::string fj_to_string(
-     const fj_iterator &beg
-    ,const fj_iterator &end
+inline std::string to_string(
+     const iterator &beg
+    ,const iterator &end
     ,std::size_t indent = 0
     ,int *ec = nullptr)
 {
     std::string res;
-    auto length = fj_length_for_string(beg, end, indent);
+    auto length = length_for_string(beg, end, indent);
     res.resize(length);
 
-    fj_serialize(beg, end, &(res[0]), res.size(), indent, ec);
+    serialize(beg, end, &(res[0]), res.size(), indent, ec);
     if ( ec && *ec ) {
         return std::string{};
     }
@@ -949,8 +949,8 @@ namespace details {
 
 // TODO: experimental!
 
-inline bool fj_pack_state_iterate(
-     const fj_parser *parser
+inline bool pack_state_iterate(
+     const parser *parser
     ,void *userdata
     ,bool(*callback)(
          void *userdata
@@ -968,30 +968,30 @@ inline bool fj_pack_state_iterate(
     const char *prev_key = nullptr;
     const char *prev_val = nullptr;
     for ( const auto *it = parser->toks_beg; it != parser->toks_cur; prev = it++ ) {
-        prev_key = ((prev && prev->m_key) ? prev->m_key : prev_key);
-        prev_val = ((prev && prev->m_val) ? prev->m_val : prev_val);
-        auto offset_key = it->m_key
+        prev_key = ((prev && prev->key) ? prev->key : prev_key);
+        prev_val = ((prev && prev->val) ? prev->val : prev_val);
+        auto offset_key = it->key
             ? static_cast<std::uint32_t>(
-                it->m_key - ((prev_key && it->m_key) ? prev_key : parser->str_beg))
+                it->key - ((prev_key && it->key) ? prev_key : parser->str_beg))
             : 0u
         ;
-        auto offset_val = it->m_val
+        auto offset_val = it->val
             ? static_cast<std::uint32_t>(
-                it->m_val - ((prev_val && it->m_val) ? prev_val : parser->str_beg))
+                it->val - ((prev_val && it->val) ? prev_val : parser->str_beg))
             : 0u
         ;
-        auto offset_parent = it->m_parent ? static_cast<std::uint32_t>(it - it->m_parent) : 0u;
-        auto offset_end = it->m_end ? static_cast<std::uint32_t>(it->m_end - it) : 0u;
+        auto offset_parent = it->parent ? static_cast<std::uint32_t>(it - it->parent) : 0u;
+        auto offset_end = it->end ? static_cast<std::uint32_t>(it->end - it) : 0u;
 
         bool ok = callback(
              userdata
-            ,static_cast<std::uint8_t>(it->m_type)
+            ,static_cast<std::uint8_t>(it->type)
             ,offset_key
-            ,it->m_klen
+            ,it->klen
             ,offset_val
-            ,it->m_vlen
+            ,it->vlen
             ,offset_parent
-            ,it->m_childs
+            ,it->childs
             ,offset_end
         );
         if ( !ok ) {
@@ -1002,7 +1002,7 @@ inline bool fj_pack_state_iterate(
     return true;
 }
 
-inline std::size_t fj_packed_state_header_size(const fj_parser *parser) {
+inline std::size_t packed_state_header_size(const parser *parser) {
     std::size_t header_size =
           sizeof(std::uint32_t) // json string length field
         + (parser->str_cur - parser->str_beg) // json string
@@ -1012,7 +1012,7 @@ inline std::size_t fj_packed_state_header_size(const fj_parser *parser) {
     return header_size;
 }
 
-struct fj_pack_state_userdata {
+struct pack_state_userdata {
     char *ptr;
     const std::size_t expected;
     std::size_t size;
@@ -1023,8 +1023,8 @@ struct fj_pack_state_userdata {
 /*************************************************************************************************/
 // pack/unpack the internal representation for pass to another node/process
 
-inline std::size_t fj_packed_state_size(const fj_parser *parser) {
-    std::size_t header_size = details::fj_packed_state_header_size(parser);
+inline std::size_t packed_state_size(const parser *parser) {
+    std::size_t header_size = details::packed_state_header_size(parser);
 
     static const auto cb = [](
          void *userdata
@@ -1063,14 +1063,14 @@ inline std::size_t fj_packed_state_size(const fj_parser *parser) {
     };
 
     std::uint32_t markup_size = 0;
-    bool ok = details::fj_pack_state_iterate(parser, static_cast<void *>(&markup_size), cb);
+    bool ok = details::pack_state_iterate(parser, static_cast<void *>(&markup_size), cb);
 
     return ok ? markup_size + header_size : 0;
 }
 
 /*************************************************************************************************/
 
-inline std::size_t fj_pack_state(char *dst, std::size_t size, const fj_parser *parser) {
+inline std::size_t pack_state(char *dst, std::size_t size, const parser *parser) {
     static const auto cb = [](
          void *userdata
         ,std::uint8_t type
@@ -1095,7 +1095,7 @@ inline std::size_t fj_pack_state(char *dst, std::size_t size, const fj_parser *p
             return static_cast<char *>(dst) + bytes;
         };
 
-        auto *ud = static_cast<details::fj_pack_state_userdata *>(userdata);
+        auto *ud = static_cast<details::pack_state_userdata *>(userdata);
         auto bytes_type          = fj_bytes_required_macro(type);
         auto bytes_key_offset    = fj_bytes_required_macro(key_off);
         auto bytes_key_len       = fj_bytes_required_macro(key_len);
@@ -1143,16 +1143,16 @@ inline std::size_t fj_pack_state(char *dst, std::size_t size, const fj_parser *p
     std::memcpy(ptr, &toks_num, sizeof(toks_num));
     ptr += sizeof(toks_num);
 
-    std::size_t left_bytes = size - details::fj_packed_state_header_size(parser);
-    details::fj_pack_state_userdata ud{ptr, left_bytes, 0};
-    bool ok = details::fj_pack_state_iterate(parser, static_cast<void *>(&ud), cb);
+    std::size_t left_bytes = size - details::packed_state_header_size(parser);
+    details::pack_state_userdata ud{ptr, left_bytes, 0};
+    bool ok = details::pack_state_iterate(parser, static_cast<void *>(&ud), cb);
 
-    return ok ? details::fj_packed_state_header_size(parser) + ud.size : 0;
+    return ok ? details::packed_state_header_size(parser) + ud.size : 0;
 }
 
 /*************************************************************************************************/
 
-inline bool fj_unpack_state(fj_parser *parser, char *ptr, std::size_t size) {
+inline bool unpack_state(parser *parser, char *ptr, std::size_t size) {
     const char *end = ptr + size;
     std::uint32_t json_len{};
     std::memcpy(&json_len, ptr, sizeof(json_len));
@@ -1168,9 +1168,9 @@ inline bool fj_unpack_state(fj_parser *parser, char *ptr, std::size_t size) {
 
     parser->dyn_parser = false;
     parser->dyn_tokens = true;
-    parser->toks_beg = static_cast<fj_token *>(parser->alloc_fn(num_toks * sizeof(fj_token)));
+    parser->toks_beg = static_cast<token *>(parser->alloc_fn(num_toks * sizeof(token)));
     parser->toks_cur = parser->toks_end = parser->toks_beg + num_toks;
-    fj_token *prev = nullptr;
+    token *prev = nullptr;
     const char *prev_key = nullptr;
     const char *prev_val = nullptr;
     for ( auto *it = parser->toks_beg; it != parser->toks_end; prev = it++ ) {
@@ -1221,16 +1221,16 @@ inline bool fj_unpack_state(fj_parser *parser, char *ptr, std::size_t size) {
         ptr = reader(&end_off, ptr, end);
         if ( !ptr ) { return false; }
 
-        prev_key = ((prev && prev->m_key) ? prev->m_key : prev_key);
-        prev_val = ((prev && prev->m_val) ? prev->m_val : prev_val);
-        it->m_type   = static_cast<fj_token_type>(type);
-        it->m_key    = (key_off ? (prev_key ? prev_key + key_off : parser->str_beg + key_off): nullptr);
-        it->m_klen   = static_cast<decltype(it->m_klen)>(key_len);
-        it->m_val    = (val_off ? (prev_val ? prev_val + val_off : parser->str_beg + val_off): nullptr);
-        it->m_vlen   = static_cast<decltype(it->m_vlen)>(val_len);
-        it->m_parent = (parent_off ? it - parent_off : nullptr);
-        it->m_childs = static_cast<decltype(it->m_childs)>(childs);
-        it->m_end    = (end_off ? it + end_off : nullptr);
+        prev_key = ((prev && prev->key) ? prev->key : prev_key);
+        prev_val = ((prev && prev->val) ? prev->val : prev_val);
+        it->type   = static_cast<token_type>(type);
+        it->key    = (key_off ? (prev_key ? prev_key + key_off : parser->str_beg + key_off): nullptr);
+        it->klen   = static_cast<decltype(it->klen)>(key_len);
+        it->val    = (val_off ? (prev_val ? prev_val + val_off : parser->str_beg + val_off): nullptr);
+        it->vlen   = static_cast<decltype(it->vlen)>(val_len);
+        it->parent = (parent_off ? it - parent_off : nullptr);
+        it->childs = static_cast<decltype(it->childs)>(childs);
+        it->end    = (end_off ? it + end_off : nullptr);
     }
     parser->error = FJ_EC_OK;
 

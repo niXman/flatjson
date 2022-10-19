@@ -55,7 +55,7 @@
 #endif // __cplusplus >= 201703L
 
 #ifndef FJ_KLEN_TYPE
-#   define FJ_KLEN_TYPE std::uint8_t
+#   define FJ_KLEN_TYPE std::uint16_t
 #endif // FJ_KLEN_TYPE
 #ifndef FJ_VLEN_TYPE
 #   define FJ_VLEN_TYPE std::uint16_t
@@ -132,7 +132,7 @@ private:
 
 /*************************************************************************************************/
 
-enum fj_token_type: std::uint8_t {
+enum token_type: std::uint8_t {
      FJ_TYPE_INVALID = 0
     ,FJ_TYPE_STRING
     ,FJ_TYPE_NUMBER
@@ -144,7 +144,7 @@ enum fj_token_type: std::uint8_t {
     ,FJ_TYPE_ARRAY_END
 };
 
-inline const char *fj_type_name(fj_token_type t) {
+inline const char *type_name(token_type t) {
     static const char* strs[] = {
          "INVALID"
         ,"STRING"
@@ -165,7 +165,7 @@ inline const char *fj_type_name(fj_token_type t) {
     return "UNKNOWN TYPE";
 }
 
-enum fj_error_code {
+enum error_code: int {
      FJ_EC_OK = 0
     ,FJ_EC_INVALID = -1
     ,FJ_EC_INCOMPLETE = -2
@@ -175,7 +175,7 @@ enum fj_error_code {
     ,FJ_EC_CHILDS_OVERFLOW = -6
 };
 
-inline const char* fj_error_string(fj_error_code e) {
+inline const char* error_string(error_code e) {
     static const char* strs[] = {
          "OK"
         ,"INVALID"
@@ -331,42 +331,40 @@ conv_to(const char *ptr, std::size_t len, To) { return {ptr, len}; }
 
 /*************************************************************************************************/
 
-struct fj_token {
-    const char *m_key;
-    const char *m_val;
-    fj_token *m_parent;
-    fj_token *m_end; // pointing to the last token for arrays and objects
-    FJ_VLEN_TYPE m_vlen;
-    FJ_CHILDS_TYPE m_childs;
-    FJ_KLEN_TYPE m_klen;
-    fj_token_type m_type;
+struct token {
+    const char *key;
+    const char *val;
+    token *parent;
+    token *end; // pointing to the last token for arrays and objects
+    FJ_KLEN_TYPE klen;
+    FJ_VLEN_TYPE vlen;
+    FJ_CHILDS_TYPE childs;
+    token_type type;
 };
 
 /*************************************************************************************************/
 
-using fj_alloc_fnptr = void*(*)(std::size_t);
-using fj_free_fnptr = void(*)(void *);
+using alloc_fnptr = void*(*)(std::size_t);
+using free_fnptr = void(*)(void *);
 
-struct fj_parser {
+struct parser {
     const char *str_beg;
     const char *str_cur;
     const char *str_end;
 
-    fj_token *toks_beg;
-    fj_token *toks_cur;
-    fj_token *toks_end;
+    token *toks_beg;
+    token *toks_cur;
+    token *toks_end;
 
-    fj_alloc_fnptr alloc_fn;
-    fj_free_fnptr  free_fn;
-    fj_error_code  error;
+    alloc_fnptr alloc_fn;
+    free_fnptr  free_fn;
+    error_code  error;
     bool dyn_tokens;
     bool dyn_parser;
-
-    // intrusive pointer part
     std::uint32_t ref_cnt;
 
-    static std::size_t inc_refcnt(fj_parser *parser) { return ++parser->ref_cnt; }
-    static std::size_t dec_refcnt(fj_parser *parser) { return --parser->ref_cnt; }
+    static std::size_t inc_refcnt(parser *parser) { return ++parser->ref_cnt; }
+    static std::size_t dec_refcnt(parser *parser) { return --parser->ref_cnt; }
 };
 
 /*************************************************************************************************/
@@ -376,11 +374,11 @@ namespace details {
 /*************************************************************************************************/
 // for debug purposes
 
-inline void fj_dump_tokens_impl(
+inline void dump_tokens_impl(
      std::FILE *stream
-    ,const fj_token *beg
-    ,const fj_token *cur
-    ,const fj_token *end)
+    ,const token *beg
+    ,const token *cur
+    ,const token *end)
 {
     static const char* tnames[] = {
          "INV" // invalid type
@@ -397,57 +395,57 @@ inline void fj_dump_tokens_impl(
 
     int indent = 0;
     for ( auto it = beg; it != end; ++it ) {
-        if ( it->m_type == FJ_TYPE_ARRAY_END || it->m_type == FJ_TYPE_OBJECT_END ) {
+        if ( it->type == FJ_TYPE_ARRAY_END || it->type == FJ_TYPE_OBJECT_END ) {
             assert(indent > 0);
             indent -= 2;
         }
         std::fprintf(stream, "%2d:%c type=%.*s%3s, addr=%p, end=%p, parent=%p, childs=%d, key=\"%.*s\", val=\"%.*s\"\n"
             ,(int)(it - beg)
             ,(it == cur ? '>' : ' ')
-            ,indent, spaces, tnames[it->m_type]
+            ,indent, spaces, tnames[it->type]
             ,it
-            ,it->m_end
-            ,it->m_parent
-            ,(int)it->m_childs
-            ,(int)(it->m_klen ? it->m_klen : 5), (it->m_klen ? it->m_key : "(nil)")
-            ,(int)(it->m_vlen ? it->m_vlen : 5), (it->m_vlen ? it->m_val : "(nil)")
+            ,it->end
+            ,it->parent
+            ,(int)it->childs
+            ,(int)(it->klen ? it->klen : 5), (it->klen ? it->key : "(nil)")
+            ,(int)(it->vlen ? it->vlen : 5), (it->vlen ? it->val : "(nil)")
         );
         std::fflush(stream);
-        if ( it->m_type == FJ_TYPE_ARRAY || it->m_type == FJ_TYPE_OBJECT ) {
+        if ( it->type == FJ_TYPE_ARRAY || it->type == FJ_TYPE_OBJECT ) {
             indent += 2;
         }
     }
 }
 
 // dump using parser
-inline void fj_dump_tokens(std::FILE *stream, const char *caption, fj_parser *parser) {
+inline void dump_tokens(std::FILE *stream, const char *caption, parser *parser) {
     std::fprintf(stream, "%s:\n", caption);
-    fj_dump_tokens_impl(stream, parser->toks_beg, parser->toks_beg, parser->toks_end);
+    dump_tokens_impl(stream, parser->toks_beg, parser->toks_beg, parser->toks_end);
 }
 
 /*************************************************************************************************/
 
-inline void fj_skip_ws(fj_parser *parser) {
+inline void fj_skip_ws(parser *p) {
     for (
-        ;parser->str_cur < parser->str_end
+        ;p->str_cur < p->str_end
             && (
-                *parser->str_cur == ' '
-             || *parser->str_cur == '\t'
-             || *parser->str_cur == '\r'
-             || *parser->str_cur == '\n'
+                *p->str_cur == ' '
+             || *p->str_cur == '\t'
+             || *p->str_cur == '\r'
+             || *p->str_cur == '\n'
         )
-        ;++parser->str_cur
+        ;++p->str_cur
     )
         ;
 }
 
-#define __FJ__CUR_CHAR(pparser) \
-    ((fj_skip_ws(parser)), (parser->str_cur >= parser->str_end ? ((int)-1) : *(parser->str_cur)))
+#define __FJ__CUR_CHAR(p) \
+    ((fj_skip_ws(p)), (p->str_cur >= p->str_end ? ((int)-1) : *(p->str_cur)))
 
-inline fj_error_code fj_check_and_skip(fj_parser *parser, char expected) {
-    char ch = __FJ__CUR_CHAR(parser);
+inline error_code check_and_skip(parser *p, char expected) {
+    char ch = __FJ__CUR_CHAR(p);
     if ( ch == expected ) {
-        parser->str_cur++;
+        p->str_cur++;
 
         return FJ_EC_OK;
     }
@@ -459,7 +457,7 @@ inline fj_error_code fj_check_and_skip(fj_parser *parser, char expected) {
     return FJ_EC_INVALID;
 }
 
-inline fj_error_code fj_escape_len(int *escape_len, const char *s, std::size_t len) {
+inline error_code escape_len(int *escape_len, const char *s, std::size_t len) {
     switch ( *s ) {
         case 'u': {
             if ( len < 6 ) {
@@ -497,7 +495,7 @@ inline fj_error_code fj_escape_len(int *escape_len, const char *s, std::size_t l
 /*************************************************************************************************/
 
 template<bool ParseMode, std::size_t ExLen>
-inline fj_error_code fj_expect(fj_parser *p, const char (&s)[ExLen], const char **ptr, std::size_t *size) {
+inline error_code expect(parser *p, const char (&s)[ExLen], const char **ptr, std::size_t *size) {
     if ( p->str_cur + (ExLen-1) > p->str_end )
         return FJ_EC_INCOMPLETE;
 
@@ -516,27 +514,27 @@ inline fj_error_code fj_expect(fj_parser *p, const char (&s)[ExLen], const char 
 }
 
 template<bool ParseMode>
-fj_error_code fj_parse_string(fj_parser *parser, const char **value, std::size_t *vlen) {
-    auto ec = fj_check_and_skip(parser, '"');
+inline error_code parse_string(parser *p, const char **value, std::size_t *vlen) {
+    auto ec = check_and_skip(p, '"');
     if ( ec != FJ_EC_OK ) {
         return ec;
     }
 
     int ch = 0;
-    auto *start = parser->str_cur;
-    for ( std::size_t len = 0; parser->str_cur < parser->str_end; parser->str_cur += len ) {
-        ch = static_cast<unsigned char>(*(parser->str_cur));
+    auto *start = p->str_cur;
+    for ( std::size_t len = 0; p->str_cur < p->str_end; p->str_cur += len ) {
+        ch = static_cast<unsigned char>(*(p->str_cur));
         len = fj_utf8_char_len((unsigned char)ch);
         if ( !(ch >= 32 && len > 0) ) {
             return FJ_EC_INVALID;
         }
-        if ( static_cast<std::ptrdiff_t>(len) > (parser->str_end - parser->str_cur) ) {
+        if ( static_cast<std::ptrdiff_t>(len) > (p->str_end - p->str_cur) ) {
             return FJ_EC_INCOMPLETE;
         }
 
         if ( ch == '\\' ) {
             int n = 0;
-            ec = fj_escape_len(&n, parser->str_cur + 1, parser->str_end - parser->str_cur);
+            ec = escape_len(&n, p->str_cur + 1, p->str_end - p->str_cur);
             if ( ec != FJ_EC_OK ) {
                 return ec;
             }
@@ -544,10 +542,10 @@ fj_error_code fj_parse_string(fj_parser *parser, const char **value, std::size_t
         } else if ( ch == '"' ) {
             __FJ__CONSTEXPR_IF( ParseMode ) {
                 *value = start;
-                *vlen = parser->str_cur - start;
+                *vlen = p->str_cur - start;
             }
 
-            ++parser->str_cur;
+            ++p->str_cur;
 
             break;
         }
@@ -557,139 +555,138 @@ fj_error_code fj_parse_string(fj_parser *parser, const char **value, std::size_t
 }
 
 template<bool ParseMode>
-fj_error_code fj_parse_number(fj_parser *parser, const char **value, std::size_t *vlen) {
-    auto *start = parser->str_cur;
-    if ( __FJ__CUR_CHAR(parser) == '-' ) {
-        parser->str_cur++;
+inline error_code parse_number(parser *p, const char **value, std::size_t *vlen) {
+    auto *start = p->str_cur;
+    if ( __FJ__CUR_CHAR(p) == '-' ) {
+        p->str_cur++;
     }
-    if ( parser->str_cur >= parser->str_end ) {
+    if ( p->str_cur >= p->str_end ) {
         return FJ_EC_INCOMPLETE;
     }
-    if ( parser->str_cur + 1 < parser->str_end && *(parser->str_cur) == '0'
-         && *(parser->str_cur+1) == 'x' )
+    if ( p->str_cur + 1 < p->str_end && *(p->str_cur) == '0' && *(p->str_cur+1) == 'x' )
     {
-        parser->str_cur += 2;
-        if ( parser->str_cur >= parser->str_end ) {
+        p->str_cur += 2;
+        if ( p->str_cur >= p->str_end ) {
             return FJ_EC_INCOMPLETE;
         }
-        if ( !fj_is_hex_digit_macro(*(parser->str_cur)) ) {
+        if ( !fj_is_hex_digit_macro(*(p->str_cur)) ) {
             return FJ_EC_INVALID;
         }
-        for ( ; parser->str_cur < parser->str_end && fj_is_hex_digit_macro(*(parser->str_cur))
-              ; ++parser->str_cur )
+        for ( ; p->str_cur < p->str_end && fj_is_hex_digit_macro(*(p->str_cur))
+              ; ++p->str_cur )
         {}
     } else {
-        if ( !fj_is_digit_macro(*(parser->str_cur)) ) {
+        if ( !fj_is_digit_macro(*(p->str_cur)) ) {
             return FJ_EC_INVALID;
         }
-        for ( ; parser->str_cur < parser->str_end && fj_is_digit_macro(*(parser->str_cur))
-              ; ++parser->str_cur )
+        for ( ; p->str_cur < p->str_end && fj_is_digit_macro(*(p->str_cur))
+              ; ++p->str_cur )
         {}
-        if ( parser->str_cur < parser->str_end && *(parser->str_cur) == '.' ) {
-            parser->str_cur++;
-            if ( parser->str_cur >= parser->str_end ) {
+        if ( p->str_cur < p->str_end && *(p->str_cur) == '.' ) {
+            p->str_cur++;
+            if ( p->str_cur >= p->str_end ) {
                 return FJ_EC_INCOMPLETE;
             }
-            if ( !fj_is_digit_macro(*(parser->str_cur)) ) {
+            if ( !fj_is_digit_macro(*(p->str_cur)) ) {
                 return FJ_EC_INVALID;
             }
-            for ( ; parser->str_cur < parser->str_end && fj_is_digit_macro(*(parser->str_cur))
-                  ; ++parser->str_cur )
+            for ( ; p->str_cur < p->str_end && fj_is_digit_macro(*(p->str_cur))
+                  ; ++p->str_cur )
             {}
         }
-        if ( parser->str_cur < parser->str_end && (*(parser->str_cur) == 'e' || *(parser->str_cur) == 'E') ) {
-            parser->str_cur++;
-            if ( parser->str_cur >= parser->str_end ) {
+        if ( p->str_cur < p->str_end && (*(p->str_cur) == 'e' || *(p->str_cur) == 'E') ) {
+            p->str_cur++;
+            if ( p->str_cur >= p->str_end ) {
                 return FJ_EC_INCOMPLETE;
             }
-            if ( *(parser->str_cur) == '+' || *(parser->str_cur) == '-' ) {
-                parser->str_cur++;
+            if ( *(p->str_cur) == '+' || *(p->str_cur) == '-' ) {
+                p->str_cur++;
             }
-            if ( parser->str_cur >= parser->str_end ) {
+            if ( p->str_cur >= p->str_end ) {
                 return FJ_EC_INCOMPLETE;
             }
-            if ( !fj_is_digit_macro(*(parser->str_cur)) ) {
+            if ( !fj_is_digit_macro(*(p->str_cur)) ) {
                 return FJ_EC_INVALID;
             }
-            for ( ; parser->str_cur < parser->str_end && fj_is_digit_macro(*(parser->str_cur))
-                  ; ++parser->str_cur )
+            for ( ; p->str_cur < p->str_end && fj_is_digit_macro(*(p->str_cur))
+                  ; ++p->str_cur )
             {}
         }
     }
 
-    if ( (parser->str_cur - start) > 1 && (start[0] == '0' && start[1] != '.') ) {
+    if ( (p->str_cur - start) > 1 && (start[0] == '0' && start[1] != '.') ) {
         return FJ_EC_INVALID;
     }
 
     __FJ__CONSTEXPR_IF( ParseMode ) {
         *value = start;
-        *vlen = parser->str_cur - start;
+        *vlen = p->str_cur - start;
     }
 
     return FJ_EC_OK;
 }
 
 template<bool ParseMode>
-fj_error_code fj_parse_value(
-     fj_parser *parser
+inline error_code parse_value(
+     parser *p
     ,const char **value
     ,std::size_t *vlen
-    ,fj_token_type *toktype
-    ,fj_token *parent
+    ,token_type *toktype
+    ,token *parent
 );
 
 template<bool ParseMode>
-fj_error_code fj_parse_array(fj_parser *parser, fj_token *parent) {
-    auto ec = fj_check_and_skip(parser, '[');
+inline error_code parse_array(parser *p, token *parent) {
+    auto ec = check_and_skip(p, '[');
     if ( ec != FJ_EC_OK ) {
         return ec;
     }
 
     if ( ParseMode ) {
-        if ( parser->toks_cur == parser->toks_end ) {
+        if ( p->toks_cur == p->toks_end ) {
             return FJ_EC_NO_FREE_TOKENS;
         }
     }
 
-    auto *startarr = parser->toks_cur++;
+    auto *startarr = p->toks_cur++;
     __FJ__CONSTEXPR_IF( ParseMode ) {
-        startarr->m_type = FJ_TYPE_ARRAY;
-        startarr->m_parent = parent;
-        if ( startarr->m_parent ) {
-            __FJ__CHECK_OVERFLOW(startarr->m_parent->m_childs, FJ_CHILDS_TYPE, FJ_EC_CHILDS_OVERFLOW);
-            ++startarr->m_parent->m_childs;
+        startarr->type = FJ_TYPE_ARRAY;
+        startarr->parent = parent;
+        if ( startarr->parent ) {
+            __FJ__CHECK_OVERFLOW(startarr->parent->childs, FJ_CHILDS_TYPE, FJ_EC_CHILDS_OVERFLOW);
+            ++startarr->parent->childs;
         }
     }
 
-    while ( __FJ__CUR_CHAR(parser) != ']' ) {
+    while ( __FJ__CUR_CHAR(p) != ']' ) {
         if ( ParseMode ) {
-            if ( parser->toks_cur == parser->toks_end ) {
+            if ( p->toks_cur == p->toks_end ) {
                 return FJ_EC_NO_FREE_TOKENS;
             }
         }
 
-        auto *current_token = parser->toks_cur++;
+        auto *current_token = p->toks_cur++;
         __FJ__CONSTEXPR_IF( ParseMode ) {
-            *current_token = fj_token{};
+            *current_token = token{};
         }
-        char ch = __FJ__CUR_CHAR(parser);
+        char ch = __FJ__CUR_CHAR(p);
         if ( ch == '{' || ch == '[' ) {
-            parser->toks_cur -= 1;
+            p->toks_cur -= 1;
         } else {
             __FJ__CONSTEXPR_IF( ParseMode ) {
-                current_token->m_parent = startarr;
+                current_token->parent = startarr;
 
-                __FJ__CHECK_OVERFLOW(startarr->m_childs, FJ_CHILDS_TYPE, FJ_EC_CHILDS_OVERFLOW);
-                ++startarr->m_childs;
+                __FJ__CHECK_OVERFLOW(startarr->childs, FJ_CHILDS_TYPE, FJ_EC_CHILDS_OVERFLOW);
+                ++startarr->childs;
             }
         }
 
         std::size_t size = 0;
-        ec = fj_parse_value<ParseMode>(
-             parser
-            ,&(current_token->m_val)
+        ec = parse_value<ParseMode>(
+             p
+            ,&(current_token->val)
             ,&size
-            ,&(current_token->m_type)
+            ,&(current_token->type)
             ,startarr
         );
         if ( ec != FJ_EC_OK ) {
@@ -697,65 +694,65 @@ fj_error_code fj_parse_array(fj_parser *parser, fj_token *parent) {
         }
         __FJ__CONSTEXPR_IF( ParseMode ) {
             __FJ__CHECK_OVERFLOW(size, FJ_VLEN_TYPE, FJ_EC_VLEN_OVERFLOW);
-            current_token->m_vlen = static_cast<FJ_VLEN_TYPE>(size);
+            current_token->vlen = static_cast<FJ_VLEN_TYPE>(size);
         }
 
-        if ( __FJ__CUR_CHAR(parser) == ',' ) {
-            parser->str_cur++;
-            if ( *(parser->str_cur) == ']' ) {
+        if ( __FJ__CUR_CHAR(p) == ',' ) {
+            p->str_cur++;
+            if ( *(p->str_cur) == ']' ) {
                 return FJ_EC_INVALID;
             }
         }
     }
 
-    ec = fj_check_and_skip(parser, ']');
+    ec = check_and_skip(p, ']');
     if ( ec != FJ_EC_OK ) {
         return ec;
     }
 
     __FJ__CONSTEXPR_IF( ParseMode ) {
-        if ( parser->toks_cur == parser->toks_end ) {
+        if ( p->toks_cur == p->toks_end ) {
             return FJ_EC_NO_FREE_TOKENS;
         }
-        auto *endarr = parser->toks_cur++;
-        *endarr = fj_token{};
-        endarr->m_type = FJ_TYPE_ARRAY_END;
-        endarr->m_parent = startarr;
-        __FJ__CHECK_OVERFLOW(endarr->m_parent->m_childs, FJ_CHILDS_TYPE, FJ_EC_CHILDS_OVERFLOW);
-        ++endarr->m_parent->m_childs;
-        startarr->m_end = endarr;
+        auto *endarr = p->toks_cur++;
+        *endarr = token{};
+        endarr->type = FJ_TYPE_ARRAY_END;
+        endarr->parent = startarr;
+        __FJ__CHECK_OVERFLOW(endarr->parent->childs, FJ_CHILDS_TYPE, FJ_EC_CHILDS_OVERFLOW);
+        ++endarr->parent->childs;
+        startarr->end = endarr;
     } else {
-        ++parser->toks_cur;
+        ++p->toks_cur;
     }
 
     return FJ_EC_OK;
 }
 
 template<bool ParseMode>
-fj_error_code fj_parse_object(fj_parser *parser, fj_token *parent) {
-    auto ec = fj_check_and_skip(parser, '{');
+inline error_code parse_object(parser *p, token *parent) {
+    auto ec = check_and_skip(p, '{');
     if ( ec != FJ_EC_OK ) {
         return ec;
     }
 
     if ( ParseMode ) {
-        if ( parser->toks_cur == parser->toks_end ) {
+        if ( p->toks_cur == p->toks_end ) {
             return FJ_EC_NO_FREE_TOKENS;
         }
     }
 
-    auto *startobj = parser->toks_cur++;
+    auto *startobj = p->toks_cur++;
     __FJ__CONSTEXPR_IF( ParseMode ) {
-        startobj->m_type = FJ_TYPE_OBJECT;
-        startobj->m_parent = parent;
-        if ( startobj->m_parent ) {
-            __FJ__CHECK_OVERFLOW(startobj->m_parent->m_childs, FJ_CHILDS_TYPE, FJ_EC_CHILDS_OVERFLOW);
-            ++startobj->m_parent->m_childs;
+        startobj->type = FJ_TYPE_OBJECT;
+        startobj->parent = parent;
+        if ( startobj->parent ) {
+            __FJ__CHECK_OVERFLOW(startobj->parent->childs, FJ_CHILDS_TYPE, FJ_EC_CHILDS_OVERFLOW);
+            ++startobj->parent->childs;
         }
     }
 
-    while ( __FJ__CUR_CHAR(parser) != '}' ) {
-        char ch = __FJ__CUR_CHAR(parser);
+    while ( __FJ__CUR_CHAR(p) != '}' ) {
+        char ch = __FJ__CUR_CHAR(p);
         if ( ch != '"' ) {
             if ( ch == ((int)-1) ) {
                 return FJ_EC_INCOMPLETE;
@@ -765,21 +762,21 @@ fj_error_code fj_parse_object(fj_parser *parser, fj_token *parent) {
         }
 
         if ( ParseMode ) {
-            if ( parser->toks_cur == parser->toks_end ) {
+            if ( p->toks_cur == p->toks_end ) {
                 return FJ_EC_NO_FREE_TOKENS;
             }
         }
 
-        auto *current_token = parser->toks_cur++;
+        auto *current_token = p->toks_cur++;
         __FJ__CONSTEXPR_IF( ParseMode ) {
-            *current_token = fj_token{};
+            *current_token = token{};
         }
         std::size_t size = 0;
-        ec = fj_parse_value<ParseMode>(
-             parser
-            ,&(current_token->m_key)
+        ec = parse_value<ParseMode>(
+             p
+            ,&(current_token->key)
             ,&size
-            ,&(current_token->m_type)
+            ,&(current_token->type)
             ,startobj
         );
         if ( ec != FJ_EC_OK ) {
@@ -787,43 +784,43 @@ fj_error_code fj_parse_object(fj_parser *parser, fj_token *parent) {
         }
         __FJ__CONSTEXPR_IF( ParseMode ) {
             __FJ__CHECK_OVERFLOW(size, FJ_KLEN_TYPE, FJ_EC_KLEN_OVERFLOW);
-            current_token->m_klen = static_cast<FJ_KLEN_TYPE>(size);
+            current_token->klen = static_cast<FJ_KLEN_TYPE>(size);
         }
 
-        ec = fj_check_and_skip(parser, ':');
+        ec = check_and_skip(p, ':');
         if ( ec != FJ_EC_OK ) {
             return ec;
         }
 
-        ch = __FJ__CUR_CHAR(parser);
+        ch = __FJ__CUR_CHAR(p);
         if ( ch == '[' || ch == '{' ) {
-            parser->toks_cur -= 1;
+            p->toks_cur -= 1;
             const char *unused_str{};
             std::size_t unused_size{};
-            ec = fj_parse_value<ParseMode>(
-                 parser
+            ec = parse_value<ParseMode>(
+                 p
                 ,&unused_str
                 ,&unused_size
-                ,&(current_token->m_type)
+                ,&(current_token->type)
                 ,startobj
             );
         } else {
             __FJ__CONSTEXPR_IF( ParseMode ) {
-                current_token->m_parent = startobj;
-                __FJ__CHECK_OVERFLOW(startobj->m_childs, FJ_CHILDS_TYPE, FJ_EC_CHILDS_OVERFLOW);
-                ++startobj->m_childs;
+                current_token->parent = startobj;
+                __FJ__CHECK_OVERFLOW(startobj->childs, FJ_CHILDS_TYPE, FJ_EC_CHILDS_OVERFLOW);
+                ++startobj->childs;
             }
 
-            ec = fj_parse_value<ParseMode>(
-                 parser
-                ,&(current_token->m_val)
+            ec = parse_value<ParseMode>(
+                 p
+                ,&(current_token->val)
                 ,&size
-                ,&(current_token->m_type)
+                ,&(current_token->type)
                 ,startobj
             );
             __FJ__CONSTEXPR_IF( ParseMode ) {
                 __FJ__CHECK_OVERFLOW(size, FJ_VLEN_TYPE, FJ_EC_VLEN_OVERFLOW);
-                current_token->m_vlen = static_cast<FJ_VLEN_TYPE>(size);
+                current_token->vlen = static_cast<FJ_VLEN_TYPE>(size);
             }
         }
 
@@ -831,49 +828,49 @@ fj_error_code fj_parse_object(fj_parser *parser, fj_token *parent) {
             return ec;
         }
 
-        if ( __FJ__CUR_CHAR(parser) == ',' ) {
-            parser->str_cur++;
-            if ( *(parser->str_cur) == '}' ) {
+        if ( __FJ__CUR_CHAR(p) == ',' ) {
+            p->str_cur++;
+            if ( *(p->str_cur) == '}' ) {
                 return FJ_EC_INVALID;
             }
         }
     }
 
-    ec = fj_check_and_skip(parser, '}');
+    ec = check_and_skip(p, '}');
     if ( ec != FJ_EC_OK ) {
         return ec;
     }
 
     __FJ__CONSTEXPR_IF( ParseMode ) {
-        if ( parser->toks_cur == parser->toks_end ) {
+        if ( p->toks_cur == p->toks_end ) {
             return FJ_EC_NO_FREE_TOKENS;
         }
-        auto *endobj = parser->toks_cur++;
-        *endobj = fj_token{};
-        endobj->m_type = FJ_TYPE_OBJECT_END;
-        endobj->m_parent = startobj;
-        __FJ__CHECK_OVERFLOW(endobj->m_parent->m_childs, FJ_CHILDS_TYPE, FJ_EC_CHILDS_OVERFLOW);
-        ++endobj->m_parent->m_childs;
-        startobj->m_end = endobj;
+        auto *endobj = p->toks_cur++;
+        *endobj = token{};
+        endobj->type = FJ_TYPE_OBJECT_END;
+        endobj->parent = startobj;
+        __FJ__CHECK_OVERFLOW(endobj->parent->childs, FJ_CHILDS_TYPE, FJ_EC_CHILDS_OVERFLOW);
+        ++endobj->parent->childs;
+        startobj->end = endobj;
     } else {
-        ++parser->toks_cur;
+        ++p->toks_cur;
     }
 
     return FJ_EC_OK;
 }
 
 template<bool ParseMode>
-fj_error_code fj_parse_value(
-     fj_parser *parser
+inline error_code parse_value(
+     parser *p
     ,const char **value
     ,std::size_t *vlen
-    ,fj_token_type *toktype
-    ,fj_token *parent)
+    ,token_type *toktype
+    ,token *parent)
 {
-    char ch = __FJ__CUR_CHAR(parser);
+    char ch = __FJ__CUR_CHAR(p);
     switch ( ch ) {
         case '{': {
-            auto ec = fj_parse_object<ParseMode>(parser, parent);
+            auto ec = parse_object<ParseMode>(p, parent);
             if ( ec != FJ_EC_OK ) {
                 return ec;
             }
@@ -883,7 +880,7 @@ fj_error_code fj_parse_value(
             break;
         }
         case '[': {
-            auto ec = fj_parse_array<ParseMode>(parser, parent);
+            auto ec = parse_array<ParseMode>(p, parent);
             if ( ec != FJ_EC_OK ) {
                 return ec;
             }
@@ -893,13 +890,13 @@ fj_error_code fj_parse_value(
             break;
         }
         case 'n': {
-            auto ec = fj_expect<ParseMode>(parser, "null", value, vlen);
+            auto ec = expect<ParseMode>(p, "null", value, vlen);
             if ( ec != FJ_EC_OK ) {
                 return ec;
             }
             // on root token
-            if ( parser->toks_cur == parser->toks_beg ) {
-                ++parser->toks_cur;
+            if ( p->toks_cur == p->toks_beg ) {
+                ++p->toks_cur;
             }
             __FJ__CONSTEXPR_IF( ParseMode ) {
                 *toktype = FJ_TYPE_NULL;
@@ -907,13 +904,13 @@ fj_error_code fj_parse_value(
             break;
         }
         case 't': {
-            auto ec = fj_expect<ParseMode>(parser, "true", value, vlen);
+            auto ec = expect<ParseMode>(p, "true", value, vlen);
             if ( ec != FJ_EC_OK ) {
                 return ec;
             }
             // on root token
-            if ( parser->toks_cur == parser->toks_beg ) {
-                ++parser->toks_cur;
+            if ( p->toks_cur == p->toks_beg ) {
+                ++p->toks_cur;
             }
             __FJ__CONSTEXPR_IF( ParseMode ) {
                 *toktype = FJ_TYPE_BOOL;
@@ -921,13 +918,13 @@ fj_error_code fj_parse_value(
             break;
         }
         case 'f': {
-            auto ec = fj_expect<ParseMode>(parser, "false", value, vlen);
+            auto ec = expect<ParseMode>(p, "false", value, vlen);
             if ( ec != FJ_EC_OK ) {
                 return ec;
             }
             // on root token
-            if ( parser->toks_cur == parser->toks_beg ) {
-                ++parser->toks_cur;
+            if ( p->toks_cur == p->toks_beg ) {
+                ++p->toks_cur;
             }
             __FJ__CONSTEXPR_IF( ParseMode ) {
                 *toktype = FJ_TYPE_BOOL;
@@ -945,13 +942,13 @@ fj_error_code fj_parse_value(
         case '7':
         case '8':
         case '9': {
-            auto ec = fj_parse_number<ParseMode>(parser, value, vlen);
+            auto ec = parse_number<ParseMode>(p, value, vlen);
             if ( ec != FJ_EC_OK ) {
                 return ec;
             }
             // on root token
-            if ( parser->toks_cur == parser->toks_beg ) {
-                ++parser->toks_cur;
+            if ( p->toks_cur == p->toks_beg ) {
+                ++p->toks_cur;
             }
             __FJ__CONSTEXPR_IF( ParseMode ) {
                 *toktype = FJ_TYPE_NUMBER;
@@ -959,13 +956,13 @@ fj_error_code fj_parse_value(
             break;
         }
         case '"': {
-            auto ec = fj_parse_string<ParseMode>(parser, value, vlen);
+            auto ec = parse_string<ParseMode>(p, value, vlen);
             if ( ec != FJ_EC_OK ) {
                 return ec;
             }
             // on root token
-            if ( parser->toks_cur == parser->toks_beg ) {
-                ++parser->toks_cur;
+            if ( p->toks_cur == p->toks_beg ) {
+                ++p->toks_cur;
             }
             __FJ__CONSTEXPR_IF( ParseMode ) {
                 *toktype = FJ_TYPE_STRING;
@@ -985,42 +982,41 @@ fj_error_code fj_parse_value(
 
 /*************************************************************************************************/
 
-inline void fj_init_parser(
-     fj_parser *parser
-    ,fj_token *toksbeg
-    ,fj_token *toksend
+inline void init_parser(
+     parser *p
+    ,token *toksbeg
+    ,token *toksend
     ,const char *strbeg
     ,const char *strend
-    ,fj_alloc_fnptr alloc_fn
-    ,fj_free_fnptr free_fn
+    ,alloc_fnptr alloc_fn
+    ,free_fnptr free_fn
     ,bool dyn_parser
     ,bool dyn_tokens)
 {
     // root token
     if ( toksbeg ) {
-        toksbeg->m_type   = FJ_TYPE_INVALID;
-        toksbeg->m_key    = nullptr;
-        toksbeg->m_klen   = 0;
-        toksbeg->m_val    = nullptr;
-        toksbeg->m_vlen   = 0;
-        toksbeg->m_parent = nullptr;
-        toksbeg->m_childs = 0;
-        toksbeg->m_end    = nullptr;
+        toksbeg->type   = FJ_TYPE_INVALID;
+        toksbeg->key    = nullptr;
+        toksbeg->klen   = 0;
+        toksbeg->val    = nullptr;
+        toksbeg->vlen   = 0;
+        toksbeg->parent = nullptr;
+        toksbeg->childs = 0;
+        toksbeg->end    = nullptr;
     }
 
-    parser->str_beg   = strbeg;
-    parser->str_cur   = strbeg;
-    parser->str_end   = strend;
-    parser->toks_beg  = toksbeg;
-    parser->toks_cur  = toksbeg;
-    parser->toks_end  = toksend;
-    parser->alloc_fn  = alloc_fn;
-    parser->free_fn   = free_fn;
-    parser->error     = FJ_EC_INVALID;
-    parser->dyn_parser= dyn_parser;
-    parser->dyn_tokens= dyn_tokens;
-
-    parser->ref_cnt   = 0;
+    p->str_beg   = strbeg;
+    p->str_cur   = strbeg;
+    p->str_end   = strend;
+    p->toks_beg  = toksbeg;
+    p->toks_cur  = toksbeg;
+    p->toks_end  = toksend;
+    p->alloc_fn  = alloc_fn;
+    p->free_fn   = free_fn;
+    p->error     = FJ_EC_INVALID;
+    p->dyn_parser= dyn_parser;
+    p->dyn_tokens= dyn_tokens;
+    p->ref_cnt   = 0;
 }
 
 } // ns details
@@ -1029,15 +1025,15 @@ inline void fj_init_parser(
 
 // zero-alloc routines
 
-inline fj_parser fj_make_parser(
-     fj_token *toksbeg
-    ,fj_token *toksend
+inline parser make_parser(
+     token *toksbeg
+    ,token *toksend
     ,const char *strbeg
     ,const char *strend)
 {
-    fj_parser parser;
-    details::fj_init_parser(
-         &parser
+    parser p;
+    details::init_parser(
+         &p
         ,toksbeg
         ,toksend
         ,strbeg
@@ -1048,25 +1044,25 @@ inline fj_parser fj_make_parser(
         ,false
     );
 
-    return parser;
+    return p;
 }
 
 template<std::size_t N>
-inline fj_parser fj_make_parser(
-     fj_token *toksbeg
-    ,fj_token *toksend
+inline parser make_parser(
+     token *toksbeg
+    ,token *toksend
     ,const char (&str)[N])
 {
-    return fj_make_parser(toksbeg, toksend, str, &str[N]);
+    return make_parser(toksbeg, toksend, str, &str[N]);
 }
 
-inline fj_parser fj_init_parser(
-     fj_alloc_fnptr alloc_fn = &malloc
-    ,fj_free_fnptr free_fn = &free)
+inline parser init_parser(
+     alloc_fnptr alloc_fn = &malloc
+    ,free_fnptr free_fn = &free)
 {
-    fj_parser parser;
-    details::fj_init_parser(
-         &parser
+    parser p;
+    details::init_parser(
+         &p
         ,nullptr
         ,nullptr
         ,nullptr
@@ -1077,24 +1073,24 @@ inline fj_parser fj_init_parser(
         ,false
     );
 
-    return parser;
+    return p;
 }
 
 /*************************************************************************************************/
 // dyn-alloc routines
 
-inline fj_parser* fj_alloc_parser(
-     fj_token *toksbeg
-    ,fj_token *toksend
+inline parser* alloc_parser(
+     token *toksbeg
+    ,token *toksend
     ,const char *strbeg
     ,const char *strend
-    ,fj_alloc_fnptr alloc_fn = &malloc
-    ,fj_free_fnptr free_fn = &free)
+    ,alloc_fnptr alloc_fn = &malloc
+    ,free_fnptr free_fn = &free)
 {
-    auto *parser = static_cast<fj_parser *>(alloc_fn(sizeof(fj_parser)));
-    if ( parser ) {
-        details::fj_init_parser(
-             parser
+    auto *p = static_cast<parser *>(alloc_fn(sizeof(parser)));
+    if ( p ) {
+        details::init_parser(
+             p
             ,toksbeg
             ,toksend
             ,strbeg
@@ -1106,62 +1102,60 @@ inline fj_parser* fj_alloc_parser(
         );
     }
 
-    return parser;
+    return p;
 }
 
 template<std::size_t N>
-inline fj_parser* fj_alloc_parser(
-     fj_token *toksbeg
-    ,fj_token *toksend
+inline parser* alloc_parser(
+     token *toksbeg
+    ,token *toksend
     ,const char (&str)[N]
-    ,fj_alloc_fnptr alloc_fn = &malloc
-    ,fj_free_fnptr free_fn = &free)
+    ,alloc_fnptr alloc_fn = &malloc
+    ,free_fnptr free_fn = &free)
 {
-    return fj_alloc_parser(toksbeg, toksend, str, &str[N], alloc_fn, free_fn);
+    return alloc_parser(toksbeg, toksend, str, &str[N], alloc_fn, free_fn);
 }
 
-inline std::size_t fj_num_tokens(fj_error_code *ecptr, const char *beg, const char *end) {
-    static fj_token fake;
-    auto parser = fj_make_parser(&fake, &fake, beg, end);
+inline std::size_t num_tokens(error_code *ecptr, const char *beg, const char *end) {
+    static token fake;
+    auto p = make_parser(&fake, &fake, beg, end);
 
     std::size_t vlen = 0;
-    fj_token_type toktype{};
-    fj_error_code ec = details::fj_parse_value<false>(
-         &parser
-        ,&(parser.toks_beg->m_val)
+    token_type toktype{};
+    error_code ec = details::parse_value<false>(
+         &p
+        ,&(p.toks_beg->val)
         ,&vlen
         ,&toktype
         ,nullptr
     );
 
-    if ( !ec && parser.str_cur+1 != parser.str_end ) {
-        details::fj_skip_ws(&parser);
-        if ( parser.str_cur != parser.str_end ) {
-            if ( ecptr ) {
-                *ecptr = FJ_EC_INVALID;
-            }
+    if ( !ec && p.str_cur+1 != p.str_end ) {
+        details::fj_skip_ws(&p);
+        if ( p.str_cur != p.str_end ) {
+            if ( ecptr ) { *ecptr = FJ_EC_INVALID; }
 
             return 0;
         }
     }
 
     assert(vlen <= std::numeric_limits<FJ_VLEN_TYPE>::max());
-    parser.toks_beg->m_vlen = static_cast<FJ_VLEN_TYPE>(vlen);
+    p.toks_beg->vlen = static_cast<FJ_VLEN_TYPE>(vlen);
 
-    std::size_t toknum = parser.toks_cur - parser.toks_beg;
+    std::size_t toknum = p.toks_cur - p.toks_beg;
 
     return toknum;
 }
 
-inline fj_parser fj_make_parser(
+inline parser make_parser(
      const char *strbeg
     ,const char *strend
-    ,fj_alloc_fnptr alloc_fn = &malloc
-    ,fj_free_fnptr free_fn = &free)
+    ,alloc_fnptr alloc_fn = &malloc
+    ,free_fnptr free_fn = &free)
 {
-    fj_parser parser;
-    details::fj_init_parser(
-         &parser
+    parser p;
+    details::init_parser(
+         &p
         ,nullptr
         ,nullptr
         ,nullptr
@@ -1173,23 +1167,23 @@ inline fj_parser fj_make_parser(
     );
 
     if ( strend - strbeg == 1 && *strbeg == '\0' ) {
-        return parser;
+        return p;
     }
 
-    fj_error_code ec{};
-    auto toknum = fj_num_tokens(&ec, strbeg, strend);
+    error_code ec{};
+    auto toknum = num_tokens(&ec, strbeg, strend);
     if ( ec ) {
-        parser.error = ec;
+        p.error = ec;
 
-        return parser;
+        return p;
     }
 
-    auto in_bytes = sizeof(fj_token) * toknum;
-    auto *toksbeg = static_cast<fj_token *>(alloc_fn(in_bytes));
+    auto in_bytes = sizeof(token) * toknum;
+    auto *toksbeg = static_cast<token *>(alloc_fn(in_bytes));
     auto *toksend = toksbeg + toknum;
 
-    details::fj_init_parser(
-         &parser
+    details::init_parser(
+         &p
         ,toksbeg
         ,toksend
         ,strbeg
@@ -1200,28 +1194,28 @@ inline fj_parser fj_make_parser(
         ,true
     );
 
-    return parser;
+    return p;
 }
 
 template<std::size_t N>
-inline fj_parser fj_make_parser(
+inline parser make_parser(
      const char (&str)[N]
-    ,fj_alloc_fnptr alloc_fn = &malloc
-    ,fj_free_fnptr free_fn = &free)
+    ,alloc_fnptr alloc_fn = &malloc
+    ,free_fnptr free_fn = &free)
 {
-    return fj_make_parser(str, &str[N], alloc_fn, free_fn);
+    return make_parser(str, &str[N], alloc_fn, free_fn);
 }
 
-inline fj_parser* fj_alloc_parser(
+inline parser* alloc_parser(
      const char *strbeg
     ,const char *strend
-    ,fj_alloc_fnptr alloc_fn = &malloc
-    ,fj_free_fnptr free_fn = &free)
+    ,alloc_fnptr alloc_fn = &malloc
+    ,free_fnptr free_fn = &free)
 {
-    auto *parser = static_cast<fj_parser *>(alloc_fn(sizeof(fj_parser)));
-    if ( parser ) {
-        details::fj_init_parser(
-             parser
+    auto *p = static_cast<parser *>(alloc_fn(sizeof(parser)));
+    if ( p ) {
+        details::init_parser(
+             p
             ,nullptr
             ,nullptr
             ,nullptr
@@ -1236,24 +1230,24 @@ inline fj_parser* fj_alloc_parser(
     }
 
     if ( strend - strbeg == 1 && *strbeg == '\0' ) {
-        return parser;
+        return p;
     }
 
-    fj_error_code ec{};
-    auto toknum = fj_num_tokens(&ec, strbeg, strend);
+    error_code ec{};
+    auto toknum = num_tokens(&ec, strbeg, strend);
     if ( ec ) {
-        parser->error = ec;
+        p->error = ec;
 
-        return parser;
+        return p;
     }
 
-    auto in_bytes = sizeof(fj_token) * toknum;
-    auto *toksbeg = static_cast<fj_token *>(alloc_fn(in_bytes));
+    auto in_bytes = sizeof(token) * toknum;
+    auto *toksbeg = static_cast<token *>(alloc_fn(in_bytes));
     auto *toksend = toksbeg + toknum;
 
-    if ( parser ) {
-        details::fj_init_parser(
-             parser
+    if ( p ) {
+        details::init_parser(
+             p
             ,toksbeg
             ,toksend
             ,strbeg
@@ -1265,145 +1259,141 @@ inline fj_parser* fj_alloc_parser(
         );
     }
 
-    return parser;
+    return p;
 }
 
 template<std::size_t N>
-inline fj_parser* fj_alloc_parser(
+inline parser* alloc_parser(
      const char (&str)[N]
-    ,fj_alloc_fnptr alloc_fn = &malloc
-    ,fj_free_fnptr free_fn = &free)
+    ,alloc_fnptr alloc_fn = &malloc
+    ,free_fnptr free_fn = &free)
 {
-    return fj_alloc_parser(str, &str[N], alloc_fn, free_fn);
+    return alloc_parser(str, &str[N], alloc_fn, free_fn);
 }
 
-inline void fj_free_parser(fj_parser *parser) {
-    if ( parser->dyn_tokens && parser->toks_beg ) {
-        parser->free_fn(parser->toks_beg);
+inline void free_parser(parser *p) {
+    if ( p->dyn_tokens && p->toks_beg ) {
+        p->free_fn(p->toks_beg);
     }
 
-    parser->toks_beg = nullptr;
-    parser->toks_cur = nullptr;
-    parser->toks_end = nullptr;
-    parser->error = FJ_EC_INVALID;
+    p->toks_beg = nullptr;
+    p->toks_cur = nullptr;
+    p->toks_end = nullptr;
+    p->error = FJ_EC_INVALID;
 
-    if ( parser->dyn_parser ) {
-        parser->free_fn(parser);
+    if ( p->dyn_parser ) {
+        p->free_fn(p);
     }
 }
 
 /*************************************************************************************************/
 // parsing
 
-inline std::size_t fj_parse(fj_parser *parser) {
-    assert(parser);
-    if ( !parser->toks_beg ) {
+inline std::size_t parse(parser *p) {
+    if ( !p->toks_beg ) {
         return 0;
     }
 
     std::size_t vlen = 0;
-    parser->error = details::fj_parse_value<true>(
-         parser
-        ,&(parser->toks_beg->m_val)
+    p->error = details::parse_value<true>(
+         p
+        ,&(p->toks_beg->val)
         ,&vlen
-        ,&(parser->toks_beg->m_type)
+        ,&(p->toks_beg->type)
         ,nullptr
     );
     assert(vlen <= std::numeric_limits<FJ_VLEN_TYPE>::max());
-    parser->toks_beg->m_vlen = static_cast<FJ_VLEN_TYPE>(vlen);
-    parser->toks_beg->m_end = parser->toks_cur;
-    parser->toks_end = parser->toks_cur;
+    p->toks_beg->vlen = static_cast<FJ_VLEN_TYPE>(vlen);
+    p->toks_beg->end = p->toks_cur;
+    p->toks_end = p->toks_cur;
 
-    return parser->toks_cur - parser->toks_beg;
+    return p->toks_cur - p->toks_beg;
 }
 
 // returns the num of tokens
-inline std::size_t fj_parse(fj_token *tokbeg, fj_token *tokend, const char *strbeg, const char *strend) {
-    auto parser = fj_make_parser(tokbeg, tokend, strbeg, strend);
+inline std::size_t parse(token *tokbeg, token *tokend, const char *strbeg, const char *strend) {
+    auto p = make_parser(tokbeg, tokend, strbeg, strend);
 
-    return fj_parse(&parser);
+    return parse(&p);
 }
 
 // returns the dyn-allocated parser
-inline fj_parser* fj_parse(
+inline parser* parse(
      const char *strbeg
     ,const char *strend
-    ,fj_alloc_fnptr alloc_fn = &malloc
-    ,fj_free_fnptr free_fn = &free)
+    ,alloc_fnptr alloc_fn = &malloc
+    ,free_fnptr free_fn = &free)
 {
-    auto *parser = fj_alloc_parser(strbeg, strend, alloc_fn, free_fn);
-    fj_parse(parser);
+    auto *p = alloc_parser(strbeg, strend, alloc_fn, free_fn);
+    parse(p);
 
-    return parser;
+    return p;
 }
 
 /*************************************************************************************************/
 // parser state
 
-inline bool fj_is_valid(const fj_parser *parser) {
-    return parser && parser->error == FJ_EC_OK;
+inline bool is_valid(const parser *p) {
+    return p && p->error == FJ_EC_OK;
 }
 
-inline fj_error_code fj_error(const fj_parser *parser) {
-    return parser->error;
+inline error_code get_error(const parser *p) {
+    return p->error;
 }
 
-inline std::size_t fj_tokens(const fj_parser *parser) {
-    return parser->toks_end - parser->toks_beg;
+inline std::size_t num_tokens(const parser *p) {
+    return p->toks_end - p->toks_beg;
 }
 
-inline std::size_t fj_members(const fj_parser *parser) {
-    return (!fj_is_simple_type_macro(parser->toks_beg->m_type))
-       ? parser->toks_beg->m_childs - 1
-       : static_cast<std::size_t>(parser->toks_beg->m_type != FJ_TYPE_INVALID)
+inline std::size_t num_childs(const parser *p) {
+    return (!fj_is_simple_type_macro(p->toks_beg->type))
+       ? p->toks_beg->childs - 1
+       : static_cast<std::size_t>(p->toks_beg->type != FJ_TYPE_INVALID)
     ;
 }
 
-inline bool fj_empty(const fj_parser *parser) {
-    return parser == nullptr
-        || parser->toks_beg == parser->toks_end
-        || fj_members(parser) == 0
-    ;
+inline bool is_empty(const parser *p) {
+    return p == nullptr || p->toks_beg == p->toks_end;
 }
 
-inline bool fj_is_array(const fj_parser *parser)
-{ return parser->toks_beg->m_type == FJ_TYPE_ARRAY; }
+inline bool is_array(const parser *p)
+{ return p->toks_beg->type == FJ_TYPE_ARRAY; }
 
-inline bool fj_is_object(const fj_parser *parser)
-{ return parser->toks_beg->m_type == FJ_TYPE_OBJECT; }
+inline bool is_object(const parser *p)
+{ return p->toks_beg->type == FJ_TYPE_OBJECT; }
 
-inline bool fj_is_null(const fj_parser *parser)
-{ return parser->toks_beg->m_type == FJ_TYPE_NULL; }
+inline bool is_null(const parser *p)
+{ return p->toks_beg->type == FJ_TYPE_NULL; }
 
-inline bool fj_is_bool(const fj_parser *parser)
-{ return parser->toks_beg->m_type == FJ_TYPE_BOOL; }
+inline bool is_bool(const parser *p)
+{ return p->toks_beg->type == FJ_TYPE_BOOL; }
 
-inline bool fj_is_number(const fj_parser *parser)
-{ return parser->toks_beg->m_type == FJ_TYPE_NUMBER; }
+inline bool is_number(const parser *p)
+{ return p->toks_beg->type == FJ_TYPE_NUMBER; }
 
-inline bool fj_is_string(const fj_parser *parser)
-{ return parser->toks_beg->m_type == FJ_TYPE_STRING; }
+inline bool is_string(const parser *p)
+{ return p->toks_beg->type == FJ_TYPE_STRING; }
 
-inline bool fj_is_simple_type(const fj_parser *parser)
-{ return fj_is_simple_type_macro(parser->toks_beg->m_type); }
+inline bool is_simple_type(const parser *p)
+{ return fj_is_simple_type_macro(p->toks_beg->type); }
 
 /*************************************************************************************************/
 // iterators
 
-struct fj_iterator {
-    fj_token *m_beg;
-    fj_token *m_cur;
-    fj_token *m_end;
+struct iterator {
+    token *beg;
+    token *cur;
+    token *end;
 
-    string_view key() const { return {m_cur->m_key, m_cur->m_klen}; }
-    string_view value() const { return {m_cur->m_val, m_cur->m_vlen}; }
-    std::size_t childs() const { return m_cur->m_childs; }
-    const fj_token* parent() const { return m_cur->m_parent; }
-    const fj_token* end() const { return m_cur->m_end; }
+    string_view key() const { return {cur->key, cur->klen}; }
+    string_view value() const { return {cur->val, cur->vlen}; }
+    std::size_t childs() const { return cur->childs; }
+    const token* parent() const { return cur->parent; }
+//    const token* end() const { return cur->end; }
 
-    fj_token_type type() const { return m_cur->m_type; }
-    const char* type_name() const { return fj_type_name(type()); }
-    bool is_valid() const { return m_cur && type() != FJ_TYPE_INVALID; }
+    token_type type() const { return cur->type; }
+    const char* type_name() const { return flatjson::type_name(type()); }
+    bool is_valid() const { return cur && type() != FJ_TYPE_INVALID; }
     bool is_array() const { return type() == FJ_TYPE_ARRAY; }
     bool is_object() const { return type() == FJ_TYPE_OBJECT; }
     bool is_null() const { return type() == FJ_TYPE_NULL; }
@@ -1436,75 +1426,75 @@ struct fj_iterator {
 namespace details {
 
 // dump using iterator
-inline void fj_dump_tokens(std::FILE *stream, const char *caption, const fj_iterator &it) {
+inline void dump_tokens(std::FILE *stream, const char *caption, const iterator &it) {
     std::fprintf(stream, "%s:\n", caption);
-    fj_dump_tokens_impl(stream, it.m_beg, it.m_cur, it.m_end);
+    dump_tokens_impl(stream, it.beg, it.cur, it.end);
 }
 
 } // ns details
 
-inline fj_iterator fj_iter_begin(const fj_parser *parser) {
-    assert(parser && parser->toks_beg && parser->toks_end);
-    return {parser->toks_beg, parser->toks_beg, parser->toks_end-1};
+inline iterator iter_begin(const parser *p) {
+    assert(p && p->toks_beg);
+    return {p->toks_beg, p->toks_beg, p->toks_end-1};
 }
 
-inline fj_iterator fj_iter_end(const fj_parser *parser) {
-    assert(parser && parser->toks_beg && parser->toks_end);
-    return {parser->toks_end-1, parser->toks_end-1, parser->toks_end-1};
+inline iterator iter_end(const parser *p) {
+    assert(p && p->toks_beg);
+    return {p->toks_end-1, p->toks_end-1, p->toks_end-1};
 }
 
-inline fj_iterator fj_iter_begin(const fj_iterator &it) {
-    return {it.m_cur, it.m_cur, it.m_cur->m_end};
+inline iterator iter_begin(const iterator &it) {
+    return {it.cur, it.cur, it.cur->end};
 }
 
-inline fj_iterator fj_iter_end(const fj_iterator &it) {
+inline iterator iter_end(const iterator &it) {
     if ( !it.is_simple_type() ) {
-        return {it.m_cur->m_end, it.m_cur->m_end, it.m_cur->m_end};
+        return {it.cur->end, it.cur->end, it.cur->end};
     }
 
-    return {it.m_end, it.m_end, it.m_end};
+    return {it.end, it.end, it.end};
 }
 
-inline fj_iterator fj_iter_next(const fj_iterator &it) {
-    assert(it.m_cur != it.m_end);
+inline iterator iter_next(const iterator &it) {
+    assert(it.cur != it.end);
 
-    auto next = it.m_cur + 1;
-    if ( next != it.m_end && next->m_parent == it.m_beg ) {
-        return {it.m_beg, next, it.m_end};
+    auto next = it.cur + 1;
+    if ( next != it.end && next->parent == it.beg ) {
+        return {it.beg, next, it.end};
     }
 
-    for ( ; next != it.m_end && next->m_parent != it.m_beg; ++next )
+    for ( ; next != it.end && next->parent != it.beg; ++next )
         ;
 
-    return {it.m_beg, next, it.m_end};
+    return {it.beg, next, it.end};
 }
 
-inline bool fj_iter_equal(const fj_iterator &l, const fj_iterator &r)
-{ return l.m_cur == r.m_cur; }
+inline bool iter_equal(const iterator &l, const iterator &r)
+{ return l.cur == r.cur; }
 
-inline bool fj_iter_not_equal(const fj_iterator &l, const fj_iterator &r)
-{ return !fj_iter_equal(l, r); }
+inline bool iter_not_equal(const iterator &l, const iterator &r)
+{ return !iter_equal(l, r); }
 
-inline std::size_t fj_iter_members(const fj_iterator &it) {
+inline std::size_t iter_members(const iterator &it) {
     if ( it.is_simple_type() ) {
         return 0;
     }
 
-    return it.m_cur->m_childs - 1;
+    return it.cur->childs - 1;
 }
 
 namespace details {
 
 // find by key name
-inline fj_iterator fj_iter_find(const char *key, std::size_t len, fj_iterator it, const fj_iterator &end) {
-    if ( !it.m_cur ) {
+inline iterator iter_find(const char *key, std::size_t len, iterator it, const iterator &end) {
+    if ( !it.cur ) {
         return end;
     }
-    if ( it.m_cur && it.m_cur->m_parent && it.m_cur->m_parent->m_type != FJ_TYPE_OBJECT ) {
+    if ( it.cur && it.cur->parent && it.cur->parent->type != FJ_TYPE_OBJECT ) {
         return end;
     }
 
-    while ( fj_iter_not_equal(it, end) ) {
+    while ( iter_not_equal(it, end) ) {
         if ( it.type() == FJ_TYPE_OBJECT_END ) {
             return end;
         }
@@ -1514,8 +1504,8 @@ inline fj_iterator fj_iter_find(const char *key, std::size_t len, fj_iterator it
         }
 
         it = it.is_simple_type()
-            ? fj_iterator{it.m_beg, it.m_cur + 1, it.m_end}
-            : fj_iterator{it.m_beg, it.m_cur->m_end + 1, it.m_end}
+            ? iterator{it.beg, it.cur + 1, it.end}
+            : iterator{it.beg, it.cur->end + 1, it.end}
         ;
     }
 
@@ -1525,14 +1515,14 @@ inline fj_iterator fj_iter_find(const char *key, std::size_t len, fj_iterator it
         case FJ_TYPE_NUMBER:
         case FJ_TYPE_BOOL:
         case FJ_TYPE_NULL: {
-            return {it.m_beg, it.m_cur, it.m_cur + 1};
+            return {it.beg, it.cur, it.cur + 1};
         }
         case FJ_TYPE_OBJECT:
         case FJ_TYPE_ARRAY: {
-            return {it.m_cur, it.m_cur, it.m_cur->m_end + 1};
+            return {it.cur, it.cur, it.cur->end + 1};
         }
         default: {
-            if ( fj_iter_equal(it, end) && it.type() == FJ_TYPE_OBJECT_END ) {
+            if ( iter_equal(it, end) && it.type() == FJ_TYPE_OBJECT_END ) {
                 return end;
             }
         }
@@ -1546,117 +1536,114 @@ inline fj_iterator fj_iter_find(const char *key, std::size_t len, fj_iterator it
 } // ns details
 
 // at by key name, from the parser
-inline fj_iterator fj_iter_at(const char *key, std::size_t klen, const fj_parser *parser) {
-    assert(parser);
-    assert(parser->toks_beg);
+inline iterator iter_at(const char *key, std::size_t klen, const parser *p) {
+    assert(p && p->toks_beg);
 
-    bool is_simple = fj_is_simple_type_macro(parser->toks_beg->m_type);
-    fj_iterator beg = {
-         parser->toks_beg
-        ,parser->toks_beg + static_cast<std::size_t>(!is_simple)
-        ,parser->toks_end
+    bool is_simple = fj_is_simple_type_macro(p->toks_beg->type);
+    iterator beg = {
+         p->toks_beg
+        ,p->toks_beg + static_cast<std::size_t>(!is_simple)
+        ,p->toks_end
     };
-    fj_iterator end = fj_iter_end(parser);
+    iterator end = iter_end(p);
 
-    return details::fj_iter_find(key, klen, beg, end);
+    return details::iter_find(key, klen, beg, end);
 }
 
 template<typename T, typename = typename enable_if_const_char_ptr<T>::type>
-fj_iterator fj_iter_at(T key, const fj_parser *parser) {
-    assert(parser);
-    assert(parser->toks_beg);
+iterator iter_at(T key, const parser *p) {
+    assert(p && p->toks_beg);
 
-    bool is_simple = fj_is_simple_type_macro(parser->toks_beg->m_type);
-    fj_iterator beg = {
-         parser->toks_beg
-        ,parser->toks_beg + static_cast<std::size_t>(!is_simple)
-        ,parser->toks_end
+    bool is_simple = fj_is_simple_type_macro(p->toks_beg->type);
+    iterator beg = {
+         p->toks_beg
+        ,p->toks_beg + static_cast<std::size_t>(!is_simple)
+        ,p->toks_end
     };
-    fj_iterator end = fj_iter_end(parser);
+    iterator end = iter_end(p);
 
-    return details::fj_iter_find(key, std::strlen(key), beg, end);
+    return details::iter_find(key, std::strlen(key), beg, end);
 }
 
 template<std::size_t N>
-fj_iterator fj_iter_at(const char (&key)[N], const fj_parser *parser) {
-    assert(parser);
-    assert(parser->toks_beg);
+iterator iter_at(const char (&key)[N], const parser *p) {
+    assert(p && p->toks_beg);
 
-    bool is_simple = fj_is_simple_type_macro(parser->toks_beg->m_type);
-    fj_iterator beg = {
-         parser->toks_beg
-        ,parser->toks_beg + static_cast<std::size_t>(!is_simple)
-        ,parser->toks_end
+    bool is_simple = fj_is_simple_type_macro(p->toks_beg->type);
+    iterator beg = {
+         p->toks_beg
+        ,p->toks_beg + static_cast<std::size_t>(!is_simple)
+        ,p->toks_end
     };
-    fj_iterator end = fj_iter_end(parser);
+    iterator end = iter_end(p);
 
-    return details::fj_iter_find(key, N-1, beg, end);
+    return details::iter_find(key, N-1, beg, end);
 }
 
 // at by key name, from the iterators
-inline fj_iterator fj_iter_at(const char *key, std::size_t klen, const fj_iterator &it) {
-    assert(it.m_cur != it.m_end);
+inline iterator iter_at(const char *key, std::size_t klen, const iterator &it) {
+    assert(it.cur != it.end);
 
-    fj_iterator beg = {
-         it.m_beg
-        ,it.m_cur + static_cast<std::size_t>(!it.is_simple_type())
-        ,it.m_end
+    iterator beg = {
+         it.beg
+        ,it.cur + static_cast<std::size_t>(!it.is_simple_type())
+        ,it.end
     };
-    auto end = fj_iter_end(it);
+    auto end = iter_end(it);
 
-    return details::fj_iter_find(key, klen, beg, end);
+    return details::iter_find(key, klen, beg, end);
 }
 
 template<typename T, typename = typename enable_if_const_char_ptr<T>::type>
-fj_iterator fj_iter_at(T key, const fj_iterator &it) {
-    assert(it.m_cur != it.m_end);
+iterator iter_at(T key, const iterator &it) {
+    assert(it.cur != it.end);
 
-    fj_iterator beg = {
-         it.m_beg
-        ,it.m_cur + static_cast<std::size_t>(!it.is_simple_type())
-        ,it.m_end
+    iterator beg = {
+         it.beg
+        ,it.cur + static_cast<std::size_t>(!it.is_simple_type())
+        ,it.end
     };
-    auto end = fj_iter_end(it);
+    auto end = iter_end(it);
 
-    return details::fj_iter_find(key, std::strlen(key), beg, end);
+    return details::iter_find(key, std::strlen(key), beg, end);
 }
 
 template<std::size_t N>
-fj_iterator fj_iter_at(const char (&key)[N], const fj_iterator &it) {
-    assert(it.m_cur != it.m_end);
+iterator iter_at(const char (&key)[N], const iterator &it) {
+    assert(it.cur != it.end);
 
-    fj_iterator beg = {
-         it.m_beg
-        ,it.m_cur + static_cast<std::size_t>(!it.is_simple_type())
-        ,it.m_end
+    iterator beg = {
+         it.beg
+        ,it.cur + static_cast<std::size_t>(!it.is_simple_type())
+        ,it.end
     };
-    auto end = fj_iter_end(it);
+    auto end = iter_end(it);
 
-    return details::fj_iter_find(key, N-1, beg, end);
+    return details::iter_find(key, N-1, beg, end);
 }
 
 namespace details {
 
 // find by index
-inline fj_iterator fj_iter_find(std::size_t idx, fj_iterator it, const fj_iterator &end) {
-    if ( !it.m_cur ) {
+inline iterator iter_find(std::size_t idx, iterator it, const iterator &end) {
+    if ( !it.cur ) {
         return end;
     }
-    if ( it.m_cur && it.m_cur->m_parent->m_type != FJ_TYPE_ARRAY ) {
+    if ( it.cur && it.cur->parent->type != FJ_TYPE_ARRAY ) {
         return end;
     }
-    if ( idx >= it.m_cur->m_parent->m_childs ) {
+    if ( idx >= it.cur->parent->childs ) {
         return end;
     }
 
-    for ( ; fj_iter_not_equal(it, end) && idx; --idx ) {
+    for ( ; iter_not_equal(it, end) && idx; --idx ) {
         if ( it.type() == FJ_TYPE_ARRAY_END ) {
             return end;
         }
 
         it = it.is_simple_type()
-            ? fj_iterator{it.m_beg, it.m_cur + 1, it.m_end}
-            : fj_iterator{it.m_beg, it.m_cur->m_end + 1, it.m_end}
+            ? iterator{it.beg, it.cur + 1, it.end}
+            : iterator{it.beg, it.cur->end + 1, it.end}
         ;
     }
 
@@ -1666,14 +1653,14 @@ inline fj_iterator fj_iter_find(std::size_t idx, fj_iterator it, const fj_iterat
         case FJ_TYPE_NUMBER:
         case FJ_TYPE_BOOL:
         case FJ_TYPE_NULL: {
-            return {it.m_beg, it.m_cur, it.m_cur + 1};
+            return {it.beg, it.cur, it.cur + 1};
         }
         case FJ_TYPE_OBJECT:
         case FJ_TYPE_ARRAY: {
-            return {it.m_cur, it.m_cur, it.m_cur->m_end};
+            return {it.cur, it.cur, it.cur->end};
         }
         default: {
-            if ( fj_iter_equal(it, end) && it.type() == FJ_TYPE_ARRAY_END ) {
+            if ( iter_equal(it, end) && it.type() == FJ_TYPE_ARRAY_END ) {
                 return end;
             }
         }
@@ -1687,33 +1674,32 @@ inline fj_iterator fj_iter_find(std::size_t idx, fj_iterator it, const fj_iterat
 } // ns details
 
 // at by index, from a parser
-inline fj_iterator fj_iter_at(std::size_t idx, const fj_parser *parser) {
-    assert(parser);
-    assert(parser->toks_beg);
+inline iterator iter_at(std::size_t idx, const parser *p) {
+    assert(p && p->toks_beg);
 
-    bool is_simple = fj_is_simple_type_macro(parser->toks_beg->m_type);
-    fj_iterator beg = {
-         parser->toks_beg
-        ,parser->toks_beg + static_cast<std::size_t>(!is_simple)
-        ,parser->toks_end
+    bool is_simple = fj_is_simple_type_macro(p->toks_beg->type);
+    iterator beg = {
+         p->toks_beg
+        ,p->toks_beg + static_cast<std::size_t>(!is_simple)
+        ,p->toks_end
     };
-    fj_iterator end = fj_iter_end(parser);
+    iterator end = iter_end(p);
 
-    return details::fj_iter_find(idx, beg, end);
+    return details::iter_find(idx, beg, end);
 }
 
 // at by index, from a iterator
-inline fj_iterator fj_iter_at(std::size_t idx, const fj_iterator &it) {
-    assert(it.m_cur != it.m_end);
+inline iterator iter_at(std::size_t idx, const iterator &it) {
+    assert(it.cur != it.end);
 
-    fj_iterator beg = {
-         it.m_beg
-        ,it.m_cur + static_cast<std::size_t>(!it.is_simple_type())
-        ,it.m_end
+    iterator beg = {
+         it.beg
+        ,it.cur + static_cast<std::size_t>(!it.is_simple_type())
+        ,it.end
     };
-    fj_iterator end = fj_iter_end(it);
+    iterator end = iter_end(it);
 
-    return details::fj_iter_find(idx, beg, end);
+    return details::iter_find(idx, beg, end);
 }
 
 /*************************************************************************************************/
@@ -1740,9 +1726,9 @@ template<
      bool CalcLength
     ,bool WithIndentation
 >
-std::size_t fj_walk_through_tokens(
-     const fj_token *toksbeg
-    ,const fj_token *toksend
+std::size_t walk_through_tokens(
+     const token *toksbeg
+    ,const token *toksend
     ,std::size_t indent
     ,void *userdata
     ,void(*callback)(
@@ -1766,8 +1752,8 @@ std::size_t fj_walk_through_tokens(
     std::size_t length = 0;
     for ( auto *it = toksbeg; it != toksend + 1; ++it ) {
         if ( it != toksbeg ) {
-            fj_token_type ctype = it->m_type;
-            fj_token_type ptype = (it-1)->m_type;
+            token_type ctype = it->type;
+            token_type ptype = (it-1)->type;
             if ( (ctype != FJ_TYPE_ARRAY_END && ctype != FJ_TYPE_OBJECT_END ) &&
                  (ptype != FJ_TYPE_OBJECT && ptype != FJ_TYPE_ARRAY) )
             {
@@ -1785,19 +1771,19 @@ std::size_t fj_walk_through_tokens(
             }
         }
 
-        switch ( it->m_type ) {
+        switch ( it->type ) {
             case FJ_TYPE_OBJECT: {
-                if ( it->m_key ) {
+                if ( it->key ) {
                     if ( !CalcLength ) {
                         if ( WithIndentation ) {
                             __FJ_IO_CALL_CB_WITH_CHECK_1(indent_str, indent_scope);
                         }
-                        __FJ_IO_CALL_CB_WITH_CHECK_3("\"", 1, it->m_key, it->m_klen, "\":", 2);
+                        __FJ_IO_CALL_CB_WITH_CHECK_3("\"", 1, it->key, it->klen, "\":", 2);
                     }
                     if ( WithIndentation ) {
                         length += indent_scope;
                     }
-                    length += 1 + it->m_klen + 2;
+                    length += 1 + it->klen + 2;
                 }
                 if ( !CalcLength ) {
                     if ( WithIndentation ) {
@@ -1830,15 +1816,15 @@ std::size_t fj_walk_through_tokens(
                 break;
             }
             case FJ_TYPE_ARRAY: {
-                if ( it->m_key ) {
+                if ( it->key ) {
                     if ( !CalcLength ) {
                         if ( WithIndentation ) {
                             __FJ_IO_CALL_CB_WITH_CHECK_1(indent_str, indent_scope);
                         }
-                        __FJ_IO_CALL_CB_WITH_CHECK_3("\"", 1, it->m_key, it->m_klen, "\":", 2);
+                        __FJ_IO_CALL_CB_WITH_CHECK_3("\"", 1, it->key, it->klen, "\":", 2);
                     }
                     length += 1;
-                    length += it->m_klen;
+                    length += it->klen;
                     length += 2;
                     if ( WithIndentation ) {
                         length += indent_scope;
@@ -1878,19 +1864,19 @@ std::size_t fj_walk_through_tokens(
             case FJ_TYPE_BOOL:
             case FJ_TYPE_NUMBER:
             case FJ_TYPE_STRING: {
-                if ( it->m_parent->m_type != FJ_TYPE_ARRAY ) {
+                if ( it->parent->type != FJ_TYPE_ARRAY ) {
                     if ( !CalcLength ) {
                         if ( WithIndentation ) {
-                            __FJ_IO_CALL_CB_WITH_CHECK_4(indent_str, indent_scope, "\"", 1, it->m_key, it->m_klen, "\":", 2);
+                            __FJ_IO_CALL_CB_WITH_CHECK_4(indent_str, indent_scope, "\"", 1, it->key, it->klen, "\":", 2);
                         } else {
-                            __FJ_IO_CALL_CB_WITH_CHECK_3("\"", 1, it->m_key, it->m_klen, "\":", 2);
+                            __FJ_IO_CALL_CB_WITH_CHECK_3("\"", 1, it->key, it->klen, "\":", 2);
                         }
                     }
-                    length += 1 + it->m_klen + 2;
+                    length += 1 + it->klen + 2;
                     if ( WithIndentation ) {
                         length += indent_scope;
                     }
-                } else if ( it->m_parent->m_type == FJ_TYPE_ARRAY ) {
+                } else if ( it->parent->type == FJ_TYPE_ARRAY ) {
                     if ( !CalcLength ) {
                         if ( WithIndentation ) {
                             __FJ_IO_CALL_CB_WITH_CHECK_1(indent_str, indent_scope);
@@ -1900,22 +1886,22 @@ std::size_t fj_walk_through_tokens(
                         length += indent_scope;
                     }
                 }
-                switch ( it->m_type ) {
+                switch ( it->type ) {
                     case FJ_TYPE_NULL:
                     case FJ_TYPE_BOOL:
                     case FJ_TYPE_NUMBER: {
                         if ( !CalcLength ) {
-                            __FJ_IO_CALL_CB_WITH_CHECK_1(it->m_val, it->m_vlen);
+                            __FJ_IO_CALL_CB_WITH_CHECK_1(it->val, it->vlen);
                         }
-                        length += it->m_vlen;
+                        length += it->vlen;
                         break;
                     }
                     case FJ_TYPE_STRING: {
                         if ( !CalcLength ) {
-                            __FJ_IO_CALL_CB_WITH_CHECK_3("\"", 1, it->m_val, it->m_vlen, "\"", 1);
+                            __FJ_IO_CALL_CB_WITH_CHECK_3("\"", 1, it->val, it->vlen, "\"", 1);
                         }
                         length += 1;
-                        length += it->m_vlen;
+                        length += it->vlen;
                         length += 1;
                         break;
                     }
@@ -1937,9 +1923,9 @@ std::size_t fj_walk_through_tokens(
 
 namespace details {
 
-inline std::size_t fj_walk_through_keys(
-     fj_iterator it
-    ,const fj_iterator &end
+inline std::size_t walk_through_keys(
+     iterator it
+    ,const iterator &end
     ,void *userdata
     ,void(*cb)(void *userdata, const char *ptr, std::size_t len))
 {
@@ -1949,8 +1935,8 @@ inline std::size_t fj_walk_through_keys(
         return 0;
     }
 
-    it.m_cur += 1;
-    for ( ; fj_iter_not_equal(it, end); it = fj_iter_next(it) ) {
+    it.cur += 1;
+    for ( ; iter_not_equal(it, end); it = iter_next(it) ) {
         if ( cb ) {
             auto key = it.key();
             cb(userdata, key.data(), key.size());
@@ -1964,8 +1950,8 @@ inline std::size_t fj_walk_through_keys(
 
 } // ns details
 
-inline std::vector<string_view> fj_get_keys(const fj_iterator &it, const fj_iterator &end) {
-    auto num = details::fj_walk_through_keys(it, end, nullptr, nullptr);
+inline std::vector<string_view> get_keys(const iterator &it, const iterator &end) {
+    auto num = details::walk_through_keys(it, end, nullptr, nullptr);
     std::vector<string_view> res;
     res.reserve(num);
 
@@ -1974,7 +1960,7 @@ inline std::vector<string_view> fj_get_keys(const fj_iterator &it, const fj_iter
         vec->push_back(string_view{ptr, len});
     };
 
-    details::fj_walk_through_keys(it, end, &res, get_fj_keys_cb);
+    details::walk_through_keys(it, end, &res, get_fj_keys_cb);
 
     return res;
 }
@@ -1998,11 +1984,11 @@ enum class compare_result {
     ,shorter // the right JSON are shorter.
 };
 
-inline compare_result fj_compare(
-     fj_iterator *left_diff_ptr
-    ,fj_iterator *right_diff_ptr
-    ,const fj_parser *left_parser
-    ,const fj_parser *right_parser
+inline compare_result compare(
+     iterator *left_diff_ptr
+    ,iterator *right_diff_ptr
+    ,const parser *left_parser
+    ,const parser *right_parser
     ,compare_mode cmpr = compare_mode::markup_only)
 {
     auto ltokens = left_parser->toks_cur - left_parser->toks_beg;
@@ -2019,28 +2005,28 @@ inline compare_result fj_compare(
     auto *right_it = right_parser->toks_beg;
     auto *right_end= right_parser->toks_cur;
     for ( ; left_it < left_end && right_it < right_end; ++left_it, ++right_it ) {
-        if ( left_it->m_type != right_it->m_type ) {
-            *left_diff_ptr = {left_it->m_parent, left_it, left_it->m_end};
-            *right_diff_ptr = {right_it->m_parent, right_it, right_it->m_end};
+        if ( left_it->type != right_it->type ) {
+            *left_diff_ptr = {left_it->parent, left_it, left_it->end};
+            *right_diff_ptr = {right_it->parent, right_it, right_it->end};
 
             return compare_result::type;
         }
 
-        if ( left_it->m_key || right_it->m_key ) {
-            if ( (left_it->m_key && !right_it->m_key)
-                || (!left_it->m_key && right_it->m_key) )
+        if ( left_it->key || right_it->key ) {
+            if ( (left_it->key && !right_it->key)
+                || (!left_it->key && right_it->key) )
             {
-                *left_diff_ptr = {left_it->m_parent, left_it, left_it->m_end};
-                *right_diff_ptr = {right_it->m_parent, right_it, right_it->m_end};
+                *left_diff_ptr = {left_it->parent, left_it, left_it->end};
+                *right_diff_ptr = {right_it->parent, right_it, right_it->end};
 
                 return compare_result::key;
             } else {
-                if ( (left_it->m_klen != right_it->m_klen)
-                     || (string_view{left_it->m_key, left_it->m_klen}
-                        != string_view{right_it->m_key, right_it->m_klen}) )
+                if ( (left_it->klen != right_it->klen)
+                     || (string_view{left_it->key, left_it->klen}
+                        != string_view{right_it->key, right_it->klen}) )
                 {
-                    *left_diff_ptr = {left_it->m_parent, left_it, left_it->m_end};
-                    *right_diff_ptr = {right_it->m_parent, right_it, right_it->m_end};
+                    *left_diff_ptr = {left_it->parent, left_it, left_it->end};
+                    *right_diff_ptr = {right_it->parent, right_it, right_it->end};
 
                     return compare_result::key;
                 }
@@ -2052,31 +2038,31 @@ inline compare_result fj_compare(
         }
 
         if ( cmpr == compare_mode::length_only ) {
-            if ( fj_is_simple_type_macro(left_it->m_type) ) {
-                if ( left_it->m_vlen != right_it->m_vlen ) {
-                    *left_diff_ptr = {left_it->m_parent, left_it, left_it->m_end};
-                    *right_diff_ptr = {right_it->m_parent, right_it, right_it->m_end};
+            if ( fj_is_simple_type_macro(left_it->type) ) {
+                if ( left_it->vlen != right_it->vlen ) {
+                    *left_diff_ptr = {left_it->parent, left_it, left_it->end};
+                    *right_diff_ptr = {right_it->parent, right_it, right_it->end};
 
                     return compare_result::length;
                 }
             }
         } else {
-            if ( fj_is_simple_type_macro(left_it->m_type) ) {
-                if ( left_it->m_val || right_it->m_val ) {
-                    if ( (left_it->m_val && !right_it->m_val)
-                        || (!left_it->m_val && right_it->m_val) )
+            if ( fj_is_simple_type_macro(left_it->type) ) {
+                if ( left_it->val || right_it->val ) {
+                    if ( (left_it->val && !right_it->val)
+                        || (!left_it->val && right_it->val) )
                     {
-                        *left_diff_ptr = {left_it->m_parent, left_it, left_it->m_end};
-                        *right_diff_ptr = {right_it->m_parent, right_it, right_it->m_end};
+                        *left_diff_ptr = {left_it->parent, left_it, left_it->end};
+                        *right_diff_ptr = {right_it->parent, right_it, right_it->end};
 
                         return compare_result::value;
                     }
-                    if ( (left_it->m_vlen != right_it->m_vlen)
-                         || (string_view{left_it->m_val, left_it->m_vlen}
-                            != string_view{right_it->m_val, right_it->m_vlen}) )
+                    if ( (left_it->vlen != right_it->vlen)
+                         || (string_view{left_it->val, left_it->vlen}
+                            != string_view{right_it->val, right_it->vlen}) )
                     {
-                        *left_diff_ptr = {left_it->m_parent, left_it, left_it->m_end};
-                        *right_diff_ptr = {right_it->m_parent, right_it, right_it->m_end};
+                        *left_diff_ptr = {left_it->parent, left_it, left_it->end};
+                        *right_diff_ptr = {right_it->parent, right_it, right_it->end};
 
                         return compare_result::value;
                     }
@@ -2097,45 +2083,45 @@ struct fjson {
     struct const_iterator {
         using iterator_category = std::forward_iterator_tag;
         using difference_type = std::ptrdiff_t;
-        using value_type = const fj_iterator;
+        using value_type = const iterator;
         using pointer = value_type *;
         using const_pointer = const value_type *;
         using reference = value_type &;
         using const_reference = const value_type &;
 
-        explicit const_iterator(fj_iterator it)
+        explicit const_iterator(iterator it)
             :m_it{std::move(it)}
         {}
 
         const_pointer operator->() const { return &m_it; }
-        const_iterator& operator++() { m_it = fj_iter_next(m_it); return *this; }
+        const_iterator& operator++() { m_it = iter_next(m_it); return *this; }
         const_iterator operator++(int) { const_iterator tmp{*this}; ++(*this); return tmp; }
         reference operator* () { return m_it; }
         const_reference operator* () const { return m_it; }
         friend bool operator== (const const_iterator &l, const const_iterator &r)
-        { return fj_iter_equal(l.m_it, r.m_it); }
+        { return iter_equal(l.m_it, r.m_it); }
         friend bool operator!= (const const_iterator &l, const const_iterator &r)
         { return !operator==(l, r); }
 
-        fj_iterator m_it;
+        iterator m_it;
     };
 
 private:
     struct intrusive_ptr {
-        using deleter_fn_ptr = void(*)(fj_parser *);
+        using deleter_fn_ptr = void(*)(parser *);
 
-        intrusive_ptr(bool manage, fj_parser *parser, deleter_fn_ptr free_fn)
+        intrusive_ptr(bool manage, parser *parser, deleter_fn_ptr free_fn)
             :m_manage{manage}
             ,m_parser{parser}
             ,m_free_fn{free_fn}
         {
             if ( m_manage && m_parser ) {
-                fj_parser::inc_refcnt(m_parser);
+                parser::inc_refcnt(m_parser);
             }
         }
         virtual ~intrusive_ptr() {
             if ( m_manage && m_parser ) {
-                auto refcnt = fj_parser::dec_refcnt(m_parser);
+                auto refcnt = parser::dec_refcnt(m_parser);
                 if ( !refcnt ) {
                     m_free_fn(m_parser);
                 }
@@ -2147,7 +2133,7 @@ private:
             ,m_free_fn{other.m_free_fn}
         {
             if ( m_manage ) {
-                fj_parser::inc_refcnt(m_parser);
+                parser::inc_refcnt(m_parser);
             }
         }
         intrusive_ptr(intrusive_ptr &&other)
@@ -2165,7 +2151,7 @@ private:
             m_free_fn = r.m_free_fn;
 
             if ( m_manage ) {
-                fj_parser::inc_refcnt(m_parser);
+                parser::inc_refcnt(m_parser);
             }
 
             return *this;
@@ -2182,16 +2168,16 @@ private:
         }
 
         explicit operator bool()       const { return m_parser != nullptr; }
-        const fj_parser* get()         const { return m_parser; }
-        fj_parser*       get()               { return m_parser; }
-        const fj_parser* operator-> () const { return m_parser; }
-        fj_parser*       operator-> ()       { return m_parser; }
-        const fj_parser& operator*  () const { return *m_parser; }
-        fj_parser&       operator*  ()       { return *m_parser; }
+        const parser* get()         const { return m_parser; }
+        parser*       get()               { return m_parser; }
+        const parser* operator-> () const { return m_parser; }
+        parser*       operator-> ()       { return m_parser; }
+        const parser& operator*  () const { return *m_parser; }
+        parser&       operator*  ()       { return *m_parser; }
 
     private:
         bool m_manage;
-        fj_parser *m_parser;
+        parser *m_parser;
         deleter_fn_ptr m_free_fn;
     };
 
@@ -2213,69 +2199,69 @@ public:
     {}
 
     // construct using user-provided already initialized parser
-    fjson(fj_parser *parser)
-        :m_parser{false, parser, [](fj_parser *){}}
-        ,m_beg{fj_iter_begin(parser)}
-        ,m_end{fj_iter_end(parser)}
+    fjson(parser *p)
+        :m_parser{false, p, [](parser *){}}
+        ,m_beg{iter_begin(p)}
+        ,m_end{iter_end(p)}
     {
-        assert(fj_is_valid(parser));
+        assert(flatjson::is_valid(p));
     }
 
     // construct and parse using user-provided array of tokens and parser
     fjson(
-         fj_parser *parser
-        ,fj_token *toksbeg
-        ,fj_token *toksend
+         parser *p
+        ,token *toksbeg
+        ,token *toksend
         ,const char *strbeg
         ,const char *strend
     )
         :m_parser{
              false
-            ,(*parser = fj_make_parser(toksbeg, toksend, strbeg, strend), parser)
-            ,[](fj_parser *){}
+            ,(*p = make_parser(toksbeg, toksend, strbeg, strend), p)
+            ,[](parser *){}
         }
         ,m_beg{}
         ,m_end{}
     {
-        fj_parse(m_parser.get());
-        if ( fj_is_valid(m_parser.get()) ) {
-            m_beg = fj_iter_begin(m_parser.get());
-            m_end = fj_iter_end(m_parser.get());
+        parse(m_parser.get());
+        if ( flatjson::is_valid(m_parser.get()) ) {
+            m_beg = iter_begin(m_parser.get());
+            m_end = iter_end(m_parser.get());
         }
     }
 
     // construct and parse using user-provided array of tokens and parser
     template<std::size_t N>
     fjson(
-         fj_parser *parser
-        ,fj_token *toksbeg
-        ,fj_token *toksend
+         parser *p
+        ,token *toksbeg
+        ,token *toksend
         ,const char (&str)[N]
     )
-        :fjson{parser, toksbeg, toksend, std::begin(str), std::end(str)}
+        :fjson{p, toksbeg, toksend, std::begin(str), std::end(str)}
     {}
 
     // construct and parse using user-provided array of tokens and dyn-allocated parser
     fjson(
-         fj_token *toksbeg
-        ,fj_token *toksend
+         token *toksbeg
+        ,token *toksend
         ,const char *strbeg
         ,const char *strend
     )
-        :m_parser{true, fj_alloc_parser(toksbeg, toksend, strbeg, strend), fj_free_parser}
+        :m_parser{true, alloc_parser(toksbeg, toksend, strbeg, strend), free_parser}
         ,m_beg{}
         ,m_end{}
     {
-        fj_parse(m_parser.get());
-        if ( fj_is_valid(m_parser.get()) ) {
-            m_beg = fj_iter_begin(m_parser.get());
-            m_end = fj_iter_end(m_parser.get());
+        parse(m_parser.get());
+        if ( flatjson::is_valid(m_parser.get()) ) {
+            m_beg = iter_begin(m_parser.get());
+            m_end = iter_end(m_parser.get());
         }
     }
     template<std::size_t N>
     fjson(
-         fj_token *toksbeg
-        ,fj_token *toksend
+         token *toksbeg
+        ,token *toksend
         ,const char (&str)[N]
     )
         :fjson{toksbeg, toksend, std::begin(str), std::end(str)}
@@ -2283,53 +2269,53 @@ public:
 
     // construct and parse using user-provided parser and dyn-allocated tokens
     fjson(
-         fj_parser *parser
+         parser *p
         ,const char *strbeg
         ,const char *strend
-        ,fj_alloc_fnptr alloc_fn = &malloc
-        ,fj_free_fnptr free_fn = &free
+        ,alloc_fnptr alloc_fn = &malloc
+        ,free_fnptr free_fn = &free
     )
         :m_parser{
              true
-            ,(*parser = fj_make_parser(strbeg, strend, alloc_fn, free_fn), parser)
-            ,fj_free_parser
+            ,(*p = make_parser(strbeg, strend, alloc_fn, free_fn), p)
+            ,free_parser
         }
         ,m_beg{}
         ,m_end{}
     {
-        fj_parse(m_parser.get());
-        if ( fj_is_valid(m_parser.get()) ) {
-            m_beg = fj_iter_begin(m_parser.get());
-            m_end = fj_iter_end(m_parser.get());
+        parse(m_parser.get());
+        if ( flatjson::is_valid(m_parser.get()) ) {
+            m_beg = iter_begin(m_parser.get());
+            m_end = iter_end(m_parser.get());
         }
     }
 
     // construct and parse using user-provided parser and dyn-allocated tokens
     template<std::size_t N>
     fjson(
-         fj_parser *parser
+         parser *p
         ,const char (&str)[N]
-        ,fj_alloc_fnptr alloc_fn = &malloc
-        ,fj_free_fnptr free_fn = &free
+        ,alloc_fnptr alloc_fn = &malloc
+        ,free_fnptr free_fn = &free
     )
-        :fjson{parser, std::begin(str), std::end(str), alloc_fn, free_fn}
+        :fjson{p, std::begin(str), std::end(str), alloc_fn, free_fn}
     {}
 
     // construct and parse using dyn-allocated tokens and dyn-allocated parser
     fjson(
          const char *beg
         ,const char *end
-        ,fj_alloc_fnptr alloc_fn = &malloc
-        ,fj_free_fnptr free_fn = &free
+        ,alloc_fnptr alloc_fn = &malloc
+        ,free_fnptr free_fn = &free
     )
-        :m_parser{true, fj_alloc_parser(beg, end, alloc_fn, free_fn), fj_free_parser}
+        :m_parser{true, alloc_parser(beg, end, alloc_fn, free_fn), free_parser}
         ,m_beg{}
         ,m_end{}
     {
-        fj_parse(m_parser.get());
-        if ( fj_is_valid(m_parser.get()) ) {
-            m_beg = fj_iter_begin(m_parser.get());
-            m_end = fj_iter_end(m_parser.get());
+        parse(m_parser.get());
+        if ( flatjson::is_valid(m_parser.get()) ) {
+            m_beg = iter_begin(m_parser.get());
+            m_end = iter_end(m_parser.get());
         }
     }
 
@@ -2337,8 +2323,8 @@ public:
     template<std::size_t N>
     fjson(
          const char (&str)[N]
-        ,fj_alloc_fnptr alloc_fn = &malloc
-        ,fj_free_fnptr free_fn = &free
+        ,alloc_fnptr alloc_fn = &malloc
+        ,free_fnptr free_fn = &free
     )
         :fjson{std::begin(str), std::end(str), alloc_fn, free_fn}
     {}
@@ -2346,16 +2332,16 @@ public:
     virtual ~fjson() = default;
 
 private:
-    fjson(intrusive_ptr parser, fj_iterator beg, fj_iterator end)
-        :m_parser{std::move(parser)}
+    fjson(intrusive_ptr p, iterator beg, iterator end)
+        :m_parser{std::move(p)}
         ,m_beg{std::move(beg)}
         ,m_end{std::move(end)}
     {}
 
 public:
-    bool is_valid() const { return m_parser && fj_is_valid(m_parser.get()); }
-    fj_error_code error() const { return m_parser->error; }
-    const char* error_string() const { return fj_error_string(m_parser->error); }
+    bool is_valid() const { return m_parser && flatjson::is_valid(m_parser.get()); }
+    int error() const { return m_parser->error; }
+    const char* error_string() const { return flatjson::error_string(m_parser->error); }
 
     // number of direct childs for OBJECT/ARRAY, or 1 for a valid SIMPLE type
     std::size_t size() const { return m_beg.members(); }
@@ -2365,7 +2351,7 @@ public:
     // total number of tokens
     std::size_t tokens() const { return m_parser->toks_end - m_parser->toks_beg; }
 
-    fj_token_type type() const { return m_beg.type(); }
+    token_type type() const { return m_beg.type(); }
     const char* type_name() const { return m_beg.type_name(); }
 
     bool is_array() const { return m_beg.is_array(); }
@@ -2393,7 +2379,7 @@ public:
     template<typename T, typename = typename enable_if_const_char_ptr<T>::type>
     bool contains(T key) const { return contains(key, std::strlen(key)); }
     bool contains(const char *key, std::size_t len) const
-    { auto it = fj_iter_at(key, len, m_beg); return fj_iter_not_equal(it, m_end); }
+    { auto it = iter_at(key, len, m_beg); return iter_not_equal(it, m_end); }
 
     // for objects
     template<std::size_t N>
@@ -2401,26 +2387,26 @@ public:
     template<typename T, typename = typename enable_if_const_char_ptr<T>::type>
     fjson at(T key) const { return at(key, std::strlen(key)); }
     fjson at(const char *key, std::size_t len) const {
-        auto it = fj_iter_at(key, len, m_beg);
-        if ( fj_iter_equal(it, m_end) ) {
+        auto it = iter_at(key, len, m_beg);
+        if ( iter_equal(it, m_end) ) {
             return {m_parser, m_end, m_end};
         }
 
-        return {m_parser, it, fj_iter_end(it)};
+        return {m_parser, it, iter_end(it)};
     }
     // for arrays
     fjson at(std::size_t idx) const {
-        auto it = fj_iter_at(idx, m_beg);
-        if ( fj_iter_equal(it, m_end) ) {
+        auto it = iter_at(idx, m_beg);
+        if ( iter_equal(it, m_end) ) {
             return {m_parser, m_end, m_end};
         }
 
-        return {m_parser, it, fj_iter_end(it)};
+        return {m_parser, it, iter_end(it)};
     }
 
     // get a fjson object at iterator position
     fjson at(const const_iterator &it) const
-    { return {m_parser, fj_iter_begin(it.m_it), fj_iter_end(it.m_it)}; }
+    { return {m_parser, iter_begin(it.m_it), iter_end(it.m_it)}; }
 
     // for arrays
     fjson operator[](std::size_t idx) const { return at(idx); }
@@ -2433,113 +2419,113 @@ public:
 
     // for top level object/array only
     std::size_t keys_num() const
-    { return details::fj_walk_through_keys(m_beg, m_end, nullptr, nullptr); }
+    { return details::walk_through_keys(m_beg, m_end, nullptr, nullptr); }
     std::vector<string_view>
     keys() const
-    { return fj_get_keys(m_beg, m_end); }
+    { return get_keys(m_beg, m_end); }
 
 private:
     intrusive_ptr m_parser;
-    fj_iterator   m_beg;
-    fj_iterator   m_end;
+    iterator   m_beg;
+    iterator   m_end;
 };
 
 /*************************************************************************************************/
 
 // dyn tokens and dyn parser
-inline fjson parse(
+inline fjson pparse(
      const char *beg
     ,const char *end
-    ,fj_alloc_fnptr alloc_fn = &malloc
-    ,fj_free_fnptr free_fn = &free)
+    ,alloc_fnptr alloc_fn = &malloc
+    ,free_fnptr free_fn = &free)
 {
     return fjson{beg, end, alloc_fn, free_fn};
 }
 
 template<std::size_t N>
-inline fjson parse(
+inline fjson pparse(
      const char (&str)[N]
-    ,fj_alloc_fnptr alloc_fn = &malloc
-    ,fj_free_fnptr free_fn = &free)
+    ,alloc_fnptr alloc_fn = &malloc
+    ,free_fnptr free_fn = &free)
 {
-    return parse(str, str + N-1, alloc_fn, free_fn);
+    return pparse(str, str + N-1, alloc_fn, free_fn);
 }
 
 template<typename T, typename = typename enable_if_const_char_ptr<T>::type>
-inline fjson parse(
+inline fjson pparse(
      T beg
-    ,fj_alloc_fnptr alloc_fn = &malloc
-    ,fj_free_fnptr free_fn = &free)
+    ,alloc_fnptr alloc_fn = &malloc
+    ,free_fnptr free_fn = &free)
 {
     const auto *end = beg + std::strlen(beg);
 
-    return parse(beg, end, alloc_fn, free_fn);
+    return pparse(beg, end, alloc_fn, free_fn);
 }
 
 // user-provided parser and dyn tokens
-inline fjson parse(
-     fj_parser *parser
+inline fjson pparse(
+     parser *p
     ,const char *beg
     ,const char *end
-    ,fj_alloc_fnptr alloc_fn = &malloc
-    ,fj_free_fnptr free_fn = &free)
+    ,alloc_fnptr alloc_fn = &malloc
+    ,free_fnptr free_fn = &free)
 {
-    return fjson{parser, beg, end, alloc_fn, free_fn};
+    return fjson{p, beg, end, alloc_fn, free_fn};
 }
 
 template<std::size_t N>
-inline fjson parse(
-     fj_parser *parser
+inline fjson pparse(
+     parser *p
     ,const char (&str)[N]
-    ,fj_alloc_fnptr alloc_fn = &malloc
-    ,fj_free_fnptr free_fn = &free)
+    ,alloc_fnptr alloc_fn = &malloc
+    ,free_fnptr free_fn = &free)
 {
-    return parse(parser, str, str + N-1, alloc_fn, free_fn);
+    return pparse(p, str, str + N-1, alloc_fn, free_fn);
 }
 
 template<typename T, typename = typename enable_if_const_char_ptr<T>::type>
-inline fjson parse(
-     fj_parser *parser
+inline fjson pparse(
+     parser *p
     ,T beg
-    ,fj_alloc_fnptr alloc_fn = &malloc
-    ,fj_free_fnptr free_fn = &free)
+    ,alloc_fnptr alloc_fn = &malloc
+    ,free_fnptr free_fn = &free)
 {
     const auto *end = beg + std::strlen(beg);
 
-    return parse(parser, beg, end, alloc_fn, free_fn);
+    return pparse(p, beg, end, alloc_fn, free_fn);
 }
 
 // user-provided parser and tokens
-inline fjson parse(
-     fj_parser *parser
-    ,fj_token *toksbeg
-    ,fj_token *toksend
+inline fjson pparse(
+     parser *p
+    ,token *toksbeg
+    ,token *toksend
     ,const char *strbeg
     ,const char *strend)
 {
-    return fjson{parser, toksbeg, toksend, strbeg, strend};
+    return fjson{p, toksbeg, toksend, strbeg, strend};
 }
 
 template<std::size_t N>
-inline fjson parse(
-     fj_parser *parser
-    ,fj_token *toksbeg
-    ,fj_token *toksend
+inline fjson pparse(
+     parser *p
+    ,token *toksbeg
+    ,token *toksend
     ,const char (&str)[N])
 {
-    return parse(parser, toksbeg, toksend, str, str + N-1);
+    return pparse(p, toksbeg, toksend, str, str + N-1);
 }
 
 template<typename T, typename = typename enable_if_const_char_ptr<T>::type>
-inline fjson parse(
-     fj_parser *parser
-    ,fj_token *toksbeg
-    ,fj_token *toksend
+inline fjson pparse(
+     parser *p
+    ,token *toksbeg
+    ,token *toksend
     ,T beg)
 {
     const auto *end = beg + std::strlen(beg);
 
-    return parse(parser, toksbeg, toksend, beg, end);
+    return pparse(p, toksbeg, toksend, beg, end);
 }
 
 } // ns flatjson

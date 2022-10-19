@@ -22,16 +22,16 @@ static void stack_allocated_parser_and_tokens_for_object() {
     using namespace flatjson;
 
     static const char str[] = R"({"a":true, "b":false, "c":null, "d":0, "e":"e"})";
-    fj_token tokens[10];
-    auto parser = fj_make_parser(
+    token tokens[10];
+    auto parser = make_parser(
          std::begin(tokens)
         ,std::end(tokens)
         ,std::begin(str)
         ,std::end(str)
     );
 
-    auto toknum = fj_parse(&parser);
-    assert(fj_is_valid(&parser));
+    auto toknum = parse(&parser);
+    assert(is_valid(&parser));
     assert(toknum == 7);
 }
 
@@ -42,23 +42,23 @@ static void stack_allocated_parser_and_tokens_for_object_and_iteration() {
 
     static const char str[] = R"({"a":true, "b":false, "c":null, "d":0, "e":"e"})";
 
-    fj_token tokens[10];
-    auto parser = fj_make_parser(
+    token tokens[10];
+    auto parser = make_parser(
          std::begin(tokens)
         ,std::end(tokens)
         ,std::begin(str)
         ,std::end(str)
     );
 
-    auto toknum = fj_parse(&parser);
-    assert(fj_is_valid(&parser));
+    auto toknum = parse(&parser);
+    assert(is_valid(&parser));
     assert(toknum == 7);
 
-    auto beg = fj_iter_begin(&parser);
+    auto beg = iter_begin(&parser);
     assert(beg.is_object());
 
-    auto end = fj_iter_end(&parser);
-    for (auto it = fj_iter_next(beg); fj_iter_not_equal(it, end); it = fj_iter_next(it) ) {
+    auto end = iter_end(&parser);
+    for (auto it = iter_next(beg); iter_not_equal(it, end); it = iter_next(it) ) {
         std::cout << it.key() << ":" << it.type_name() << " -> " << it.value() << std::endl;
     }
 }
@@ -69,16 +69,16 @@ static void stack_allocated_parser_and_tokens_for_array() {
     using namespace flatjson;
 
     static const char str[] = R"([4,3,2,1])";
-    fj_token tokens[17];
-    auto parser = fj_make_parser(
+    token tokens[17];
+    auto parser = make_parser(
          std::begin(tokens)
         ,std::end(tokens)
         ,std::begin(str)
         ,std::end(str)
     );
 
-    auto toknum = fj_parse(&parser);
-    assert(fj_is_valid(&parser));
+    auto toknum = parse(&parser);
+    assert(is_valid(&parser));
     assert(toknum == 6);
 }
 
@@ -89,23 +89,23 @@ static void stack_allocated_parser_and_tokens_for_array_and_iteration() {
 
     static const char str[] = R"([4,3,2,1])";
 
-    fj_token tokens[10];
-    auto parser = fj_make_parser(
+    token tokens[10];
+    auto parser = make_parser(
          std::begin(tokens)
         ,std::end(tokens)
         ,std::begin(str)
         ,std::end(str)
     );
 
-    auto toknum = fj_parse(&parser);
-    assert(fj_is_valid(&parser));
+    auto toknum = parse(&parser);
+    assert(is_valid(&parser));
     assert(toknum == 6);
 
-    auto beg = fj_iter_begin(&parser);
+    auto beg = iter_begin(&parser);
     assert(beg.is_array());
 
-    auto end = fj_iter_end(&parser);
-    for (auto it = fj_iter_next(beg); fj_iter_not_equal(it, end); it = fj_iter_next(it) ) {
+    auto end = iter_end(&parser);
+    for (auto it = iter_next(beg); iter_not_equal(it, end); it = iter_next(it) ) {
         std::cout << it.key() << ":" << it.type_name() << " -> " << it.value() << std::endl;
     }
 }
@@ -117,27 +117,27 @@ static void stack_allocated_parser_and_tokens_for_object_and_iteration_on_nested
 
     static const char str[] = R"({"a":true, "b":false, "c":null, "d":{"f":false, "g":3, "h":"4"}, "e":"e"})";
 
-    fj_token tokens[11];
-    auto parser = fj_make_parser(
+    token tokens[11];
+    auto parser = make_parser(
          std::begin(tokens)
         ,std::end(tokens)
         ,std::begin(str)
         ,std::end(str)
     );
 
-    auto toknum = fj_parse(&parser);
-    assert(fj_is_valid(&parser));
+    auto toknum = parse(&parser);
+    assert(is_valid(&parser));
     assert(toknum == 11);
 
-    auto beg = fj_iter_begin(&parser);
+    auto beg = iter_begin(&parser);
     assert(beg.is_object());
 
-    auto end = fj_iter_end(&parser);
-    for (auto it = fj_iter_next(beg); fj_iter_not_equal(it, end); it = fj_iter_next(it) ) {
+    auto end = iter_end(&parser);
+    for (auto it = iter_next(beg); iter_not_equal(it, end); it = iter_next(it) ) {
         if ( it.is_object() ) {
-            auto oit = fj_iter_begin(it);
-            auto oend = fj_iter_end(it);
-            for ( oit = fj_iter_next(oit); fj_iter_not_equal(oit, oend); oit = fj_iter_next(oit) ) {
+            auto oit = iter_begin(it);
+            auto oend = iter_end(it);
+            for ( oit = iter_next(oit); iter_not_equal(oit, oend); oit = iter_next(oit) ) {
                 std::cout << "  " << oit.key() << ":" << oit.type_name() << " -> " << oit.value() << std::endl;
             }
         } else {
@@ -153,28 +153,28 @@ static void stack_allocated_parser_and_tokens_for_array_and_iteration_on_nested_
 
     static const char str[] = R"([[0,1,2,3], [4,5,6,7], [8,9,10,11]])";
 
-    fj_token tokens[20];
-    auto parser = fj_make_parser(
+    token tokens[20];
+    auto parser = make_parser(
          std::begin(tokens)
         ,std::end(tokens)
         ,std::begin(str)
         ,std::end(str)
     );
 
-    auto toknum = fj_parse(&parser);
-    assert(fj_is_valid(&parser));
+    auto toknum = parse(&parser);
+    assert(is_valid(&parser));
     assert(toknum == 20);
 
-    auto beg = fj_iter_begin(&parser);
+    auto beg = iter_begin(&parser);
     assert(beg.is_array());
 
-    auto end = fj_iter_end(&parser);
-    for ( auto it = fj_iter_next(beg); fj_iter_not_equal(it, end); it = fj_iter_next(it) ) {
+    auto end = iter_end(&parser);
+    for ( auto it = iter_next(beg); iter_not_equal(it, end); it = iter_next(it) ) {
         std::cout << it.type_name() << std::endl;
 
-        auto ait = fj_iter_begin(it);
-        auto aend = fj_iter_end(it);
-        for ( ait = fj_iter_next(ait); fj_iter_not_equal(ait, aend); ait = fj_iter_next(ait) ) {
+        auto ait = iter_begin(it);
+        auto aend = iter_end(it);
+        for ( ait = iter_next(ait); iter_not_equal(ait, aend); ait = iter_next(ait) ) {
             std::cout << "  " << ait.type_name() << " -> " << ait.value() << std::endl;
         }
 
@@ -191,13 +191,13 @@ static void stack_allocated_parser_and_dyn_allocated_tokens_for_object() {
 
     static const char str[] = R"({"a":true, "b":false, "c":null, "d":0, "e":"e"})";
 
-    auto parser = fj_make_parser(std::begin(str), std::end(str));
+    auto parser = make_parser(std::begin(str), std::end(str));
 
-    auto toknum = fj_parse(&parser);
-    assert(fj_is_valid(&parser));
+    auto toknum = parse(&parser);
+    assert(is_valid(&parser));
     assert(toknum == 7);
 
-    fj_free_parser(&parser);
+    free_parser(&parser);
 }
 
 /*************************************************************************************************/
@@ -207,21 +207,21 @@ static void stack_allocated_parser_and_dyn_allocated_tokens_for_object_and_itera
 
     static const char str[] = R"({"a":true, "b":false, "c":null, "d":0, "e":"e"})";
 
-    auto parser = fj_make_parser(std::begin(str), std::end(str));
+    auto parser = make_parser(std::begin(str), std::end(str));
 
-    auto toknum = fj_parse(&parser);
-    assert(fj_is_valid(&parser));
+    auto toknum = parse(&parser);
+    assert(is_valid(&parser));
     assert(toknum == 7);
 
-    auto beg = fj_iter_begin(&parser);
+    auto beg = iter_begin(&parser);
     assert(beg.is_object());
 
-    auto end = fj_iter_end(&parser);
-    for (auto it = fj_iter_next(beg); fj_iter_not_equal(it, end); it = fj_iter_next(it) ) {
+    auto end = iter_end(&parser);
+    for (auto it = iter_next(beg); iter_not_equal(it, end); it = iter_next(it) ) {
         std::cout << it.key() << ":" << it.type_name() << " -> " << it.value() << std::endl;
     }
 
-    fj_free_parser(&parser);
+    free_parser(&parser);
 }
 
 /*************************************************************************************************/
@@ -231,13 +231,13 @@ static void stack_allocated_parser_and_dyn_allocated_tokens_for_array() {
 
     static const char str[] = R"([4,3,2,1])";
 
-    auto parser = fj_make_parser(std::begin(str), std::end(str));
+    auto parser = make_parser(std::begin(str), std::end(str));
 
-    auto toknum = fj_parse(&parser);
-    assert(fj_is_valid(&parser));
+    auto toknum = parse(&parser);
+    assert(is_valid(&parser));
     assert(toknum == 6);
 
-    fj_free_parser(&parser);
+    free_parser(&parser);
 }
 
 /*************************************************************************************************/
@@ -247,21 +247,21 @@ static void stack_allocated_parser_and_dyn_allocated_tokens_for_array_and_iterat
 
     static const char str[] = R"([4,3,2,1])";
 
-    auto parser = fj_make_parser(std::begin(str), std::end(str));
+    auto parser = make_parser(std::begin(str), std::end(str));
 
-    auto toknum = fj_parse(&parser);
-    assert(fj_is_valid(&parser));
+    auto toknum = parse(&parser);
+    assert(is_valid(&parser));
     assert(toknum == 6);
 
-    auto beg = fj_iter_begin(&parser);
+    auto beg = iter_begin(&parser);
     assert(beg.is_array());
 
-    auto end = fj_iter_end(&parser);
-    for (auto it = fj_iter_next(beg); fj_iter_not_equal(it, end); it = fj_iter_next(it) ) {
+    auto end = iter_end(&parser);
+    for (auto it = iter_next(beg); iter_not_equal(it, end); it = iter_next(it) ) {
         std::cout << it.type_name() << " -> " << it.value() << std::endl;
     }
 
-    fj_free_parser(&parser);
+    free_parser(&parser);
 }
 
 /*************************************************************************************************/
@@ -271,21 +271,21 @@ static void stack_allocated_parser_and_dyn_allocated_tokens_for_object_and_itera
 
     static const char str[] = R"({"a":true, "b":false, "c":null, "d":{"f":false, "g":3, "h":"4"}, "e":"e"})";
 
-    auto parser = fj_make_parser(std::begin(str), std::end(str));
+    auto parser = make_parser(std::begin(str), std::end(str));
 
-    auto toknum = fj_parse(&parser);
-    assert(fj_is_valid(&parser));
+    auto toknum = parse(&parser);
+    assert(is_valid(&parser));
     assert(toknum == 11);
 
-    auto beg = fj_iter_begin(&parser);
+    auto beg = iter_begin(&parser);
     assert(beg.is_object());
 
-    auto end = fj_iter_end(&parser);
-    for (auto it = fj_iter_next(beg); fj_iter_not_equal(it, end); it = fj_iter_next(it) ) {
+    auto end = iter_end(&parser);
+    for (auto it = iter_next(beg); iter_not_equal(it, end); it = iter_next(it) ) {
         if ( it.is_object() ) {
-            auto oit = fj_iter_begin(it);
-            auto oend = fj_iter_end(it);
-            for ( oit = fj_iter_next(oit); fj_iter_not_equal(oit, oend); oit = fj_iter_next(oit) ) {
+            auto oit = iter_begin(it);
+            auto oend = iter_end(it);
+            for ( oit = iter_next(oit); iter_not_equal(oit, oend); oit = iter_next(oit) ) {
                 std::cout << "  " << oit.key() << ":" << oit.type_name() << " -> " << oit.value() << std::endl;
             }
         } else {
@@ -293,7 +293,7 @@ static void stack_allocated_parser_and_dyn_allocated_tokens_for_object_and_itera
         }
     }
 
-    fj_free_parser(&parser);
+    free_parser(&parser);
 }
 
 /*************************************************************************************************/
@@ -303,29 +303,29 @@ static void stack_allocated_parser_and_dyn_allocated_tokens_for_array_and_iterat
 
     static const char str[] = R"([[0,1,2,3], [4,5,6,7], [8,9,10,11]])";
 
-    auto parser = fj_make_parser(std::begin(str), std::end(str));
+    auto parser = make_parser(std::begin(str), std::end(str));
 
-    auto toknum = fj_parse(&parser);
-    assert(fj_is_valid(&parser));
+    auto toknum = parse(&parser);
+    assert(is_valid(&parser));
     assert(toknum == 20);
 
-    auto beg = fj_iter_begin(&parser);
+    auto beg = iter_begin(&parser);
     assert(beg.is_array());
 
-    auto end = fj_iter_end(&parser);
-    for ( auto it = fj_iter_next(beg); fj_iter_not_equal(it, end); it = fj_iter_next(it) ) {
+    auto end = iter_end(&parser);
+    for ( auto it = iter_next(beg); iter_not_equal(it, end); it = iter_next(it) ) {
         std::cout << it.type_name() << std::endl;
 
-        auto ait = fj_iter_begin(it);
-        auto aend = fj_iter_end(it);
-        for ( ait = fj_iter_next(ait); fj_iter_not_equal(ait, aend); ait = fj_iter_next(ait) ) {
+        auto ait = iter_begin(it);
+        auto aend = iter_end(it);
+        for ( ait = iter_next(ait); iter_not_equal(ait, aend); ait = iter_next(ait) ) {
             std::cout << "  " << ait.type_name() << " -> " << ait.value() << std::endl;
         }
 
         std::cout << ait.type_name() << std::endl;
     }
 
-    fj_free_parser(&parser);
+    free_parser(&parser);
 }
 
 /*************************************************************************************************/
@@ -337,13 +337,13 @@ static void dyn_allocated_parser_and_dyn_allocated_tokens_for_object() {
 
     static const char str[] = R"({"a":true, "b":false, "c":null, "d":0, "e":"e"})";
 
-    auto *parser = fj_alloc_parser(std::begin(str), std::end(str));
+    auto *parser = alloc_parser(std::begin(str), std::end(str));
 
-    auto toknum = fj_parse(parser);
-    assert(fj_is_valid(parser));
+    auto toknum = parse(parser);
+    assert(is_valid(parser));
     assert(toknum == 7);
 
-    fj_free_parser(parser);
+    free_parser(parser);
 }
 
 /*************************************************************************************************/
@@ -353,21 +353,21 @@ static void dyn_allocated_parser_and_dyn_allocated_tokens_for_object_and_iterati
 
     static const char str[] = R"({"a":true, "b":false, "c":null, "d":0, "e":"e"})";
 
-    auto *parser = fj_alloc_parser(std::begin(str), std::end(str));
+    auto *parser = alloc_parser(std::begin(str), std::end(str));
 
-    auto toknum = fj_parse(parser);
-    assert(fj_is_valid(parser));
+    auto toknum = parse(parser);
+    assert(is_valid(parser));
     assert(toknum == 7);
 
-    auto beg = fj_iter_begin(parser);
+    auto beg = iter_begin(parser);
     assert(beg.is_object());
 
-    auto end = fj_iter_end(parser);
-    for (auto it = fj_iter_next(beg); fj_iter_not_equal(it, end); it = fj_iter_next(it) ) {
+    auto end = iter_end(parser);
+    for (auto it = iter_next(beg); iter_not_equal(it, end); it = iter_next(it) ) {
         std::cout << it.key() << ":" << it.type_name() << " -> " << it.value() << std::endl;
     }
 
-    fj_free_parser(parser);
+    free_parser(parser);
 }
 
 /*************************************************************************************************/
@@ -377,13 +377,13 @@ static void dyn_allocated_parser_and_dyn_allocated_tokens_for_array() {
 
     static const char str[] = R"([4,3,2,1])";
 
-    auto *parser = fj_alloc_parser(std::begin(str), std::end(str));
+    auto *parser = alloc_parser(std::begin(str), std::end(str));
 
-    auto toknum = fj_parse(parser);
-    assert(fj_is_valid(parser));
+    auto toknum = parse(parser);
+    assert(is_valid(parser));
     assert(toknum == 6);
 
-    fj_free_parser(parser);
+    free_parser(parser);
 }
 
 /*************************************************************************************************/
@@ -393,21 +393,21 @@ static void dyn_allocated_parser_and_dyn_allocated_tokens_for_array_and_iteratio
 
     static const char str[] = R"([4,3,2,1])";
 
-    auto *parser = fj_alloc_parser(std::begin(str), std::end(str));
+    auto *parser = alloc_parser(std::begin(str), std::end(str));
 
-    auto toknum = fj_parse(parser);
-    assert(fj_is_valid(parser));
+    auto toknum = parse(parser);
+    assert(is_valid(parser));
     assert(toknum == 6);
 
-    auto beg = fj_iter_begin(parser);
+    auto beg = iter_begin(parser);
     assert(beg.is_array());
 
-    auto end = fj_iter_end(parser);
-    for (auto it = fj_iter_next(beg); fj_iter_not_equal(it, end); it = fj_iter_next(it) ) {
+    auto end = iter_end(parser);
+    for (auto it = iter_next(beg); iter_not_equal(it, end); it = iter_next(it) ) {
         std::cout << it.type_name() << " -> " << it.value() << std::endl;
     }
 
-    fj_free_parser(parser);
+    free_parser(parser);
 }
 
 /*************************************************************************************************/
@@ -417,21 +417,21 @@ static void dyn_allocated_parser_and_dyn_allocated_tokens_for_object_and_iterati
 
     static const char str[] = R"({"a":true, "b":false, "c":null, "d":{"f":false, "g":3, "h":"4"}, "e":"e"})";
 
-    auto *parser = fj_alloc_parser(std::begin(str), std::end(str));
+    auto *parser = alloc_parser(std::begin(str), std::end(str));
 
-    auto toknum = fj_parse(parser);
-    assert(fj_is_valid(parser));
+    auto toknum = parse(parser);
+    assert(is_valid(parser));
     assert(toknum == 11);
 
-    auto beg = fj_iter_begin(parser);
+    auto beg = iter_begin(parser);
     assert(beg.is_object());
 
-    auto end = fj_iter_end(parser);
-    for (auto it = fj_iter_next(beg); fj_iter_not_equal(it, end); it = fj_iter_next(it) ) {
+    auto end = iter_end(parser);
+    for (auto it = iter_next(beg); iter_not_equal(it, end); it = iter_next(it) ) {
         if ( it.is_object() ) {
-            auto oit = fj_iter_begin(it);
-            auto oend = fj_iter_end(it);
-            for ( oit = fj_iter_next(oit); fj_iter_not_equal(oit, oend); oit = fj_iter_next(oit) ) {
+            auto oit = iter_begin(it);
+            auto oend = iter_end(it);
+            for ( oit = iter_next(oit); iter_not_equal(oit, oend); oit = iter_next(oit) ) {
                 std::cout << "  " << oit.key() << ":" << oit.type_name() << " -> " << oit.value() << std::endl;
             }
         } else {
@@ -439,7 +439,7 @@ static void dyn_allocated_parser_and_dyn_allocated_tokens_for_object_and_iterati
         }
     }
 
-    fj_free_parser(parser);
+    free_parser(parser);
 }
 
 /*************************************************************************************************/
@@ -449,29 +449,29 @@ static void dyn_allocated_parser_and_dyn_allocated_tokens_for_array_and_iteratio
 
     static const char str[] = R"([[0,1,2,3], [4,5,6,7], [8,9,10,11]])";
 
-    auto *parser = fj_alloc_parser(std::begin(str), std::end(str));
+    auto *parser = alloc_parser(std::begin(str), std::end(str));
 
-    auto toknum = fj_parse(parser);
-    assert(fj_is_valid(parser));
+    auto toknum = parse(parser);
+    assert(is_valid(parser));
     assert(toknum == 20);
 
-    auto beg = fj_iter_begin(parser);
+    auto beg = iter_begin(parser);
     assert(beg.is_array());
 
-    auto end = fj_iter_end(parser);
-    for ( auto it = fj_iter_next(beg); fj_iter_not_equal(it, end); it = fj_iter_next(it) ) {
+    auto end = iter_end(parser);
+    for ( auto it = iter_next(beg); iter_not_equal(it, end); it = iter_next(it) ) {
         std::cout << it.type_name() << std::endl;
 
-        auto ait = fj_iter_begin(it);
-        auto aend = fj_iter_end(it);
-        for ( ait = fj_iter_next(ait); fj_iter_not_equal(ait, aend); ait = fj_iter_next(ait) ) {
+        auto ait = iter_begin(it);
+        auto aend = iter_end(it);
+        for ( ait = iter_next(ait); iter_not_equal(ait, aend); ait = iter_next(ait) ) {
             std::cout << "  " << ait.type_name() << " -> " << ait.value() << std::endl;
         }
 
         std::cout << ait.type_name() << std::endl;
     }
 
-    fj_free_parser(parser);
+    free_parser(parser);
 }
 
 /*************************************************************************************************/
