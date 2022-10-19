@@ -429,10 +429,10 @@ inline void fj_skip_ws(parser *p) {
     for (
         ;p->str_cur < p->str_end
             && (
-                *p->str_cur == ' '
-             || *p->str_cur == '\t'
-             || *p->str_cur == '\r'
-             || *p->str_cur == '\n'
+                *p->str_cur == ' '  // 0x20
+             || *p->str_cur == '\t' // 0x09
+             || *p->str_cur == '\n' // 0x0a
+             || *p->str_cur == '\r' // 0x0d
         )
         ;++p->str_cur
     )
