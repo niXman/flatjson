@@ -78,6 +78,10 @@ jobs:
         run: |
           echo "PLATFORM=$PLATFORM, CMAKE_GENERATOR=\"$CMAKE_GENERATOR\""
           cd test
-          cmake --no-warn-unused-cli . -G "$CMAKE_GENERATOR" -DCMAKE_BUILD_TYPE=Release
+          if [[ $PLATFORM == x32 ]]; then
+            cmake --no-warn-unused-cli . -G "$CMAKE_GENERATOR" -A Win32 -DCMAKE_BUILD_TYPE=Release
+          else
+            cmake --no-warn-unused-cli . -G "$CMAKE_GENERATOR" -DCMAKE_BUILD_TYPE=Release
+          fi
           cmake --build .
           Debug/flatjson-test.exe
