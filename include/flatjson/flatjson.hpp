@@ -82,6 +82,10 @@ struct enable_if_const_char_ptr<const char *> {
 
 struct string_view {
     string_view() = default;
+    explicit string_view(const char *s)
+        :m_ptr{s}
+        ,m_len{std::strlen(m_ptr)}
+    {}
     template<std::size_t N>
     explicit string_view(const char (&str)[N])
         :m_ptr{str}
@@ -100,16 +104,36 @@ struct string_view {
     bool empty() const { return size() == 0; }
     const char* data() const { return m_ptr; }
 
-    int compare(std::size_t, std::size_t len, const char *r) const { return std::strncmp(m_ptr, r, len); }
+    string_view substr(std::size_t pos = 0, std::size_t n = std::string::npos) const {
+        assert(pos <= size());
+        return string_view( data() + pos, (std::min)( n, size() - pos ) );
+    }
+
+    int compare(string_view other) const
+    { int res = std::strncmp(data(), other.data(), (std::min)(size(), other.size()));
+        return res ? res : size() == other.size() ? 0 : size() < other.size() ? -1 : 1; }
+    int compare(std::size_t pos1, std::size_t n1, string_view other) const
+    { return substr(pos1, n1).compare(other); }
+    int compare(std::size_t pos1, std::size_t n1, string_view other, std::size_t pos2, std::size_t n2) const
+    { return substr(pos1, n1).compare(other.substr(pos2, n2)); }
     template<std::size_t N>
-    int compare(const char (&r)[N]) const { return compare(0, N-1, r); }
-    int compare(const string_view &r) const { return compare(0, r.size(), r.data()); }
+    int compare(const char (&r)[N]) const { return compare(string_view{r, N-1}); }
+    int compare(const char *s) const { return compare(string_view(s)); }
+    template<std::size_t N>
+    int compare(std::size_t pos1, std::size_t n1, const char (&s)[N]) const
+    { return substr(pos1, n1).compare(string_view(s, N-1)); }
+    int compare(std::size_t pos1, std::size_t n1, const char *s) const
+    { return substr(pos1, n1).compare(string_view(s)); }
+    int compare( std::size_t pos1, std::size_t n1, const char *s, std::size_t n2 ) const
+    { return substr(pos1, n1).compare(string_view(s, n2)); }
 
     template<typename T, typename = typename enable_if_const_char_ptr<T>::type>
     friend bool operator==(const string_view &l, T r) { return l.compare(r) == 0; }
     template<std::size_t N>
-    friend bool operator==(const string_view &l, const char (&r)[N]) { return l.compare(0, N-1, r) == 0; }
-    friend bool operator==(const string_view &l, const string_view &r) { return l.compare(r) == 0; }
+    friend bool operator==(const string_view &l, const char (&r)[N])
+    { return l.compare(0, N-1, r, N-1) == 0; }
+    friend bool operator==(const string_view &l, const string_view &r)
+    { return l.compare(r) == 0; }
 
     template<typename T, typename = typename enable_if_const_char_ptr<T>::type>
     friend bool operator!=(const string_view &l, T r) { return !(l == r); }
@@ -1490,7 +1514,7 @@ inline std::size_t iter_members(const iterator &it) {
 namespace details {
 
 // find by key name
-inline iterator iter_find(const char *key, std::size_t len, iterator it, const iterator &end) {
+inline iterator iter_find(const char *key, std::size_t klen, iterator it, const iterator &end) {
     if ( !it.cur ) {
         return end;
     }
@@ -1503,7 +1527,7 @@ inline iterator iter_find(const char *key, std::size_t len, iterator it, const i
             return end;
         }
         const auto sv = it.key();
-        if ( sv.size() == len && sv.compare(0, len, key) == 0 ) {
+        if ( sv.size() == klen && sv == string_view{key, klen} ) {
             break;
         }
 
