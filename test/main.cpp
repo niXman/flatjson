@@ -2205,8 +2205,8 @@ R"({
 
         iterator ldiff, rdiff;
         auto r = compare(&ldiff, &rdiff, parser0, parser1);
-        assert(r == compare_result::OK);
-        assert(std::strcmp(compare_result_string(r), "OK") == 0);
+        assert(r == compare_result::equal);
+        assert(std::strcmp(compare_result_string(r), "equal") == 0);
 
         free_parser(parser1);
         free_parser(parser0);
@@ -2233,8 +2233,8 @@ R"({
 
         iterator ldiff, rdiff;
         auto r = compare(&ldiff, &rdiff, parser0, parser1);
-        assert(r == compare_result::OK);
-        assert(std::strcmp(compare_result_string(r), "OK") == 0);
+        assert(r == compare_result::equal);
+        assert(std::strcmp(compare_result_string(r), "equal") == 0);
 
         free_parser(parser1);
         free_parser(parser0);
@@ -2261,8 +2261,8 @@ R"({
 
         iterator ldiff, rdiff;
         auto r = compare(&ldiff, &rdiff, parser0, parser1);
-        assert(r == compare_result::OK);
-        assert(std::strcmp(compare_result_string(r), "OK") == 0);
+        assert(r == compare_result::equal);
+        assert(std::strcmp(compare_result_string(r), "equal") == 0);
 
         free_parser(parser1);
         free_parser(parser0);
@@ -2289,8 +2289,8 @@ R"({
 
         iterator ldiff, rdiff;
         auto r = compare(&ldiff, &rdiff, parser0, parser1);
-        assert(r == compare_result::OK);
-        assert(std::strcmp(compare_result_string(r), "OK") == 0);
+        assert(r == compare_result::equal);
+        assert(std::strcmp(compare_result_string(r), "equal") == 0);
 
         free_parser(parser1);
         free_parser(parser0);
@@ -2348,7 +2348,7 @@ R"({
 
         iterator ldiff, rdiff;
         auto r = compare(&ldiff, &rdiff, parser0, parser1, compare_mode::length_only);
-        assert(r == compare_result::OK);
+        assert(r == compare_result::equal);
 
         free_parser(parser1);
         free_parser(parser0);
@@ -2443,6 +2443,34 @@ R"({
         free_parser(parser0);
     };
 
+    test += FJ_TEST(test for the equal JSON ARRAYS for compare(markup)) {
+        using namespace flatjson;
+
+        static const char str0[] = R"([1,2,3,4])";
+        auto *parser0 = alloc_parser(str0);
+        auto toknum0 = parse(parser0);
+
+        assert(is_valid(parser0));
+        assert(toknum0 == 6);
+        assert(parser0->toks_end == parser0->toks_beg + toknum0);
+
+        static const char str1[] = R"([1,2,3,4])";
+        auto *parser1 = alloc_parser(str1);
+        auto toknum1 = parse(parser1);
+
+        assert(is_valid(parser1));
+        assert(toknum1 == 6);
+        assert(parser1->toks_end == parser1->toks_beg + toknum1);
+
+        iterator ldiff, rdiff;
+        auto r = compare(&ldiff, &rdiff, parser0, parser1);
+        assert(r == compare_result::equal);
+        assert(std::strcmp(compare_result_string(r), "equal") == 0);
+
+        free_parser(parser1);
+        free_parser(parser0);
+    };
+
     test += FJ_TEST(test for fj_packed_state_size()) {
         using namespace flatjson;
 
@@ -2481,7 +2509,7 @@ R"({
 
         iterator left_diff, right_diff;
         auto res = compare(&left_diff, &right_diff, &parser, &parser2, compare_mode::full);
-        assert(res == compare_result::OK);
+        assert(res == compare_result::equal);
 
         parser.free_fn(ptr);
         free_parser(&parser2);

@@ -2018,8 +2018,7 @@ enum class compare_mode {
 };
 
 enum class compare_result {
-     OK
-    ,UNEXPECTED
+     equal
     ,type    // differs in token type.
     ,key     // differs in key. (for objects only)
     ,no_key  // differs in key, a key doesnt exists (for objects only)
@@ -2031,8 +2030,7 @@ enum class compare_result {
 
 inline const char* compare_result_string(compare_result r) {
     switch ( r ) {
-        case compare_result::OK: return "OK";
-        case compare_result::UNEXPECTED: return "UNEXPECTED";
+        case compare_result::equal: return "equal";
         case compare_result::type: return "tokens types do not match";
         case compare_result::key: return "values of keys do not match";
         case compare_result::no_key: return "no required key";
@@ -2107,17 +2105,17 @@ inline compare_result compare(
                     ,iter_begin(left_it), iter_end(left_it)
                     ,iter_begin(it), iter_end(it), get_by_idx_fn, get_by_key_fn, cmpmode)
             ;
-            if ( res != compare_result::OK ) {
+            if ( res != compare_result::equal ) {
                 return res;
             }
         } else {
             auto res = cmpmode == compare_mode::full
-                ? left_it.value() == it.value() ? compare_result::OK : compare_result::value
+                ? left_it.value() == it.value() ? compare_result::equal : compare_result::value
                 : cmpmode == compare_mode::length_only
-                    ? left_it.value().size() == it.value().size() ? compare_result::OK : compare_result::length
-                    : left_it.type() == it.type() ? compare_result::OK : compare_result::type
+                    ? left_it.value().size() == it.value().size() ? compare_result::equal : compare_result::length
+                    : left_it.type() == it.type() ? compare_result::equal : compare_result::type
             ;
-            if ( res != compare_result::OK ) {
+            if ( res != compare_result::equal ) {
                 *left_diff_ptr = left_it;
                 *right_diff_ptr = it;
 
@@ -2126,7 +2124,7 @@ inline compare_result compare(
         }
     }
 
-    return compare_result::OK;
+    return compare_result::equal;
 }
 
 inline compare_result compare(
@@ -2164,15 +2162,15 @@ inline compare_result compare(
         }
     } else {
         return cmpr == compare_mode::full
-            ? left_beg.value() == right_beg.value() ? compare_result::OK : compare_result::value
+            ? left_beg.value() == right_beg.value() ? compare_result::equal : compare_result::value
             : cmpr == compare_mode::length_only
-                ? left_beg.value().size() == right_beg.value().size() ? compare_result::OK : compare_result::length
-                : left_beg.type() == right_beg.type() ? compare_result::OK : compare_result::type
+                ? left_beg.value().size() == right_beg.value().size() ? compare_result::equal : compare_result::length
+                : left_beg.type() == right_beg.type() ? compare_result::equal : compare_result::type
         ;
     }
 
     static const auto get_by_idx_fn = [](const iterator &beg, const iterator &it, const iterator &in) {
-        auto dist = iter_distance(beg, it);
+        auto dist = iter_distance(iter_next(beg), it);
         return iter_at(dist, in);
     };
     static const auto get_by_key_fn = [](const iterator &/*beg*/, const iterator &it, const iterator &in) {
