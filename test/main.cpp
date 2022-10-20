@@ -993,8 +993,9 @@ int main() {
         auto dist = iter_members(beg);
         assert(dist == 5);
 
-        auto idx = 0;
-        for ( auto it = iter_next(beg); iter_not_equal(it, end); it = iter_next(it), ++idx ) {
+        auto idx = 0u;
+        for ( auto it = iter_next(beg); iter_not_equal(it, end); it = iter_next(it) ) {
+            idx = iter_distance(iter_next(beg), it);
             switch ( idx ) {
                 case 0: {
                     assert(it.key() == "a");
@@ -1029,7 +1030,7 @@ int main() {
                 default: assert(!"unreachable!");
             }
         }
-        assert(idx == 5);
+        assert(idx == 4);
     };
 
     test += FJ_TEST(test for iteration through the ARRAY using iterators) {
@@ -1057,9 +1058,10 @@ int main() {
         bool case_1 = false;
         bool case_2 = false;
         bool case_3 = false;
-        auto idx = 0;
-        for ( auto it = iter_next(beg); iter_not_equal(it, end); it = iter_next(it), ++idx ) {
-            switch (idx) {
+        auto idx = 0u;
+        for ( auto it = iter_next(beg); iter_not_equal(it, end); it = iter_next(it) ) {
+            idx = iter_distance(iter_next(beg), it);
+            switch ( idx ) {
                 case 0: {
                     assert(it.is_number());
                     case_0 = it.cur->type == FJ_TYPE_NUMBER && *(it.cur->val) == '4';
@@ -1084,6 +1086,7 @@ int main() {
             }
         }
 
+        assert(idx == 3);
         assert(case_0);
         assert(case_1);
         assert(case_2);
@@ -1117,8 +1120,9 @@ int main() {
         bool case_1 = false;
         bool case_2 = false;
         bool case_3 = false;
-        auto idx = 0;
-        for ( auto it = iter_next(beg); iter_not_equal(it, end); it = iter_next(it), ++idx ) {
+        auto idx = 0u;
+        for ( auto it = iter_next(beg); iter_not_equal(it, end); it = iter_next(it) ) {
+            idx = iter_distance(iter_next(beg), it);
             switch ( idx ) {
                 case 0: {
                     assert(it.is_array());
@@ -1144,6 +1148,7 @@ int main() {
             }
         }
 
+        assert(idx == 3);
         assert(case_0);
         assert(case_1);
         assert(case_2);
@@ -1341,8 +1346,9 @@ int main() {
         bool dist_0 = false;
         bool dist_1 = false;
         bool dist_2 = false;
-        auto idx = 0;
-        for ( auto it = iter_next(bbeg); iter_not_equal(it, bend); it = iter_next(it), ++idx ) {
+        auto idx = 0u;
+        for ( auto it = iter_next(bbeg); iter_not_equal(it, bend); it = iter_next(it) ) {
+            idx = iter_distance(iter_next(bbeg), it);
             switch ( idx ) {
                 case 0: {
                     auto a0 = iter_at("a", it);
@@ -1424,6 +1430,7 @@ int main() {
             }
         }
 
+        assert(idx == 2);
         assert(dist_0);
         assert(dist_1);
         assert(dist_2);
@@ -1492,10 +1499,10 @@ int main() {
         assert(!j0.is_bool());
 
         auto j0end = iter_end(j0);
-        auto idx = 0;
+        auto idx = 0u;
         for ( auto it = iter_next(j0); iter_not_equal(it, j0end); it = iter_next(it), ++idx ) {
             assert(it.is_simple_type());
-            assert(it.to_int() == idx);
+            assert(it.to_uint() == idx);
         }
 
         free_parser(parser);
@@ -1520,8 +1527,9 @@ int main() {
         bool case_1 = false;
         bool case_2 = false;
         bool case_3 = false;
-        auto idx = 0;
-        for ( auto it = iter_next(beg); iter_not_equal(it, end); it = iter_next(it), ++idx ) {
+        auto idx = 0u;
+        for ( auto it = iter_next(beg); iter_not_equal(it, end); it = iter_next(it) ) {
+            idx = iter_distance(iter_next(beg), it);
             switch ( idx ) {
                 case 0: {
                     assert(it.key() == "a");
@@ -1555,6 +1563,7 @@ int main() {
             }
         }
 
+        assert(idx == 3);
         assert(case_0);
         assert(case_1);
         assert(case_2);
@@ -1584,8 +1593,9 @@ int main() {
         bool case_2_0 = false;
         bool case_2_1 = false;
         bool case_3 = false;
-        auto idx = 0;
-        for ( auto it = iter_next(beg); iter_not_equal(it, end); it = iter_next(it), ++idx ) {
+        auto idx = 0u;
+        for ( auto it = iter_next(beg); iter_not_equal(it, end); it = iter_next(it) ) {
+            idx = iter_distance(iter_next(beg), it);
             switch ( idx ) {
                 case 0: {
                     assert(it.key() == "a");
@@ -1605,8 +1615,9 @@ int main() {
                     assert(it.childs() == 3);
                     auto cbeg = iter_begin(it);
                     auto cend = iter_end(it);
-                    auto idx2 = 0;
-                    for ( auto cit = iter_next(cbeg); iter_not_equal(cit, cend); cit = iter_next(cit), ++idx2 ) {
+                    auto idx2 = 0u;
+                    for ( auto cit = iter_next(cbeg); iter_not_equal(cit, cend); cit = iter_next(cit) ) {
+                        idx2 = iter_distance(iter_next(cbeg), cit);
                         switch ( idx2 ) {
                             case 0: {
                                 assert(cit.key() == "d");
@@ -1624,6 +1635,7 @@ int main() {
                         }
                     }
 
+                    assert(idx2 == 1);
                     case_2 = true;
                     break;
                 }
@@ -1637,6 +1649,7 @@ int main() {
             }
         }
 
+        assert(idx == 3);
         assert(case_0);
         assert(case_1);
         assert(case_2);
@@ -1685,6 +1698,13 @@ R"({
         assert(strlen2 == 154);
 
         auto ss = os.str();
+        if ( ss != expected ) {
+            std::cout
+                << "expected: " << expected << std::endl
+                << "got: " << ss
+            << std::endl;
+        }
+
         assert(os.str() == expected);
 
         free_parser(parser);
@@ -1725,7 +1745,12 @@ R"({
 
         auto sstr = to_string(beg, end, 4);
         assert(sstr.length() == 154);
-
+        if ( expected != sstr ) {
+            std::cout
+                << "expected: " << expected << std::endl
+                << "got: " << sstr
+            << std::endl;
+        }
         assert(sstr == expected);
 
         free_parser(parser);
@@ -1744,11 +1769,11 @@ R"({
 
         static const char *fname = "unit_27.json";
 
-#ifdef _MSC_VER
         std::FILE *stream = nullptr;
+#ifdef _MSC_VER
         fopen_s(&stream, fname, "w");
 #else
-        auto *stream = std::fopen(fname, "w");
+        stream = std::fopen(fname, "w");
 #endif // _MSC_VER
         assert(stream);
 
@@ -1763,6 +1788,12 @@ R"({
         std::remove(fname);
 
         auto string = to_string(beg, end, 4);
+        if ( from_file != string ) {
+            std::cout
+                << "expected: " << from_file << std::endl
+                << "got: " << string
+            << std::endl;
+        }
         assert(from_file == string);
 
         free_parser(parser);
@@ -1796,6 +1827,12 @@ R"({
         std::remove(fname);
 
         auto string = to_string(beg, end, 4);
+        if ( from_file != string ) {
+            std::cout
+                << "expected: " << from_file << std::endl
+                << "got: " << string
+            << std::endl;
+        }
         assert(from_file == string);
 
         free_parser(parser);
@@ -1830,6 +1867,12 @@ R"({
         std::remove(fname);
 
         auto string = to_string(beg, end, 4);
+        if ( from_file != string ) {
+            std::cout
+                << "expected: " << from_file << std::endl
+                << "got: " << string
+            << std::endl;
+        }
         assert(from_file == string);
 
         free_parser(parser);
@@ -1988,8 +2031,9 @@ R"({
         bool dist_0 = false;
         bool dist_1 = false;
         bool dist_2 = false;
-        auto idx = 0;
-        for ( auto it = ++bbeg; it != bend; ++it, ++idx ) {
+        auto idx = 0u;
+        for ( auto it = ++bbeg; it != bend; ++it ) {
+            idx = distance(bbeg, it);
             switch ( idx ) {
                 case 0: {
                     assert(it->is_object());
@@ -2134,6 +2178,7 @@ R"({
             }
         }
 
+        assert(idx == 2);
         assert(dist_0);
         assert(dist_1);
         assert(dist_2);
@@ -2223,6 +2268,34 @@ R"({
         free_parser(parser0);
     };
 
+    test += FJ_TEST(test 3 for equality for the same JSON but with reordered key for compare(markup)) {
+        using namespace flatjson;
+
+        static const char str0[] = R"({"b":1, "a":0, "c":{"d":2, "e":3}, "f":4})";
+        auto *parser0 = alloc_parser(str0);
+        auto toknum0 = parse(parser0);
+
+        assert(is_valid(parser0));
+        assert(toknum0 == 9);
+        assert(parser0->toks_end == parser0->toks_beg + toknum0);
+
+        static const char str1[] = R"({"a":0, "c":{"d":2, "e":3}, "b":1, "f":4})";
+        auto *parser1 = alloc_parser(str1);
+        auto toknum1 = parse(parser1);
+
+        assert(is_valid(parser1));
+        assert(toknum1 == 9);
+        assert(parser1->toks_end == parser1->toks_beg + toknum1);
+
+        iterator ldiff, rdiff;
+        auto r = compare(&ldiff, &rdiff, parser0, parser1);
+        assert(r == compare_result::OK);
+        assert(std::strcmp(compare_result_string(r), "OK") == 0);
+
+        free_parser(parser1);
+        free_parser(parser0);
+    };
+
     test += FJ_TEST(test for a different keys for compare(markup)) {
         using namespace flatjson;
 
@@ -2244,13 +2317,11 @@ R"({
 
         iterator ldiff, rdiff;
         auto r = compare(&ldiff, &rdiff, parser0, parser1);
-        assert(r == compare_result::key);
-        assert(std::strcmp(compare_result_string(r), "values of keys do not match") == 0);
+        assert(r == compare_result::no_key);
+        assert(std::strcmp(compare_result_string(r), "no required key") == 0);
 
         assert(ldiff.key() == "a");
         assert(iter_at("a", parser0).cur == ldiff.cur);
-        assert(rdiff.key() == "g");
-        assert(iter_at("g", parser1).cur == rdiff.cur);
 
         free_parser(parser1);
         free_parser(parser0);

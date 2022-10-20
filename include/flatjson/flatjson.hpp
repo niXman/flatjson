@@ -14,6 +14,7 @@
 
 #include "version.hpp"
 
+//#include <iostream> // TODO: comment out
 #include <ostream>
 #include <vector>
 #include <string>
@@ -1483,20 +1484,6 @@ inline iterator iter_end(const iterator &it) {
     return {it.end, it.end, it.end};
 }
 
-inline iterator iter_next(const iterator &it) {
-    assert(it.cur != it.end);
-
-    auto next = it.cur + 1;
-    if ( next != it.end && next->parent == it.beg ) {
-        return {it.beg, next, it.end};
-    }
-
-    for ( ; next != it.end && next->parent != it.beg; ++next )
-        ;
-
-    return {it.beg, next, it.end};
-}
-
 inline bool iter_equal(const iterator &l, const iterator &r)
 { return l.cur == r.cur; }
 
@@ -1511,17 +1498,43 @@ inline std::size_t iter_members(const iterator &it) {
     return it.cur->childs - 1;
 }
 
+inline iterator iter_next(const iterator &it) {
+    assert(it.cur != it.end);
+
+    auto next = it.cur + 1;
+    if ( next != it.end && next->parent == it.beg ) {
+        return {it.beg, next, it.end};
+    }
+
+    for ( ; next != it.end && next->parent != it.beg; ++next )
+        ;
+
+    return {it.beg, next, it.end};
+}
+
+inline std::size_t iter_distance(const iterator &from, const iterator &to) {
+    assert(from.cur->parent == to.cur->parent);
+
+    std::size_t cnt{};
+    iterator it{from};
+    for ( ; iter_not_equal(it, to); it = iter_next(it), ++cnt )
+    {}
+
+    return cnt;
+}
+
 namespace details {
 
 // find by key name
-inline iterator iter_find(const char *key, std::size_t klen, iterator it, const iterator &end) {
-    if ( !it.cur ) {
+inline iterator iter_find(const char *key, std::size_t klen, const iterator &beg, const iterator &end) {
+    if ( !beg.cur ) {
         return end;
     }
-    if ( it.cur && it.cur->parent && it.cur->parent->type != FJ_TYPE_OBJECT ) {
+    if ( beg.cur && beg.cur->parent && beg.cur->parent->type != FJ_TYPE_OBJECT ) {
         return end;
     }
 
+    iterator it{beg};
     while ( iter_not_equal(it, end) ) {
         if ( it.type() == FJ_TYPE_OBJECT_END ) {
             return end;
@@ -1653,17 +1666,18 @@ iterator iter_at(const char (&key)[N], const iterator &it) {
 namespace details {
 
 // find by index
-inline iterator iter_find(std::size_t idx, iterator it, const iterator &end) {
-    if ( !it.cur ) {
+inline iterator iter_find(std::size_t idx, const iterator &beg, const iterator &end) {
+    if ( !beg.cur ) {
         return end;
     }
-    if ( it.cur && it.cur->parent->type != FJ_TYPE_ARRAY ) {
+    if ( beg.cur && beg.cur->parent->type != FJ_TYPE_ARRAY ) {
         return end;
     }
-    if ( idx >= it.cur->parent->childs ) {
+    if ( idx >= beg.cur->parent->childs ) {
         return end;
     }
 
+    iterator it{beg};
     for ( ; iter_not_equal(it, end) && idx; --idx ) {
         if ( it.type() == FJ_TYPE_ARRAY_END ) {
             return end;
@@ -1994,6 +2008,8 @@ inline std::vector<string_view> get_keys(const iterator &it, const iterator &end
 }
 
 /*************************************************************************************************/
+/*************************************************************************************************/
+/*************************************************************************************************/
 
 enum class compare_mode {
      markup_only // just compare JSON structure and keys only.
@@ -2006,6 +2022,7 @@ enum class compare_result {
     ,UNEXPECTED
     ,type    // differs in token type.
     ,key     // differs in key. (for objects only)
+    ,no_key  // differs in key, a key doesnt exists (for objects only)
     ,length  // differs in length.
     ,value   // differs in values.
     ,longer  // the right JSON are longer.
@@ -2018,6 +2035,7 @@ inline const char* compare_result_string(compare_result r) {
         case compare_result::UNEXPECTED: return "UNEXPECTED";
         case compare_result::type: return "tokens types do not match";
         case compare_result::key: return "values of keys do not match";
+        case compare_result::no_key: return "no required key";
         case compare_result::length: return "length of values do not match";
         case compare_result::value: return "value do not match";
         case compare_result::longer: return "the right-side JSON is longer";
@@ -2027,6 +2045,85 @@ inline const char* compare_result_string(compare_result r) {
     assert(!"unreachable!");
 
     return nullptr;
+}
+
+inline std::string format_report() {
+    std::string res;
+    return res;
+}
+
+template<typename GetByIdxFn, typename GetByKeyFn>
+inline compare_result compare(
+     iterator *left_diff_ptr
+    ,iterator *right_diff_ptr
+    ,iterator left_it
+    ,iterator left_end
+    ,iterator right_it
+    ,iterator right_end
+    ,GetByIdxFn get_by_idx_fn
+    ,GetByKeyFn get_by_key_fn
+    ,compare_mode cmpmode = compare_mode::markup_only)
+
+{   const auto real_get = left_it.is_array() ? get_by_idx_fn : get_by_key_fn;
+    const auto left_start = left_it;
+    left_it = iter_next(left_it);
+    right_it= iter_next(right_it);
+    for ( ; iter_not_equal(left_it, left_end); left_it = iter_next(left_it) ) {
+        auto it = real_get(left_start, left_it, right_it);
+        if ( iter_equal(it, right_end) ) {
+            *left_diff_ptr = left_it;
+
+            return compare_result::no_key;
+        }
+
+        if ( left_it.type() != it.type() ) {
+            *left_diff_ptr = left_it;
+            *right_diff_ptr= it;
+
+            return compare_result::type;
+        }
+
+        if ( !left_it.is_simple_type() ) {
+            if ( left_it.members() != it.members() ) {
+                *left_diff_ptr = left_it;
+                *right_diff_ptr= it;
+
+                return (left_it.members() < it.members())
+                    ? compare_result::longer
+                    : compare_result::shorter
+                ;
+            }
+
+            auto res = left_it.is_array()
+                ? compare(
+                     left_diff_ptr, right_diff_ptr
+                    ,iter_begin(left_it), iter_end(left_it)
+                    ,iter_begin(it), iter_end(it), get_by_idx_fn, get_by_key_fn, cmpmode)
+                : compare(
+                     left_diff_ptr, right_diff_ptr
+                    ,iter_begin(left_it), iter_end(left_it)
+                    ,iter_begin(it), iter_end(it), get_by_idx_fn, get_by_key_fn, cmpmode)
+            ;
+            if ( res != compare_result::OK ) {
+                return res;
+            }
+        } else {
+            auto res = cmpmode == compare_mode::full
+                ? left_it.value() == it.value() ? compare_result::OK : compare_result::value
+                : cmpmode == compare_mode::length_only
+                    ? left_it.value().size() == it.value().size() ? compare_result::OK : compare_result::length
+                    : left_it.type() == it.type() ? compare_result::OK : compare_result::type
+            ;
+            if ( res != compare_result::OK ) {
+                *left_diff_ptr = left_it;
+                *right_diff_ptr = it;
+
+                return res;
+            }
+        }
+    }
+
+    return compare_result::OK;
 }
 
 inline compare_result compare(
@@ -2045,92 +2142,53 @@ inline compare_result compare(
         ;
     }
 
-    auto *left_it  = left_parser->toks_beg;
-    auto *left_end = left_parser->toks_cur;
-    auto *right_it = right_parser->toks_beg;
-    auto *right_end= right_parser->toks_cur;
-    for ( ; left_it < left_end && right_it < right_end; ++left_it, ++right_it ) {
-        if ( left_it->type != right_it->type ) {
-            *left_diff_ptr = {left_it->parent, left_it, left_it->end};
-            *right_diff_ptr = {right_it->parent, right_it, right_it->end};
-
-            return compare_result::type;
-        }
-
-        const unsigned left_key = left_it->key != nullptr;
-        const unsigned right_key = right_it->key != nullptr;
-        if ( left_key + right_key == 0 ) { // no one of the key is valid, so they are equal
-            continue;
-        }
-
-        if ( left_key + right_key == 1 ) { // only one of the keys is not NULL
-            *left_diff_ptr = {left_it->parent, left_it, left_it->end};
-            *right_diff_ptr = {right_it->parent, right_it, right_it->end};
-
-            return compare_result::key;
-        } else { // both of the keys are non-null
-            if ( (left_it->klen != right_it->klen)
-                 || (string_view{left_it->key, left_it->klen}
-                    != string_view{right_it->key, right_it->klen}) )
-            {
-                // if the keys at the same position is not equal - try to
-                // find, because some of JSON parser can sort object's keys.
-                iterator beg{right_it->parent, right_it->parent + 1, right_it->parent->end};
-                iterator end{right_it->parent, right_it->parent->end, right_it->parent->end};
-                auto it = details::iter_find(left_it->key, left_it->klen, beg, end);
-                if ( iter_equal(it, end) ) {
-                    *left_diff_ptr = {left_it->parent, left_it, left_it->end};
-                    *right_diff_ptr = {right_it->parent, right_it, right_it->end};
-
-                    return compare_result::key;
-                }
-            }
-        }
-
-        if ( cmpr == compare_mode::markup_only ) {
-            continue;
-        }
-
-        if ( cmpr == compare_mode::length_only ) {
-            if ( fj_is_simple_type_macro(left_it->type) ) {
-                if ( left_it->vlen != right_it->vlen ) {
-                    *left_diff_ptr = {left_it->parent, left_it, left_it->end};
-                    *right_diff_ptr = {right_it->parent, right_it, right_it->end};
-
-                    return compare_result::length;
-                }
-            }
-        } else {
-            if ( fj_is_simple_type_macro(left_it->type) ) {
-                if ( left_it->val || right_it->val ) {
-                    if ( (left_it->val && !right_it->val)
-                        || (!left_it->val && right_it->val) )
-                    {
-                        *left_diff_ptr = {left_it->parent, left_it, left_it->end};
-                        *right_diff_ptr = {right_it->parent, right_it, right_it->end};
-
-                        return compare_result::value;
-                    }
-                    if ( (left_it->vlen != right_it->vlen)
-                         || (string_view{left_it->val, left_it->vlen}
-                            != string_view{right_it->val, right_it->vlen}) )
-                    {
-                        *left_diff_ptr = {left_it->parent, left_it, left_it->end};
-                        *right_diff_ptr = {right_it->parent, right_it, right_it->end};
-
-                        return compare_result::value;
-                    }
-                }
-            }
-        }
+    if ( left_parser->toks_beg->type != right_parser->toks_beg->type ) {
+        return compare_result::type;
     }
 
-    return (left_it == left_end && right_it == right_end)
-        ? compare_result::OK
-        : compare_result::UNEXPECTED
+    auto left_beg  = iter_begin(left_parser);
+    auto left_end  = iter_end  (left_parser);
+    auto right_beg = iter_begin(right_parser);
+    auto right_end = iter_end  (right_parser);
+    if ( !left_beg.is_simple_type() ) {
+        auto lchilds = left_parser->toks_beg->childs;
+        auto rchilds = right_parser->toks_beg->childs;
+        if ( lchilds != rchilds ) {
+            return (lchilds < rchilds)
+                ? compare_result::longer
+                : compare_result::shorter
+            ;
+        }
+    } else {
+        return cmpr == compare_mode::full
+            ? left_beg.value() == right_beg.value() ? compare_result::OK : compare_result::value
+            : cmpr == compare_mode::length_only
+                ? left_beg.value().size() == right_beg.value().size() ? compare_result::OK : compare_result::length
+                : left_beg.type() == right_beg.type() ? compare_result::OK : compare_result::type
+        ;
+    }
+
+    static const auto get_by_idx_fn = [](const iterator &beg, const iterator &it, const iterator &in) {
+        auto dist = iter_distance(beg, it);
+        return iter_at(dist, in);
+    };
+    static const auto get_by_key_fn = [](const iterator &/*beg*/, const iterator &it, const iterator &in) {
+        auto key = it.key();
+        return iter_at(key.data(), key.size(), in);
+    };
+
+    return left_beg.is_array()
+        ? compare(
+             left_diff_ptr, right_diff_ptr
+            ,left_beg, left_end, right_beg, right_end, get_by_idx_fn, get_by_key_fn, cmpr)
+        : compare(
+             left_diff_ptr, right_diff_ptr
+            ,left_beg, left_end, right_beg, right_end, get_by_idx_fn, get_by_key_fn, cmpr)
     ;
 }
 
+/*************************************************************************************************/
+/*************************************************************************************************/
 /*************************************************************************************************/
 
 struct fjson {
@@ -2483,6 +2541,10 @@ private:
     iterator   m_beg;
     iterator   m_end;
 };
+
+inline std::size_t distance(const fjson::const_iterator &from, const fjson::const_iterator &to) {
+    return iter_distance(from.m_it, to.m_it);
+}
 
 /*************************************************************************************************/
 
