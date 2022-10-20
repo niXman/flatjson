@@ -1615,7 +1615,7 @@ int main() {
                     assert(it.childs() == 3);
                     auto cbeg = iter_begin(it);
                     auto cend = iter_end(it);
-                    auto idx2 = 0u;
+                    std::size_t idx2 = 0u;
                     for ( auto cit = iter_next(cbeg); iter_not_equal(cit, cend); cit = iter_next(cit) ) {
                         idx2 = iter_distance(iter_next(cbeg), cit);
                         switch ( idx2 ) {

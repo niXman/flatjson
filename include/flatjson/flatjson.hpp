@@ -2063,13 +2063,16 @@ inline compare_result compare(
     ,GetByIdxFn get_by_idx_fn
     ,GetByKeyFn get_by_key_fn
     ,compare_mode cmpmode = compare_mode::markup_only)
-
-{   const auto real_get = left_it.is_array() ? get_by_idx_fn : get_by_key_fn;
+{
+    const bool enter_for_array = left_it.is_array();
     const auto left_start = left_it;
     left_it = iter_next(left_it);
     right_it= iter_next(right_it);
     for ( ; iter_not_equal(left_it, left_end); left_it = iter_next(left_it) ) {
-        auto it = real_get(left_start, left_it, right_it);
+        auto it = enter_for_array
+            ? get_by_idx_fn(left_start, left_it, right_it)
+            : get_by_key_fn(left_start, left_it, right_it)
+        ;
         if ( iter_equal(it, right_end) ) {
             *left_diff_ptr = left_it;
 
