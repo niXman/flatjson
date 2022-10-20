@@ -993,7 +993,7 @@ int main() {
         auto dist = iter_members(beg);
         assert(dist == 5);
 
-        auto idx = 0u;
+        std::size_t idx = 0u;
         for ( auto it = iter_next(beg); iter_not_equal(it, end); it = iter_next(it) ) {
             idx = iter_distance(iter_next(beg), it);
             switch ( idx ) {
@@ -1058,7 +1058,7 @@ int main() {
         bool case_1 = false;
         bool case_2 = false;
         bool case_3 = false;
-        auto idx = 0u;
+        std::size_t idx = 0u;
         for ( auto it = iter_next(beg); iter_not_equal(it, end); it = iter_next(it) ) {
             idx = iter_distance(iter_next(beg), it);
             switch ( idx ) {
@@ -1120,7 +1120,7 @@ int main() {
         bool case_1 = false;
         bool case_2 = false;
         bool case_3 = false;
-        auto idx = 0u;
+        std::size_t idx = 0u;
         for ( auto it = iter_next(beg); iter_not_equal(it, end); it = iter_next(it) ) {
             idx = iter_distance(iter_next(beg), it);
             switch ( idx ) {
@@ -1346,7 +1346,7 @@ int main() {
         bool dist_0 = false;
         bool dist_1 = false;
         bool dist_2 = false;
-        auto idx = 0u;
+        std::size_t idx = 0u;
         for ( auto it = iter_next(bbeg); iter_not_equal(it, bend); it = iter_next(it) ) {
             idx = iter_distance(iter_next(bbeg), it);
             switch ( idx ) {
@@ -1527,7 +1527,7 @@ int main() {
         bool case_1 = false;
         bool case_2 = false;
         bool case_3 = false;
-        auto idx = 0u;
+        std::size_t idx = 0u;
         for ( auto it = iter_next(beg); iter_not_equal(it, end); it = iter_next(it) ) {
             idx = iter_distance(iter_next(beg), it);
             switch ( idx ) {
@@ -1593,7 +1593,7 @@ int main() {
         bool case_2_0 = false;
         bool case_2_1 = false;
         bool case_3 = false;
-        auto idx = 0u;
+        std::size_t idx = 0u;
         for ( auto it = iter_next(beg); iter_not_equal(it, end); it = iter_next(it) ) {
             idx = iter_distance(iter_next(beg), it);
             switch ( idx ) {
@@ -2031,7 +2031,7 @@ R"({
         bool dist_0 = false;
         bool dist_1 = false;
         bool dist_2 = false;
-        auto idx = 0u;
+        std::size_t idx = 0u;
         for ( auto it = ++bbeg; it != bend; ++it ) {
             idx = distance(bbeg, it);
             switch ( idx ) {
