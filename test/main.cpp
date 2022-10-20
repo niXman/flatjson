@@ -386,7 +386,6 @@ int main() {
     };
 
     test += FJ_TEST(test for BOOL-false) {
-
         using namespace flatjson;
 
         static const char str[] = R"(false)";
@@ -2466,6 +2465,62 @@ R"({
         auto r = compare(&ldiff, &rdiff, parser0, parser1);
         assert(r == compare_result::equal);
         assert(std::strcmp(compare_result_string(r), "equal") == 0);
+
+        free_parser(parser1);
+        free_parser(parser0);
+    };
+
+    test += FJ_TEST(test for the equal JSON ARRAYS of OBJECTS for compare(markup)) {
+        using namespace flatjson;
+
+        static const char str0[] = R"([{"a":0}, {"b":1}])";
+        auto *parser0 = alloc_parser(str0);
+        auto toknum0 = parse(parser0);
+
+        assert(is_valid(parser0));
+        assert(toknum0 == 8);
+        assert(parser0->toks_end == parser0->toks_beg + toknum0);
+
+        static const char str1[] = R"([{"a":0}, {"b":1}])";
+        auto *parser1 = alloc_parser(str1);
+        auto toknum1 = parse(parser1);
+
+        assert(is_valid(parser1));
+        assert(toknum1 == 8);
+        assert(parser1->toks_end == parser1->toks_beg + toknum1);
+
+        iterator ldiff, rdiff;
+        auto r = compare(&ldiff, &rdiff, parser0, parser1);
+        assert(r == compare_result::equal);
+        assert(std::strcmp(compare_result_string(r), "equal") == 0);
+
+        free_parser(parser1);
+        free_parser(parser0);
+    };
+
+    test += FJ_TEST(test for the equal JSON ARRAYS of OBJECTS for compare(markup)) {
+        using namespace flatjson;
+
+        static const char str0[] = R"([{"a":0}, {"b":1}])";
+        auto *parser0 = alloc_parser(str0);
+        auto toknum0 = parse(parser0);
+
+        assert(is_valid(parser0));
+        assert(toknum0 == 8);
+        assert(parser0->toks_end == parser0->toks_beg + toknum0);
+
+        static const char str1[] = R"([{"b":1}, {"a":0}])";
+        auto *parser1 = alloc_parser(str1);
+        auto toknum1 = parse(parser1);
+
+        assert(is_valid(parser1));
+        assert(toknum1 == 8);
+        assert(parser1->toks_end == parser1->toks_beg + toknum1);
+
+        iterator ldiff, rdiff;
+        auto r = compare(&ldiff, &rdiff, parser0, parser1);
+        assert(r == compare_result::no_key);
+        assert(std::strcmp(compare_result_string(r), "no required key") == 0);
 
         free_parser(parser1);
         free_parser(parser0);

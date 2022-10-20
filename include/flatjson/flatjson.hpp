@@ -2062,12 +2062,12 @@ inline compare_result compare(
     ,GetByKeyFn get_by_key_fn
     ,compare_mode cmpmode = compare_mode::markup_only)
 {
-    const bool enter_for_array = left_it.is_array();
-    const auto left_start = left_it;
+    const bool for_array = left_it.is_array();
+    const auto left_start = iter_next(left_it);
     left_it = iter_next(left_it);
     right_it= iter_next(right_it);
     for ( ; iter_not_equal(left_it, left_end); left_it = iter_next(left_it) ) {
-        auto it = enter_for_array
+        auto it = for_array
             ? get_by_idx_fn(left_start, left_it, right_it)
             : get_by_key_fn(left_start, left_it, right_it)
         ;
@@ -2170,8 +2170,10 @@ inline compare_result compare(
     }
 
     static const auto get_by_idx_fn = [](const iterator &beg, const iterator &it, const iterator &in) {
-        auto dist = iter_distance(iter_next(beg), it);
-        return iter_at(dist, in);
+        auto dist = iter_distance(beg, it);
+        auto in_beg = iter_begin(in);
+        auto in_end = iter_end(in);
+        return details::iter_find(dist, in_beg, in_end);
     };
     static const auto get_by_key_fn = [](const iterator &/*beg*/, const iterator &it, const iterator &in) {
         auto key = it.key();
