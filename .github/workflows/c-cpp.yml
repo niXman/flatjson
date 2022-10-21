@@ -93,7 +93,7 @@ jobs:
           cmake . -G "$CMAKE_GENERATOR" -DCMAKE_BUILD_TYPE=Release
           cmake --build .
           Debug/c-style.exe
-          cd ../examples/cpp-style
+          cd ../cpp-style
           cmake . -G "$CMAKE_GENERATOR" -DCMAKE_BUILD_TYPE=Release
           cmake --build .
           Debug/cpp-style.exe
