@@ -426,7 +426,7 @@ inline void dump_tokens_impl(
     for ( auto it = beg; it != end; ++it ) {
         if ( it->type == FJ_TYPE_ARRAY_END || it->type == FJ_TYPE_OBJECT_END ) {
             assert(indent > 0);
-            local_indent -= indent;
+            local_indent -= static_cast<int>(indent);
         }
         std::fprintf(stream, "%3d:%c type=%.*s%3s, addr=%p, end=%p, parent=%p, childs=%d, key=\"%.*s\", val=\"%.*s\"\n"
             ,(int)(it - beg)
@@ -441,7 +441,7 @@ inline void dump_tokens_impl(
         );
         std::fflush(stream);
         if ( it->type == FJ_TYPE_ARRAY || it->type == FJ_TYPE_OBJECT ) {
-            local_indent += indent;
+            local_indent += static_cast<int>(indent);
         }
     }
 }
