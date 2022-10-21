@@ -2078,11 +2078,6 @@ inline const char* compare_result_string(compare_result r) {
     return nullptr;
 }
 
-inline std::string format_report() {
-    std::string res;
-    return res;
-}
-
 inline compare_result compare_impl(
      iterator *left_diff_ptr
     ,iterator *right_diff_ptr
@@ -2092,65 +2087,81 @@ inline compare_result compare_impl(
     ,const iterator &right_end
     ,compare_mode cmpmode = compare_mode::markup_only)
 {
-    const bool in_array = left_beg.parent()->type == FJ_TYPE_ARRAY;
-    for ( auto it = left_beg; iter_not_equal(it, left_end); it = iter_next(it) ) {
-        const iterator found = in_array
-            ? details::iter_find(iter_distance(left_beg, it), right_beg, right_end)
-            : details::iter_find(it.key().data(), it.key().size(), right_beg, right_end)
-        ;
-        if ( iter_equal(found, right_end) ) {
-            *left_diff_ptr = it;
-
-            return compare_result::no_key;
+    const auto in_array = left_beg.parent()->type == FJ_TYPE_ARRAY;
+    const auto only_simple = left_beg.parent()->flags;
+    if ( in_array && only_simple ) {
+        for ( const auto *lit = left_beg.cur, *rit = right_beg.cur; lit != left_beg.end; ++lit, ++rit ) {
+            auto res = cmpmode == compare_mode::full
+                ? string_view{lit->val, lit->vlen} == string_view{rit->val, rit->vlen}
+                    ? compare_result::equal : compare_result::value
+                    : cmpmode == compare_mode::length_only
+                        ? lit->vlen == rit->vlen ? compare_result::equal : compare_result::length
+                        : lit->type == rit->type ? compare_result::equal : compare_result::type
+            ;
+            if ( res != compare_result::equal ) {
+                return res;
+            }
         }
+    } else {
+        for ( auto it = left_beg; iter_not_equal(it, left_end); it = iter_next(it) ) {
+            const iterator found = in_array
+                ? details::iter_find(iter_distance(left_beg, it), right_beg, right_end)
+                : details::iter_find(it.key().data(), it.key().size(), right_beg, right_end)
+            ;
+            if ( iter_equal(found, right_end) ) {
+                *left_diff_ptr = it;
 
-        if ( it.type() != found.type() ) {
-            *left_diff_ptr = it;
-            *right_diff_ptr= found;
+                return compare_result::no_key;
+            }
 
-            return compare_result::type;
-        }
-
-        if ( !it.is_simple_type() ) {
-            if ( it.members() != found.members() ) {
+            if ( it.type() != found.type() ) {
                 *left_diff_ptr = it;
                 *right_diff_ptr= found;
 
-                return (it.members() < found.members())
-                    ? compare_result::longer
-                    : compare_result::shorter
+                return compare_result::type;
+            }
+
+            if ( !it.is_simple_type() ) {
+                if ( it.members() != found.members() ) {
+                    *left_diff_ptr = it;
+                    *right_diff_ptr= found;
+
+                    return (it.members() < found.members())
+                        ? compare_result::longer
+                        : compare_result::shorter
+                    ;
+                }
+
+                auto left_next_beg  = iter_begin(it);
+                auto left_next_end  = iter_end(it);
+                auto right_next_beg = iter_begin(found);
+                auto right_next_end = iter_end(found);
+                auto res = it.is_array()
+                    ? compare_impl(
+                         left_diff_ptr, right_diff_ptr
+                        ,iter_next(left_next_beg), left_next_end
+                        ,iter_next(right_next_beg), right_next_end, cmpmode)
+                    : compare_impl(
+                         left_diff_ptr, right_diff_ptr
+                        ,iter_next(left_next_beg), left_next_end
+                        ,iter_next(right_next_beg), right_next_end, cmpmode)
                 ;
-            }
+                if ( res != compare_result::equal ) {
+                    return res;
+                }
+            } else {
+                auto res = cmpmode == compare_mode::full
+                    ? it.value() == found.value() ? compare_result::equal : compare_result::value
+                    : cmpmode == compare_mode::length_only
+                        ? it.value().size() == found.value().size() ? compare_result::equal : compare_result::length
+                        : it.type() == found.type() ? compare_result::equal : compare_result::type
+                ;
+                if ( res != compare_result::equal ) {
+                    *left_diff_ptr = it;
+                    *right_diff_ptr = found;
 
-            auto left_next_beg  = iter_begin(it);
-            auto left_next_end  = iter_end(it);
-            auto right_next_beg = iter_begin(found);
-            auto right_next_end = iter_end(found);
-            auto res = it.is_array()
-                ? compare_impl(
-                     left_diff_ptr, right_diff_ptr
-                    ,iter_next(left_next_beg), left_next_end
-                    ,iter_next(right_next_beg), right_next_end, cmpmode)
-                : compare_impl(
-                     left_diff_ptr, right_diff_ptr
-                    ,iter_next(left_next_beg), left_next_end
-                    ,iter_next(right_next_beg), right_next_end, cmpmode)
-            ;
-            if ( res != compare_result::equal ) {
-                return res;
-            }
-        } else {
-            auto res = cmpmode == compare_mode::full
-                ? it.value() == found.value() ? compare_result::equal : compare_result::value
-                : cmpmode == compare_mode::length_only
-                    ? it.value().size() == found.value().size() ? compare_result::equal : compare_result::length
-                    : it.type() == found.type() ? compare_result::equal : compare_result::type
-            ;
-            if ( res != compare_result::equal ) {
-                *left_diff_ptr = it;
-                *right_diff_ptr = found;
-
-                return res;
+                    return res;
+                }
             }
         }
     }
