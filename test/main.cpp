@@ -182,25 +182,9 @@ int parse_file(const char *path, const char *fname) {
     std::string p{path};
     p += fname;
 
-    int lec{};
-    auto fsize = flatjson::file_size(p.c_str(), &lec);
-    if ( lec ) {
-        return flatjson::FJ_EC_INVALID;
-    }
-
-    flatjson::file_handle fd{};
-    const char *addr = static_cast<const char *>(flatjson::mmap_for_read(&fd, p.c_str(), &lec));
-    if ( lec ) {
-        return flatjson::FJ_EC_INVALID;
-    }
-
+    auto content = read_file(p.c_str());
     flatjson::error_code ec{};
-    flatjson::num_tokens(&ec, addr, addr + fsize);
-
-    flatjson::munmap_file_fd(addr, fd, &lec);
-    if ( lec ) {
-        std::cout << "parse_file(): munmap_file: err=" << lec << std::endl;
-    }
+    flatjson::num_tokens(&ec, &(content.front()), &(content.back()));
 
     return ec;
 }
@@ -508,6 +492,7 @@ int main() {
         assert(is_valid(parser));
         assert(toknum == 4);
         assert(parser->toks_end == parser->toks_beg + toknum);
+        assert(parser->toks_beg->flags == 1);
 
         auto beg = iter_begin(parser);
         assert(beg.is_object());
@@ -539,6 +524,7 @@ int main() {
         assert(is_valid(parser));
         assert(toknum == 4);
         assert(parser->toks_end == parser->toks_beg + toknum);
+        assert(parser->toks_beg->flags == 1);
 
         auto beg = iter_begin(parser);
         assert(beg.is_array());
@@ -572,6 +558,7 @@ int main() {
         assert(is_valid(parser));
         assert(toknum == 6);
         assert(parser->toks_end == parser->toks_beg + toknum);
+        assert(parser->toks_beg->flags == 0);
 
         auto beg = iter_begin(parser);
         assert(beg.is_object());
@@ -611,6 +598,7 @@ int main() {
         assert(is_valid(parser));
         assert(toknum == 6);
         assert(parser->toks_end == parser->toks_beg + toknum);
+        assert(parser->toks_beg->flags == 0);
 
         auto beg = iter_begin(parser);
         assert(beg.is_array());
@@ -656,6 +644,7 @@ int main() {
         assert(is_valid(&parser));
         assert(toknum == 7);
         assert(parser.toks_end == parser.toks_beg + toknum);
+        assert(parser.toks_beg->flags == 1);
 
         assert(tokens[0].type == FJ_TYPE_OBJECT);
         assert(token_childs(&tokens[0]) == 6);
@@ -724,6 +713,7 @@ int main() {
         assert(is_valid(parser));
         assert(toknum == 7);
         assert(parser->toks_end == parser->toks_beg + toknum);
+        assert(parser->toks_beg->flags == 1);
 
         assert(tokens[0].type == FJ_TYPE_OBJECT);
         assert(token_childs(&tokens[0]) == 6);
@@ -793,6 +783,7 @@ int main() {
         assert(is_valid(&parser));
         assert(toknum == 7);
         assert(parser.toks_end == parser.toks_beg + toknum);
+        assert(parser.toks_beg->flags == 1);
 
         auto *tokens = parser.toks_beg;
         assert(tokens[0].type == FJ_TYPE_OBJECT);
@@ -864,6 +855,7 @@ int main() {
         assert(is_valid(parser));
         assert(toknum == 7);
         assert(parser->toks_end == parser->toks_beg + toknum);
+        assert(parser->toks_beg->flags == 1);
 
         auto *tokens = parser->toks_beg;
         assert(tokens[0].type == FJ_TYPE_OBJECT);
@@ -921,6 +913,7 @@ int main() {
         assert(toknum == 4);
         assert(num_tokens(parser) == 4);
         assert(get_error(parser) == flatjson::FJ_EC_NO_FREE_TOKENS);
+        assert(parser->toks_beg->flags == 1);
 
         free_parser(parser);
     };
@@ -935,6 +928,7 @@ int main() {
         assert(is_valid(&parser));
         assert(toknum == 6);
         assert(parser.toks_end == parser.toks_beg + toknum);
+        assert(parser.toks_beg->flags == 0);
 
         auto beg = iter_begin(&parser);
         assert(beg.is_array());
@@ -960,6 +954,7 @@ int main() {
         assert(is_valid(&parser));
         assert(toknum == 5);
         assert(parser.toks_end == parser.toks_beg + toknum);
+        assert(parser.toks_beg->flags == 1);
 
         auto beg = iter_begin(&parser);
         assert(beg.is_object());
@@ -982,6 +977,7 @@ int main() {
         assert(is_valid(&parser));
         assert(toknum == 7);
         assert(parser.toks_end == parser.toks_beg + toknum);
+        assert(parser.toks_beg->flags == 1);
 
         auto beg = iter_begin(&parser);
         assert(beg.is_object());
@@ -1043,6 +1039,7 @@ int main() {
         assert(is_valid(&parser));
         assert(toknum == 6);
         assert(parser.toks_end == parser.toks_beg + toknum);
+        assert(parser.toks_beg->flags == 1);
 
         auto beg = iter_begin(&parser);
         assert(beg.is_array());
@@ -1105,6 +1102,7 @@ int main() {
         assert(is_valid(&parser));
         assert(toknum == 14);
         assert(parser.toks_end == parser.toks_beg + toknum);
+        assert(parser.toks_beg->flags == 0);
 
         auto beg = iter_begin(&parser);
         assert(beg.is_array());
@@ -1167,6 +1165,7 @@ int main() {
         assert(is_valid(&parser));
         assert(toknum == 6);
         assert(parser.toks_end == parser.toks_beg + toknum);
+        assert(parser.toks_beg->flags == 1);
 
         assert(num_tokens(&parser) == 6);
         assert(num_childs(&parser) == 4);
@@ -1211,6 +1210,7 @@ int main() {
         assert(is_valid(&parser));
         assert(toknum == 5);
         assert(parser.toks_end == parser.toks_beg + toknum);
+        assert(parser.toks_beg->flags == 1);
 
         assert(num_tokens(&parser) == 5);
         assert(num_childs(&parser) == 3);
@@ -1245,6 +1245,7 @@ int main() {
         assert(is_valid(parser));
         assert(toknum == 6);
         assert(parser->toks_end == parser->toks_beg + toknum);
+        assert(parser->toks_beg->flags == 0);
 
         assert(num_childs(parser) == 1);
         assert(is_object(parser));
@@ -1302,6 +1303,7 @@ int main() {
         assert(is_valid(parser));
         assert(toknum == 31);
         assert(parser->toks_end == parser->toks_beg + toknum);
+        assert(parser->toks_beg->flags == 0);
 
 //        details::fj_dump_tokens(stdout, "", parser);
 
@@ -1320,6 +1322,7 @@ int main() {
         assert(!a.is_string());
         assert(!a.is_null());
         assert(!a.is_bool());
+        assert(a.beg->flags == 1);
 
         auto abeg = iter_begin(a);
         auto aend = iter_end(a);
@@ -1336,6 +1339,7 @@ int main() {
         assert(!b.is_string());
         assert(!b.is_null());
         assert(!b.is_bool());
+        assert(b.beg->flags == 0);
 
         auto bbeg = iter_begin(b);
         auto bend = iter_end(b);
@@ -1347,6 +1351,7 @@ int main() {
         bool dist_2 = false;
         std::size_t idx = 0u;
         for ( auto it = iter_next(bbeg); iter_not_equal(it, bend); it = iter_next(it) ) {
+            assert(it.cur->flags == 1);
             idx = iter_distance(iter_next(bbeg), it);
             switch ( idx ) {
                 case 0: {
@@ -1770,7 +1775,7 @@ R"({
 
         std::FILE *stream = nullptr;
 #ifdef _MSC_VER
-        fopen_s(&stream, fname, "w");
+        fopen_s(&stream, fname, "wb");
 #else
         stream = std::fopen(fname, "w");
 #endif // _MSC_VER
@@ -2442,7 +2447,7 @@ R"({
         free_parser(parser0);
     };
 
-    test += FJ_TEST(test for the equal JSON ARRAYS for compare(markup)) {
+    test += FJ_TEST(test for equal JSON ARRAYS for compare(markup)) {
         using namespace flatjson;
 
         static const char str0[] = R"([1,2,3,4])";
@@ -2465,6 +2470,34 @@ R"({
         auto r = compare(&ldiff, &rdiff, parser0, parser1);
         assert(r == compare_result::equal);
         assert(std::strcmp(compare_result_string(r), "equal") == 0);
+
+        free_parser(parser1);
+        free_parser(parser0);
+    };
+
+    test += FJ_TEST(test for NON equal JSON ARRAYS for compare(markup)) {
+        using namespace flatjson;
+
+        static const char str0[] = R"([1,2,3,4])";
+        auto *parser0 = alloc_parser(str0);
+        auto toknum0 = parse(parser0);
+
+        assert(is_valid(parser0));
+        assert(toknum0 == 6);
+        assert(parser0->toks_end == parser0->toks_beg + toknum0);
+
+        static const char str1[] = R"([4,3,2,1])";
+        auto *parser1 = alloc_parser(str1);
+        auto toknum1 = parse(parser1);
+
+        assert(is_valid(parser1));
+        assert(toknum1 == 6);
+        assert(parser1->toks_end == parser1->toks_beg + toknum1);
+
+        iterator ldiff, rdiff;
+        auto r = compare(&ldiff, &rdiff, parser0, parser1, compare_mode::full);
+        assert(r == compare_result::value);
+        assert(std::strcmp(compare_result_string(r), "value do not match") == 0);
 
         free_parser(parser1);
         free_parser(parser0);
@@ -2498,7 +2531,7 @@ R"({
         free_parser(parser0);
     };
 
-    test += FJ_TEST(test for the equal JSON ARRAYS of OBJECTS for compare(markup)) {
+    test += FJ_TEST(test for the NON equal JSON ARRAYS of OBJECTS for compare(markup)) {
         using namespace flatjson;
 
         static const char str0[] = R"([{"a":0}, {"b":1}])";

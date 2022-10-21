@@ -136,7 +136,7 @@ file_handle file_open(const char_type *fname, int *ec) {
     int fd = ::open(fname, O_RDONLY);
     if ( fd == -1 ) {
         if ( ec ) { *ec = errno; }
-        return fd;
+        return -1;
     }
 
     return fd;
@@ -229,7 +229,7 @@ const void* mmap_for_read(file_handle *fd, const char_type *fname, int *ec) {
 
     auto fsize = file_size(lfd);
     auto *addr = mmap_for_read(lfd, fsize, &lec);
-    if ( !addr ) {
+    if ( !addr || lec ) {
         if ( ec ) { *ec = lec; }
         file_close(lfd, &lec);
         *fd = -1;

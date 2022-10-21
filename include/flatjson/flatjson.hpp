@@ -15,6 +15,7 @@
 #include "version.hpp"
 
 //#include <iostream> // TODO: comment out
+
 #include <ostream>
 #include <vector>
 #include <string>
@@ -56,7 +57,7 @@
 #endif // __cplusplus >= 201703L
 
 #ifndef FJ_KLEN_TYPE
-#   define FJ_KLEN_TYPE std::uint16_t
+#   define FJ_KLEN_TYPE std::uint8_t
 #endif // FJ_KLEN_TYPE
 #ifndef FJ_VLEN_TYPE
 #   define FJ_VLEN_TYPE std::uint16_t
@@ -355,16 +356,18 @@ conv_to(const char *ptr, std::size_t len, To) { return {ptr, len}; }
 } // ns details
 
 /*************************************************************************************************/
-
+// 40 bytes for now
 struct token {
     const char *key;
     const char *val;
     token *parent;
-    token *end; // pointing to the last token for arrays and objects
-    FJ_KLEN_TYPE klen;
-    FJ_VLEN_TYPE vlen;
+    token *end;
     FJ_CHILDS_TYPE childs;
+    FJ_VLEN_TYPE vlen;
+    FJ_KLEN_TYPE klen;
     token_type type;
+    std::uint8_t flags;
+    std::uint8_t unused;
 };
 
 /*************************************************************************************************/
@@ -403,7 +406,8 @@ inline void dump_tokens_impl(
      std::FILE *stream
     ,const token *beg
     ,const token *cur
-    ,const token *end)
+    ,const token *end
+    ,std::size_t indent)
 {
     static const char* tnames[] = {
          "INV" // invalid type
@@ -418,16 +422,16 @@ inline void dump_tokens_impl(
     };
     static const char spaces[] = "                                                         ";
 
-    int indent = 0;
+    int local_indent = 0;
     for ( auto it = beg; it != end; ++it ) {
         if ( it->type == FJ_TYPE_ARRAY_END || it->type == FJ_TYPE_OBJECT_END ) {
             assert(indent > 0);
-            indent -= 2;
+            local_indent -= indent;
         }
-        std::fprintf(stream, "%2d:%c type=%.*s%3s, addr=%p, end=%p, parent=%p, childs=%d, key=\"%.*s\", val=\"%.*s\"\n"
+        std::fprintf(stream, "%3d:%c type=%.*s%3s, addr=%p, end=%p, parent=%p, childs=%d, key=\"%.*s\", val=\"%.*s\"\n"
             ,(int)(it - beg)
             ,(it == cur ? '>' : ' ')
-            ,indent, spaces, tnames[it->type]
+            ,local_indent, spaces, tnames[it->type]
             ,it
             ,it->end
             ,it->parent
@@ -437,15 +441,15 @@ inline void dump_tokens_impl(
         );
         std::fflush(stream);
         if ( it->type == FJ_TYPE_ARRAY || it->type == FJ_TYPE_OBJECT ) {
-            indent += 2;
+            local_indent += indent;
         }
     }
 }
 
 // dump using parser
-inline void dump_tokens(std::FILE *stream, const char *caption, parser *parser) {
+inline void dump_tokens(std::FILE *stream, const char *caption, parser *parser, std::size_t indent = 3) {
     std::fprintf(stream, "%s:\n", caption);
-    dump_tokens_impl(stream, parser->toks_beg, parser->toks_beg, parser->toks_end);
+    dump_tokens_impl(stream, parser->toks_beg, parser->toks_beg, parser->toks_end, indent);
 }
 
 /*************************************************************************************************/
@@ -676,6 +680,7 @@ inline error_code parse_array(parser *p, token *parent) {
     auto *startarr = p->toks_cur++;
     __FJ__CONSTEXPR_IF( ParseMode ) {
         startarr->type = FJ_TYPE_ARRAY;
+        startarr->flags = 1;
         startarr->parent = parent;
         if ( startarr->parent ) {
             __FJ__CHECK_OVERFLOW(startarr->parent->childs, FJ_CHILDS_TYPE, FJ_EC_CHILDS_OVERFLOW);
@@ -700,7 +705,6 @@ inline error_code parse_array(parser *p, token *parent) {
         } else {
             __FJ__CONSTEXPR_IF( ParseMode ) {
                 current_token->parent = startarr;
-
                 __FJ__CHECK_OVERFLOW(startarr->childs, FJ_CHILDS_TYPE, FJ_EC_CHILDS_OVERFLOW);
                 ++startarr->childs;
             }
@@ -718,6 +722,10 @@ inline error_code parse_array(parser *p, token *parent) {
             return ec;
         }
         __FJ__CONSTEXPR_IF( ParseMode ) {
+            startarr->flags = (startarr->flags == 0)
+                ? startarr->flags
+                : fj_is_simple_type_macro(current_token->type)
+            ;
             __FJ__CHECK_OVERFLOW(size, FJ_VLEN_TYPE, FJ_EC_VLEN_OVERFLOW);
             current_token->vlen = static_cast<FJ_VLEN_TYPE>(size);
         }
@@ -769,6 +777,7 @@ inline error_code parse_object(parser *p, token *parent) {
     auto *startobj = p->toks_cur++;
     __FJ__CONSTEXPR_IF( ParseMode ) {
         startobj->type = FJ_TYPE_OBJECT;
+        startobj->flags = 1;
         startobj->parent = parent;
         if ( startobj->parent ) {
             __FJ__CHECK_OVERFLOW(startobj->parent->childs, FJ_CHILDS_TYPE, FJ_EC_CHILDS_OVERFLOW);
@@ -820,8 +829,8 @@ inline error_code parse_object(parser *p, token *parent) {
         ch = __FJ__CUR_CHAR(p);
         if ( ch == '[' || ch == '{' ) {
             p->toks_cur -= 1;
-            const char *unused_str{};
-            std::size_t unused_size{};
+            const char *unused_str;
+            std::size_t unused_size;
             ec = parse_value<ParseMode>(
                  p
                 ,&unused_str
@@ -829,6 +838,12 @@ inline error_code parse_object(parser *p, token *parent) {
                 ,&(current_token->type)
                 ,startobj
             );
+            __FJ__CONSTEXPR_IF( ParseMode ) {
+                startobj->flags = (startobj->flags == 0)
+                    ? startobj->flags
+                    : fj_is_simple_type_macro(current_token->type)
+                ;
+            }
         } else {
             __FJ__CONSTEXPR_IF( ParseMode ) {
                 current_token->parent = startobj;
@@ -875,7 +890,7 @@ inline error_code parse_object(parser *p, token *parent) {
         endobj->type = FJ_TYPE_OBJECT_END;
         endobj->parent = startobj;
         __FJ__CHECK_OVERFLOW(endobj->parent->childs, FJ_CHILDS_TYPE, FJ_EC_CHILDS_OVERFLOW);
-        ++endobj->parent->childs;
+        endobj->parent->childs += 1;
         startobj->end = endobj;
     } else {
         ++p->toks_cur;
@@ -1146,14 +1161,15 @@ inline std::size_t num_tokens(error_code *ecptr, const char *beg, const char *en
     auto p = make_parser(&fake, &fake, beg, end);
 
     std::size_t vlen = 0;
-    token_type toktype{};
+    token_type type;
     error_code ec = details::parse_value<false>(
          &p
         ,&(p.toks_beg->val)
         ,&vlen
-        ,&toktype
+        ,&type
         ,nullptr
     );
+    (void)type;
 
     if ( !ec && p.str_cur+1 != p.str_end ) {
         details::fj_skip_ws(&p);
@@ -1320,13 +1336,15 @@ inline std::size_t parse(parser *p) {
     }
 
     std::size_t vlen = 0;
+    token_type type;
     p->error = details::parse_value<true>(
          p
         ,&(p->toks_beg->val)
         ,&vlen
-        ,&(p->toks_beg->type)
+        ,&type
         ,nullptr
     );
+    p->toks_beg->type = type;
     assert(vlen <= std::numeric_limits<FJ_VLEN_TYPE>::max());
     p->toks_beg->vlen = static_cast<FJ_VLEN_TYPE>(vlen);
     p->toks_beg->end = p->toks_cur;
@@ -1455,9 +1473,9 @@ struct iterator {
 namespace details {
 
 // dump using iterator
-inline void dump_tokens(std::FILE *stream, const char *caption, const iterator &it) {
+inline void dump_tokens(std::FILE *stream, const char *caption, const iterator &it, std::size_t indent = 3) {
     std::fprintf(stream, "%s:\n", caption);
-    dump_tokens_impl(stream, it.beg, it.cur, it.end);
+    dump_tokens_impl(stream, it.beg, it.cur, it.end, indent);
 }
 
 } // ns details
@@ -1473,7 +1491,11 @@ inline iterator iter_end(const parser *p) {
 }
 
 inline iterator iter_begin(const iterator &it) {
-    return {it.cur, it.cur, it.cur->end};
+    if ( !it.is_simple_type() ) {
+        return {it.cur, it.cur, it.cur->end};
+    }
+
+    return {it.cur, it.cur, it.cur->parent->end};
 }
 
 inline iterator iter_end(const iterator &it) {
@@ -1514,6 +1536,10 @@ inline iterator iter_next(const iterator &it) {
 
 inline std::size_t iter_distance(const iterator &from, const iterator &to) {
     assert(from.cur->parent == to.cur->parent);
+
+    if ( from.cur->parent->flags == 1 ) {
+        return to.cur - from.cur;
+    }
 
     std::size_t cnt{};
     iterator it{from};
@@ -1560,7 +1586,7 @@ inline iterator iter_find(const char *key, std::size_t klen, const iterator &beg
         }
         case FJ_TYPE_OBJECT:
         case FJ_TYPE_ARRAY: {
-            return {it.cur, it.cur, it.cur->end + 1};
+            return {it.cur, it.cur, it.cur->end};
         }
         default: {
             if ( iter_equal(it, end) && it.type() == FJ_TYPE_OBJECT_END ) {
@@ -1676,38 +1702,40 @@ inline iterator iter_find(std::size_t idx, const iterator &beg, const iterator &
     if ( idx >= beg.cur->parent->childs ) {
         return end;
     }
-
-    iterator it{beg};
-    for ( ; iter_not_equal(it, end) && idx; --idx ) {
-        if ( it.type() == FJ_TYPE_ARRAY_END ) {
-            return end;
-        }
-
-        it = it.is_simple_type()
-            ? iterator{it.beg, it.cur + 1, it.end}
-            : iterator{it.beg, it.cur->end + 1, it.end}
-        ;
-    }
-
-    const auto type = it.type();
-    switch ( type ) {
-        case FJ_TYPE_STRING:
-        case FJ_TYPE_NUMBER:
-        case FJ_TYPE_BOOL:
-        case FJ_TYPE_NULL: {
-            return {it.beg, it.cur, it.cur + 1};
-        }
-        case FJ_TYPE_OBJECT:
-        case FJ_TYPE_ARRAY: {
-            return {it.cur, it.cur, it.cur->end};
-        }
-        default: {
-            if ( iter_equal(it, end) && it.type() == FJ_TYPE_ARRAY_END ) {
+    if ( beg.cur->parent->flags == 1 ) {
+        return {beg.beg, beg.cur + idx, beg.end};
+    } else {
+        iterator it{beg};
+        for ( ; iter_not_equal(it, end) && idx; --idx ) {
+            if ( it.type() == FJ_TYPE_ARRAY_END ) {
                 return end;
+            }
+
+            it = it.is_simple_type()
+                ? iterator{it.beg, it.cur + 1, it.end}
+                : iterator{it.beg, it.cur->end + 1, it.end}
+            ;
+        }
+
+        const auto type = it.type();
+        switch ( type ) {
+            case FJ_TYPE_STRING:
+            case FJ_TYPE_NUMBER:
+            case FJ_TYPE_BOOL:
+            case FJ_TYPE_NULL: {
+                return {it.beg, it.cur, it.cur + 1};
+            }
+            case FJ_TYPE_OBJECT:
+            case FJ_TYPE_ARRAY: {
+                return {it.cur, it.cur, it.cur->end};
+            }
+            default: {
+                if ( iter_equal(it, end) && it.type() == FJ_TYPE_ARRAY_END ) {
+                    return end;
+                }
             }
         }
     }
-
     assert(!"unreachable!");
 
     return end;
@@ -1959,6 +1987,11 @@ std::size_t walk_through_tokens(
     return length;
 }
 
+#undef __FJ_IO_CALL_CB_WITH_CHECK_1
+#undef __FJ_IO_CALL_CB_WITH_CHECK_2
+#undef __FJ_IO_CALL_CB_WITH_CHECK_3
+#undef __FJ_IO_CALL_CB_WITH_CHECK_4
+
 } // ns details
 
 /*************************************************************************************************/
@@ -2050,74 +2083,72 @@ inline std::string format_report() {
     return res;
 }
 
-template<typename GetByIdxFn, typename GetByKeyFn>
-inline compare_result compare(
+inline compare_result compare_impl(
      iterator *left_diff_ptr
     ,iterator *right_diff_ptr
-    ,iterator left_it
-    ,iterator left_end
-    ,iterator right_it
-    ,iterator right_end
-    ,GetByIdxFn get_by_idx_fn
-    ,GetByKeyFn get_by_key_fn
+    ,const iterator &left_beg
+    ,const iterator &left_end
+    ,const iterator &right_beg
+    ,const iterator &right_end
     ,compare_mode cmpmode = compare_mode::markup_only)
 {
-    const bool for_array = left_it.is_array();
-    const auto left_start = iter_next(left_it);
-    left_it = iter_next(left_it);
-    right_it= iter_next(right_it);
-    for ( ; iter_not_equal(left_it, left_end); left_it = iter_next(left_it) ) {
-        auto it = for_array
-            ? get_by_idx_fn(left_start, left_it, right_it)
-            : get_by_key_fn(left_start, left_it, right_it)
+    const bool in_array = left_beg.parent()->type == FJ_TYPE_ARRAY;
+    for ( auto it = left_beg; iter_not_equal(it, left_end); it = iter_next(it) ) {
+        const iterator found = in_array
+            ? details::iter_find(iter_distance(left_beg, it), right_beg, right_end)
+            : details::iter_find(it.key().data(), it.key().size(), right_beg, right_end)
         ;
-        if ( iter_equal(it, right_end) ) {
-            *left_diff_ptr = left_it;
+        if ( iter_equal(found, right_end) ) {
+            *left_diff_ptr = it;
 
             return compare_result::no_key;
         }
 
-        if ( left_it.type() != it.type() ) {
-            *left_diff_ptr = left_it;
-            *right_diff_ptr= it;
+        if ( it.type() != found.type() ) {
+            *left_diff_ptr = it;
+            *right_diff_ptr= found;
 
             return compare_result::type;
         }
 
-        if ( !left_it.is_simple_type() ) {
-            if ( left_it.members() != it.members() ) {
-                *left_diff_ptr = left_it;
-                *right_diff_ptr= it;
+        if ( !it.is_simple_type() ) {
+            if ( it.members() != found.members() ) {
+                *left_diff_ptr = it;
+                *right_diff_ptr= found;
 
-                return (left_it.members() < it.members())
+                return (it.members() < found.members())
                     ? compare_result::longer
                     : compare_result::shorter
                 ;
             }
 
-            auto res = left_it.is_array()
-                ? compare(
+            auto left_next_beg  = iter_begin(it);
+            auto left_next_end  = iter_end(it);
+            auto right_next_beg = iter_begin(found);
+            auto right_next_end = iter_end(found);
+            auto res = it.is_array()
+                ? compare_impl(
                      left_diff_ptr, right_diff_ptr
-                    ,iter_begin(left_it), iter_end(left_it)
-                    ,iter_begin(it), iter_end(it), get_by_idx_fn, get_by_key_fn, cmpmode)
-                : compare(
+                    ,iter_next(left_next_beg), left_next_end
+                    ,iter_next(right_next_beg), right_next_end, cmpmode)
+                : compare_impl(
                      left_diff_ptr, right_diff_ptr
-                    ,iter_begin(left_it), iter_end(left_it)
-                    ,iter_begin(it), iter_end(it), get_by_idx_fn, get_by_key_fn, cmpmode)
+                    ,iter_next(left_next_beg), left_next_end
+                    ,iter_next(right_next_beg), right_next_end, cmpmode)
             ;
             if ( res != compare_result::equal ) {
                 return res;
             }
         } else {
             auto res = cmpmode == compare_mode::full
-                ? left_it.value() == it.value() ? compare_result::equal : compare_result::value
+                ? it.value() == found.value() ? compare_result::equal : compare_result::value
                 : cmpmode == compare_mode::length_only
-                    ? left_it.value().size() == it.value().size() ? compare_result::equal : compare_result::length
-                    : left_it.type() == it.type() ? compare_result::equal : compare_result::type
+                    ? it.value().size() == found.value().size() ? compare_result::equal : compare_result::length
+                    : it.type() == found.type() ? compare_result::equal : compare_result::type
             ;
             if ( res != compare_result::equal ) {
-                *left_diff_ptr = left_it;
-                *right_diff_ptr = it;
+                *left_diff_ptr = it;
+                *right_diff_ptr = found;
 
                 return res;
             }
@@ -2169,24 +2200,9 @@ inline compare_result compare(
         ;
     }
 
-    static const auto get_by_idx_fn = [](const iterator &beg, const iterator &it, const iterator &in) {
-        auto dist = iter_distance(beg, it);
-        auto in_beg = iter_begin(in);
-        auto in_end = iter_end(in);
-        return details::iter_find(dist, in_beg, in_end);
-    };
-    static const auto get_by_key_fn = [](const iterator &/*beg*/, const iterator &it, const iterator &in) {
-        auto key = it.key();
-        return iter_at(key.data(), key.size(), in);
-    };
-
     return left_beg.is_array()
-        ? compare(
-             left_diff_ptr, right_diff_ptr
-            ,left_beg, left_end, right_beg, right_end, get_by_idx_fn, get_by_key_fn, cmpr)
-        : compare(
-             left_diff_ptr, right_diff_ptr
-            ,left_beg, left_end, right_beg, right_end, get_by_idx_fn, get_by_key_fn, cmpr)
+        ? compare_impl(left_diff_ptr, right_diff_ptr, iter_next(left_beg), left_end, iter_next(right_beg), right_end, cmpr)
+        : compare_impl(left_diff_ptr, right_diff_ptr ,iter_next(left_beg), left_end, iter_next(right_beg), right_end, cmpr)
     ;
 }
 
