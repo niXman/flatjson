@@ -454,22 +454,27 @@ inline void dump_tokens(std::FILE *stream, const char *caption, parser *parser, 
 
 /*************************************************************************************************/
 
-inline void fj_skip_ws(parser *p) {
-    for (
-        ;p->str_cur < p->str_end
-            && (
-                *p->str_cur == ' '  // 0x20
-             || *p->str_cur == '\t' // 0x09
-             || *p->str_cur == '\n' // 0x0a
-             || *p->str_cur == '\r' // 0x0d
-        )
-        ;++p->str_cur
-    )
-        ;
+inline const char* fj_skip_ws(const char *s) {
+    constexpr bool t = true;
+    constexpr bool f = false;
+    static constexpr bool map[] = {
+         f,f,f,f,f,f,f,f,f,t,t,f,f,t,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,t,f,f,f,f
+        ,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f
+        ,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f
+        ,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f
+        ,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f
+        ,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f
+        ,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f
+    };
+    static_assert(sizeof(map) == 256, "");
+
+    for ( ;map[static_cast<std::uint8_t>(*s)]; ++s );
+
+    return s;
 }
 
 #define __FJ__CUR_CHAR(p) \
-    ((fj_skip_ws(p)), (p->str_cur >= p->str_end ? ((int)-1) : *(p->str_cur)))
+    ((p->str_cur = fj_skip_ws(p->str_cur)), (p->str_cur >= p->str_end ? ((int)-1) : *(p->str_cur)))
 
 inline error_code check_and_skip(parser *p, char expected) {
     char ch = __FJ__CUR_CHAR(p);
@@ -549,10 +554,10 @@ inline error_code parse_string(parser *p, const char **value, std::size_t *vlen)
         return ec;
     }
 
-    int ch = 0;
+    std::uint8_t ch = 0;
     auto *start = p->str_cur;
     for ( std::size_t len = 0; p->str_cur < p->str_end; p->str_cur += len ) {
-        ch = static_cast<unsigned char>(*(p->str_cur));
+        ch = *(p->str_cur);
         len = fj_utf8_char_len((unsigned char)ch);
         if ( !(ch >= 32 && len > 0) ) {
             return FJ_EC_INVALID;
@@ -1172,7 +1177,7 @@ inline std::size_t num_tokens(error_code *ecptr, const char *beg, const char *en
     (void)type;
 
     if ( !ec && p.str_cur+1 != p.str_end ) {
-        details::fj_skip_ws(&p);
+        p.str_cur = details::fj_skip_ws(p.str_cur);
         if ( p.str_cur != p.str_end ) {
             if ( ecptr ) { *ecptr = FJ_EC_INVALID; }
 

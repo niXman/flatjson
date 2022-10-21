@@ -38,13 +38,13 @@ int main(int argc, char **argv) {
 		return EXIT_FAILURE;
 	}
 
-	std::cout << "sizeof(fj_token) = " << sizeof(flatjson::fj_token) << std::endl;
+	std::cout << "sizeof(token) = " << sizeof(flatjson::token) << std::endl;
 	const char *fname = argv[1];
 	std::string body = read_file(fname);
 
 	auto t1 = std::chrono::high_resolution_clock::now();
 	
-	flatjson::fjson json(body.c_str(), body.size());
+	flatjson::fjson json(body.c_str(), body.c_str() + body.size());
 	if ( !json.is_valid() ) {
 	    std::cout << "parse error: " << json.error() << ", msg=" << json.error_string() << std::endl;
 
