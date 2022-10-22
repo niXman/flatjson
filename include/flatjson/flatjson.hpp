@@ -2089,11 +2089,11 @@ inline compare_result compare_impl(
         using comparator_fnptr = compare_result(*)(const token *l, const token *r);
         static const comparator_fnptr cmparr[3] = {
              [](const token *l, const token *r)
-             { return string_view{l->val, l->vlen} == string_view{r->val, r->vlen} ? compare_result::equal : compare_result::value; }
+             { return l->type == r->type ? compare_result::equal : compare_result::type; }
             ,[](const token *l, const token *r)
              { return l->vlen == r->vlen ? compare_result::equal : compare_result::length; }
             ,[](const token *l, const token *r)
-             { return l->type == r->type ? compare_result::equal : compare_result::type; }
+             { return string_view{l->val, l->vlen} == string_view{r->val, r->vlen} ? compare_result::equal : compare_result::value; }
         };
         for ( const auto *lit = left_beg.cur, *rit = right_beg.cur; lit != left_beg.end; ++lit, ++rit ) {
             auto res = cmparr[static_cast<unsigned>(cmpmode)](lit, rit);
