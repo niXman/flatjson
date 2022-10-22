@@ -2083,17 +2083,29 @@ inline compare_result compare_impl(
     ,const iterator &right_end
     ,compare_mode cmpmode = compare_mode::markup_only)
 {
-    const auto in_array = left_beg.parent()->type == FJ_TYPE_ARRAY;
-    const auto only_simple = left_beg.parent()->flags;
+    const bool in_array = left_beg.parent()->type == FJ_TYPE_ARRAY;
+    const bool only_simple = left_beg.parent()->flags;
     if ( in_array && only_simple ) {
+        const auto comparator = (cmpmode == compare_mode::full)
+            ? [](const token *l, const token *r){
+                return string_view{l->val, l->vlen} == string_view{r->val, r->vlen}
+                    ? compare_result::equal
+                    : compare_result::value;
+            }
+            : (cmpmode == compare_mode::length_only)
+                ? [](const token *l, const token *r){
+                    return l->vlen == r->vlen
+                        ? compare_result::equal
+                        : compare_result::length;
+                }
+                : [](const token *l, const token *r){
+                    return l->type == r->type
+                        ? compare_result::equal
+                        : compare_result::type;
+                }
+        ;
         for ( const auto *lit = left_beg.cur, *rit = right_beg.cur; lit != left_beg.end; ++lit, ++rit ) {
-            auto res = cmpmode == compare_mode::full
-                ? string_view{lit->val, lit->vlen} == string_view{rit->val, rit->vlen}
-                    ? compare_result::equal : compare_result::value
-                    : cmpmode == compare_mode::length_only
-                        ? lit->vlen == rit->vlen ? compare_result::equal : compare_result::length
-                        : lit->type == rit->type ? compare_result::equal : compare_result::type
-            ;
+            auto res = comparator(lit, rit);
             if ( res != compare_result::equal ) {
                 return res;
             }
