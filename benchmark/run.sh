@@ -1,7 +1,9 @@
 #!/bin/bash
 
-g++ -std=c++11 -I../include -DFJ_CHILDS_TYPE=std::uint32_t -O2 benchmark.cpp -o benchmark
-[[ $? != 0 ]] && exit 1
+cmake . -DCMAKE_BUILD_TYPE=Release
+[[ $? != 0 ]] && { echo "cmake configure error!"; exit 1; }
+cmake --build .
+[[ $? != 0 ]] && { echo "cmake build error!"; exit 1; }
 
 echo "canada.json" && ./benchmark canada.json
 echo

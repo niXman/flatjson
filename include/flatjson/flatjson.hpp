@@ -457,7 +457,7 @@ inline void dump_tokens(std::FILE *stream, const char *caption, parser *parser, 
 inline const char* fj_skip_ws(const char *s) {
     constexpr bool t = true;
     constexpr bool f = false;
-    static constexpr bool map[] = {
+    static const bool map[] = {
          f,f,f,f,f,f,f,f,f,t,t,f,f,t,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,t,f,f,f,f
         ,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f
         ,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f
@@ -474,10 +474,10 @@ inline const char* fj_skip_ws(const char *s) {
 }
 
 #define __FJ__CUR_CHAR(p) \
-    ((p->str_cur = fj_skip_ws(p->str_cur)), (p->str_cur >= p->str_end ? ((int)-1) : *(p->str_cur)))
+    ((p->str_cur = fj_skip_ws(p->str_cur)), (*(p->str_cur) == 0 ? ((int)-1) : *(p->str_cur)))
 
 inline error_code check_and_skip(parser *p, char expected) {
-    char ch = __FJ__CUR_CHAR(p);
+    char ch = *(p->str_cur);
     if ( ch == expected ) {
         p->str_cur++;
 
@@ -591,14 +591,11 @@ inline error_code parse_string(parser *p, const char **value, std::size_t *vlen)
 template<bool ParseMode>
 inline error_code parse_number(parser *p, const char **value, std::size_t *vlen) {
     auto *start = p->str_cur;
-    if ( __FJ__CUR_CHAR(p) == '-' ) {
-        p->str_cur++;
-    }
+    p->str_cur = (*(p->str_cur) == '-') ? p->str_cur + 1 : p->str_cur;
     if ( p->str_cur >= p->str_end ) {
         return FJ_EC_INCOMPLETE;
     }
-    if ( p->str_cur + 1 < p->str_end && *(p->str_cur) == '0' && *(p->str_cur+1) == 'x' )
-    {
+    if ( p->str_cur + 1 < p->str_end && *(p->str_cur) == '0' && *(p->str_cur+1) == 'x' ) {
         p->str_cur += 2;
         if ( p->str_cur >= p->str_end ) {
             return FJ_EC_INCOMPLETE;
@@ -676,7 +673,7 @@ inline error_code parse_array(parser *p, token *parent) {
         return ec;
     }
 
-    if ( ParseMode ) {
+    __FJ__CONSTEXPR_IF ( ParseMode ) {
         if ( p->toks_cur == p->toks_end ) {
             return FJ_EC_NO_FREE_TOKENS;
         }
@@ -694,7 +691,7 @@ inline error_code parse_array(parser *p, token *parent) {
     }
 
     while ( __FJ__CUR_CHAR(p) != ']' ) {
-        if ( ParseMode ) {
+        __FJ__CONSTEXPR_IF ( ParseMode ) {
             if ( p->toks_cur == p->toks_end ) {
                 return FJ_EC_NO_FREE_TOKENS;
             }
@@ -704,7 +701,7 @@ inline error_code parse_array(parser *p, token *parent) {
         __FJ__CONSTEXPR_IF( ParseMode ) {
             *current_token = token{};
         }
-        char ch = __FJ__CUR_CHAR(p);
+        char ch = *(p->str_cur);
         if ( ch == '{' || ch == '[' ) {
             p->toks_cur -= 1;
         } else {
@@ -773,7 +770,7 @@ inline error_code parse_object(parser *p, token *parent) {
         return ec;
     }
 
-    if ( ParseMode ) {
+    __FJ__CONSTEXPR_IF ( ParseMode ) {
         if ( p->toks_cur == p->toks_end ) {
             return FJ_EC_NO_FREE_TOKENS;
         }
@@ -791,7 +788,7 @@ inline error_code parse_object(parser *p, token *parent) {
     }
 
     while ( __FJ__CUR_CHAR(p) != '}' ) {
-        char ch = __FJ__CUR_CHAR(p);
+        char ch = *(p->str_cur);
         if ( ch != '"' ) {
             if ( ch == ((int)-1) ) {
                 return FJ_EC_INCOMPLETE;
@@ -800,7 +797,7 @@ inline error_code parse_object(parser *p, token *parent) {
             return FJ_EC_INVALID;
         }
 
-        if ( ParseMode ) {
+        __FJ__CONSTEXPR_IF ( ParseMode ) {
             if ( p->toks_cur == p->toks_end ) {
                 return FJ_EC_NO_FREE_TOKENS;
             }
@@ -1165,7 +1162,7 @@ inline std::size_t num_tokens(error_code *ecptr, const char *beg, const char *en
     static token fake;
     auto p = make_parser(&fake, &fake, beg, end);
 
-    std::size_t vlen = 0;
+    std::size_t vlen;
     token_type type;
     error_code ec = details::parse_value<false>(
          &p
@@ -1184,9 +1181,6 @@ inline std::size_t num_tokens(error_code *ecptr, const char *beg, const char *en
             return 0;
         }
     }
-
-    assert(vlen <= std::numeric_limits<FJ_VLEN_TYPE>::max());
-    p.toks_beg->vlen = static_cast<FJ_VLEN_TYPE>(vlen);
 
     std::size_t toknum = p.toks_cur - p.toks_beg;
 
@@ -1220,7 +1214,6 @@ inline parser make_parser(
     auto toknum = num_tokens(&ec, strbeg, strend);
     if ( ec ) {
         p.error = ec;
-
         return p;
     }
 
@@ -1283,10 +1276,8 @@ inline parser* alloc_parser(
     auto toknum = num_tokens(&ec, strbeg, strend);
     if ( ec ) {
         p->error = ec;
-
         return p;
     }
-
     auto in_bytes = sizeof(token) * toknum;
     auto *toksbeg = static_cast<token *>(alloc_fn(in_bytes));
     auto *toksend = toksbeg + toknum;
