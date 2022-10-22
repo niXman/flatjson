@@ -2086,26 +2086,17 @@ inline compare_result compare_impl(
     const bool in_array = left_beg.parent()->type == FJ_TYPE_ARRAY;
     const bool only_simple = left_beg.parent()->flags;
     if ( in_array && only_simple ) {
-        const auto comparator = (cmpmode == compare_mode::full)
-            ? [](const token *l, const token *r){
-                return string_view{l->val, l->vlen} == string_view{r->val, r->vlen}
-                    ? compare_result::equal
-                    : compare_result::value;
-            }
-            : (cmpmode == compare_mode::length_only)
-                ? [](const token *l, const token *r){
-                    return l->vlen == r->vlen
-                        ? compare_result::equal
-                        : compare_result::length;
-                }
-                : [](const token *l, const token *r){
-                    return l->type == r->type
-                        ? compare_result::equal
-                        : compare_result::type;
-                }
-        ;
+        using comparator_fnptr = compare_result(*)(const token *l, const token *r);
+        static const comparator_fnptr cmparr[3] = {
+             [](const token *l, const token *r)
+             { return string_view{l->val, l->vlen} == string_view{r->val, r->vlen} ? compare_result::equal : compare_result::value; }
+            ,[](const token *l, const token *r)
+             { return l->vlen == r->vlen ? compare_result::equal : compare_result::length; }
+            ,[](const token *l, const token *r)
+             { return l->type == r->type ? compare_result::equal : compare_result::type; }
+        };
         for ( const auto *lit = left_beg.cur, *rit = right_beg.cur; lit != left_beg.end; ++lit, ++rit ) {
-            auto res = comparator(lit, rit);
+            auto res = cmparr[static_cast<unsigned>(cmpmode)](lit, rit);
             if ( res != compare_result::equal ) {
                 return res;
             }
