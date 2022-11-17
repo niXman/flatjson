@@ -189,7 +189,7 @@ struct test_result {
 
 flatjson::error_info parse_file(std::size_t *readed, const char *path, const char *fname) {
     std::string p{path};
-    p += '/';
+    p += dir_separator;
     p += fname;
 
     std::string content = read_file(p.c_str());
