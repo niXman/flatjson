@@ -25,7 +25,7 @@ static void stack_allocated_parser_and_tokens_for_object() {
     token tokens[10];
     parser parser;
 
-    fjson json{&parser, std::begin(tokens), std::end(tokens), str};
+    fjson json{&parser, std::begin(tokens), std::end(tokens), begin(str), end(str)};
 
     assert(json.is_valid());
     assert(json.is_object());
@@ -42,7 +42,7 @@ static void stack_allocated_parser_and_tokens_for_object_and_iteration() {
     token tokens[10];
     parser parser;
 
-    fjson json{&parser, std::begin(tokens), std::end(tokens), str};
+    fjson json{&parser, std::begin(tokens), std::end(tokens), begin(str), end(str)};
 
     assert(json.is_valid());
     assert(json.is_object());
@@ -67,7 +67,7 @@ static void stack_allocated_parser_and_tokens_for_array() {
     token tokens[7];
     parser parser;
 
-    fjson json{&parser, std::begin(tokens), std::end(tokens), str};
+    fjson json{&parser, std::begin(tokens), std::end(tokens), begin(str), end(str)};
 
     assert(json.is_valid());
     assert(json.is_array());
@@ -84,7 +84,7 @@ static void stack_allocated_parser_and_tokens_for_array_and_iteration() {
     token tokens[7];
     parser parser;
 
-    fjson json{&parser, std::begin(tokens), std::end(tokens), str};
+    fjson json{&parser, std::begin(tokens), std::end(tokens), begin(str), end(str)};
 
     assert(json.is_valid());
     assert(json.is_array());
@@ -109,7 +109,7 @@ static void stack_allocated_parser_and_tokens_for_object_and_iteration_on_nested
     token tokens[11];
     parser parser;
 
-    fjson json{&parser, std::begin(tokens), std::end(tokens), str};
+    fjson json{&parser, std::begin(tokens), std::end(tokens), begin(str), end(str)};
 
     assert(json.is_valid());
     assert(json.is_object());
@@ -143,7 +143,7 @@ static void stack_allocated_parser_and_tokens_for_array_and_iteration_on_nested_
     token tokens[20];
     parser parser;
 
-    fjson json{&parser, std::begin(tokens), std::end(tokens), str};
+    fjson json{&parser, std::begin(tokens), std::end(tokens), begin(str), end(str)};
 
     assert(json.is_valid());
     assert(json.is_array());
@@ -178,7 +178,7 @@ static void stack_allocated_parser_and_dyn_allocated_tokens_for_object() {
 
     parser parser;
 
-    fjson json{&parser, str};
+    fjson json{&parser, begin(str), end(str)};
 
     assert(json.is_valid());
     assert(json.is_object());
@@ -194,7 +194,7 @@ static void stack_allocated_parser_and_dyn_allocated_tokens_for_object_and_itera
 
     parser parser;
 
-    fjson json{&parser, str};
+    fjson json{&parser, begin(str), end(str)};
 
     assert(json.is_valid());
     assert(json.is_object());
@@ -218,7 +218,7 @@ static void stack_allocated_parser_and_dyn_allocated_tokens_for_array() {
 
     parser parser;
 
-    fjson json{&parser, str};
+    fjson json{&parser, begin(str), end(str)};
 
     assert(json.is_valid());
     assert(json.is_array());
@@ -234,7 +234,7 @@ static void stack_allocated_parser_and_dyn_allocated_tokens_for_array_and_iterat
 
     parser parser;
 
-    fjson json{&parser, str};
+    fjson json{&parser, begin(str), end(str)};
 
     assert(json.is_valid());
     assert(json.is_array());
@@ -258,7 +258,7 @@ static void stack_allocated_parser_and_dyn_allocated_tokens_for_object_and_itera
 
     parser parser;
 
-    fjson json{&parser, str};
+    fjson json{&parser, begin(str), end(str)};
 
     assert(json.is_valid());
     assert(json.is_object());
@@ -291,7 +291,7 @@ static void stack_allocated_parser_and_dyn_allocated_tokens_for_array_and_iterat
 
     parser parser;
 
-    fjson json{&parser, str};
+    fjson json{&parser, begin(str), end(str)};
 
     assert(json.is_valid());
     assert(json.is_array());
@@ -324,7 +324,7 @@ static void dyn_allocated_parser_and_dyn_allocated_tokens_for_object() {
 
     static const char str[] = R"({"a":true, "b":false, "c":null, "d":0, "e":"e"})";
 
-    fjson json{str};
+    fjson json{begin(str), end(str)};
 
     assert(json.is_valid());
     assert(json.is_object());
@@ -338,7 +338,7 @@ static void dyn_allocated_parser_and_dyn_allocated_tokens_for_object_and_iterati
 
     static const char str[] = R"({"a":true, "b":false, "c":null, "d":0, "e":"e"})";
 
-    fjson json{str};
+    fjson json{begin(str), end(str)};
 
     assert(json.is_valid());
     assert(json.is_object());
@@ -360,7 +360,7 @@ static void dyn_allocated_parser_and_dyn_allocated_tokens_for_array() {
 
     static const char str[] = R"([4,3,2,1])";
 
-    fjson json{str};
+    fjson json{begin(str), end(str)};
 
     assert(json.is_valid());
     assert(json.is_array());
@@ -374,7 +374,7 @@ static void dyn_allocated_parser_and_dyn_allocated_tokens_for_array_and_iteratio
 
     static const char str[] = R"([4,3,2,1])";
 
-    fjson json{str};
+    fjson json{begin(str), end(str)};
 
     assert(json.is_valid());
     assert(json.is_array());
@@ -396,7 +396,7 @@ static void dyn_allocated_parser_and_dyn_allocated_tokens_for_object_and_iterati
 
     static const char str[] = R"({"a":true, "b":false, "c":null, "d":{"f":false, "g":3, "h":"4"}, "e":"e"})";
 
-    fjson json{str};
+    fjson json{begin(str), end(str)};
 
     assert(json.is_valid());
     assert(json.is_object());
@@ -427,7 +427,7 @@ static void dyn_allocated_parser_and_dyn_allocated_tokens_for_array_and_iteratio
 
     static const char str[] = R"([[0,1,2,3], [4,5,6,7], [8,9,10,11]])";
 
-    fjson json{str};
+    fjson json{begin(str), end(str)};
 
     assert(json.is_valid());
     assert(json.is_array());
@@ -493,7 +493,7 @@ static void highlevel_api() {
     }
     {
         flatjson::parser parser;
-        auto json = flatjson::pparse(&parser, std::begin(str), std::end(str));
+        auto json = flatjson::pparse(&parser, flatjson::begin(str), flatjson::end(str));
         assert(json.is_valid());
         assert(json.is_array());
         assert(json.tokens() == 20);
@@ -514,7 +514,7 @@ static void highlevel_api() {
         assert(json.tokens() == 20);
     }
     {
-        auto json = flatjson::pparse(std::begin(str), std::end(str));
+        auto json = flatjson::pparse(flatjson::begin(str), flatjson::end(str));
         assert(json.is_valid());
         assert(json.is_array());
         assert(json.tokens() == 20);

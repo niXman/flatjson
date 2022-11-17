@@ -26,8 +26,8 @@ static void stack_allocated_parser_and_tokens_for_object() {
     auto parser = make_parser(
          std::begin(tokens)
         ,std::end(tokens)
-        ,std::begin(str)
-        ,std::end(str)
+        ,begin(str)
+        ,end(str)
     );
 
     auto toknum = parse(&parser);
@@ -46,8 +46,8 @@ static void stack_allocated_parser_and_tokens_for_object_and_iteration() {
     auto parser = make_parser(
          std::begin(tokens)
         ,std::end(tokens)
-        ,std::begin(str)
-        ,std::end(str)
+        ,begin(str)
+        ,end(str)
     );
 
     auto toknum = parse(&parser);
@@ -73,8 +73,8 @@ static void stack_allocated_parser_and_tokens_for_array() {
     auto parser = make_parser(
          std::begin(tokens)
         ,std::end(tokens)
-        ,std::begin(str)
-        ,std::end(str)
+        ,begin(str)
+        ,end(str)
     );
 
     auto toknum = parse(&parser);
@@ -93,8 +93,8 @@ static void stack_allocated_parser_and_tokens_for_array_and_iteration() {
     auto parser = make_parser(
          std::begin(tokens)
         ,std::end(tokens)
-        ,std::begin(str)
-        ,std::end(str)
+        ,begin(str)
+        ,end(str)
     );
 
     auto toknum = parse(&parser);
@@ -121,8 +121,8 @@ static void stack_allocated_parser_and_tokens_for_object_and_iteration_on_nested
     auto parser = make_parser(
          std::begin(tokens)
         ,std::end(tokens)
-        ,std::begin(str)
-        ,std::end(str)
+        ,begin(str)
+        ,end(str)
     );
 
     auto toknum = parse(&parser);
@@ -157,8 +157,8 @@ static void stack_allocated_parser_and_tokens_for_array_and_iteration_on_nested_
     auto parser = make_parser(
          std::begin(tokens)
         ,std::end(tokens)
-        ,std::begin(str)
-        ,std::end(str)
+        ,begin(str)
+        ,end(str)
     );
 
     auto toknum = parse(&parser);
@@ -191,7 +191,7 @@ static void stack_allocated_parser_and_dyn_allocated_tokens_for_object() {
 
     static const char str[] = R"({"a":true, "b":false, "c":null, "d":0, "e":"e"})";
 
-    auto parser = make_parser(std::begin(str), std::end(str));
+    auto parser = make_parser(begin(str), end(str));
 
     auto toknum = parse(&parser);
     assert(is_valid(&parser));
@@ -207,7 +207,7 @@ static void stack_allocated_parser_and_dyn_allocated_tokens_for_object_and_itera
 
     static const char str[] = R"({"a":true, "b":false, "c":null, "d":0, "e":"e"})";
 
-    auto parser = make_parser(std::begin(str), std::end(str));
+    auto parser = make_parser(begin(str), end(str));
 
     auto toknum = parse(&parser);
     assert(is_valid(&parser));
@@ -231,7 +231,7 @@ static void stack_allocated_parser_and_dyn_allocated_tokens_for_array() {
 
     static const char str[] = R"([4,3,2,1])";
 
-    auto parser = make_parser(std::begin(str), std::end(str));
+    auto parser = make_parser(begin(str), end(str));
 
     auto toknum = parse(&parser);
     assert(is_valid(&parser));
@@ -247,7 +247,7 @@ static void stack_allocated_parser_and_dyn_allocated_tokens_for_array_and_iterat
 
     static const char str[] = R"([4,3,2,1])";
 
-    auto parser = make_parser(std::begin(str), std::end(str));
+    auto parser = make_parser(begin(str), end(str));
 
     auto toknum = parse(&parser);
     assert(is_valid(&parser));
@@ -271,7 +271,7 @@ static void stack_allocated_parser_and_dyn_allocated_tokens_for_object_and_itera
 
     static const char str[] = R"({"a":true, "b":false, "c":null, "d":{"f":false, "g":3, "h":"4"}, "e":"e"})";
 
-    auto parser = make_parser(std::begin(str), std::end(str));
+    auto parser = make_parser(begin(str), end(str));
 
     auto toknum = parse(&parser);
     assert(is_valid(&parser));
@@ -303,7 +303,7 @@ static void stack_allocated_parser_and_dyn_allocated_tokens_for_array_and_iterat
 
     static const char str[] = R"([[0,1,2,3], [4,5,6,7], [8,9,10,11]])";
 
-    auto parser = make_parser(std::begin(str), std::end(str));
+    auto parser = make_parser(begin(str), end(str));
 
     auto toknum = parse(&parser);
     assert(is_valid(&parser));
@@ -337,7 +337,7 @@ static void dyn_allocated_parser_and_dyn_allocated_tokens_for_object() {
 
     static const char str[] = R"({"a":true, "b":false, "c":null, "d":0, "e":"e"})";
 
-    auto *parser = alloc_parser(std::begin(str), std::end(str));
+    auto *parser = alloc_parser(begin(str), end(str));
 
     auto toknum = parse(parser);
     assert(is_valid(parser));
@@ -353,7 +353,7 @@ static void dyn_allocated_parser_and_dyn_allocated_tokens_for_object_and_iterati
 
     static const char str[] = R"({"a":true, "b":false, "c":null, "d":0, "e":"e"})";
 
-    auto *parser = alloc_parser(std::begin(str), std::end(str));
+    auto *parser = alloc_parser(begin(str), end(str));
 
     auto toknum = parse(parser);
     assert(is_valid(parser));
@@ -377,7 +377,7 @@ static void dyn_allocated_parser_and_dyn_allocated_tokens_for_array() {
 
     static const char str[] = R"([4,3,2,1])";
 
-    auto *parser = alloc_parser(std::begin(str), std::end(str));
+    auto *parser = alloc_parser(begin(str), end(str));
 
     auto toknum = parse(parser);
     assert(is_valid(parser));
@@ -393,7 +393,7 @@ static void dyn_allocated_parser_and_dyn_allocated_tokens_for_array_and_iteratio
 
     static const char str[] = R"([4,3,2,1])";
 
-    auto *parser = alloc_parser(std::begin(str), std::end(str));
+    auto *parser = alloc_parser(begin(str), end(str));
 
     auto toknum = parse(parser);
     assert(is_valid(parser));
@@ -417,7 +417,7 @@ static void dyn_allocated_parser_and_dyn_allocated_tokens_for_object_and_iterati
 
     static const char str[] = R"({"a":true, "b":false, "c":null, "d":{"f":false, "g":3, "h":"4"}, "e":"e"})";
 
-    auto *parser = alloc_parser(std::begin(str), std::end(str));
+    auto *parser = alloc_parser(begin(str), end(str));
 
     auto toknum = parse(parser);
     assert(is_valid(parser));
@@ -449,7 +449,7 @@ static void dyn_allocated_parser_and_dyn_allocated_tokens_for_array_and_iteratio
 
     static const char str[] = R"([[0,1,2,3], [4,5,6,7], [8,9,10,11]])";
 
-    auto *parser = alloc_parser(std::begin(str), std::end(str));
+    auto *parser = alloc_parser(begin(str), end(str));
 
     auto toknum = parse(parser);
     assert(is_valid(parser));

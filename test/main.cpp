@@ -462,11 +462,11 @@ int main() {
         static const char str[] = R"()";
 
         error_info ei{};
-        auto toknum = count_tokens(&ei, std::begin(str), std::end(str)-1);
-        assert(ei.code == EC_OK);
+        auto toknum = count_tokens(&ei, begin(str), end(str));
+        assert(ei.code == EC_INVALID);
         assert(toknum == 0);
 
-        auto *parser = alloc_parser(std::begin(str), std::end(str)-1);
+        auto *parser = alloc_parser(begin(str), end(str));
         toknum = parse(parser);
 
         assert(!is_valid(parser));
@@ -482,11 +482,11 @@ int main() {
         static const char str[] = R"("")";
 
         error_info ei{};
-        auto toknum = count_tokens(&ei, std::begin(str), std::end(str)-1);
+        auto toknum = count_tokens(&ei, begin(str), end(str));
         assert(ei.code == EC_OK);
         assert(toknum == 1);
 
-        auto *parser = alloc_parser(std::begin(str), std::end(str)-1);
+        auto *parser = alloc_parser(begin(str), end(str));
         toknum = parse(parser);
 
         assert(is_valid(parser));
@@ -510,11 +510,11 @@ int main() {
         static const char str[] = R"(3)";
 
         error_info ei{};
-        auto toknum = count_tokens(&ei, std::begin(str), std::end(str)-1);
+        auto toknum = count_tokens(&ei, begin(str), end(str));
         assert(ei.code == EC_OK);
         assert(toknum == 1);
 
-        auto *parser = alloc_parser(std::begin(str), std::end(str)-1);
+        auto *parser = alloc_parser(begin(str), end(str));
         toknum = parse(parser);
 
         assert(is_valid(parser));
@@ -538,11 +538,11 @@ int main() {
         static const char str[] = R"(3.14)";
 
         error_info ei{};
-        auto toknum = count_tokens(&ei, std::begin(str), std::end(str)-1);
+        auto toknum = count_tokens(&ei, begin(str), end(str));
         assert(ei.code == EC_OK);
         assert(toknum == 1);
 
-        auto *parser = alloc_parser(std::begin(str), std::end(str)-1);
+        auto *parser = alloc_parser(begin(str), end(str));
         toknum = parse(parser);
 
         assert(is_valid(parser));
@@ -566,11 +566,11 @@ int main() {
         static const char str[] = R"("string")";
 
         error_info ei{};
-        auto toknum = count_tokens(&ei, std::begin(str), std::end(str)-1);
+        auto toknum = count_tokens(&ei, begin(str), end(str));
         assert(ei.code == EC_OK);
         assert(toknum == 1);
 
-        auto *parser = alloc_parser(std::begin(str), std::end(str)-1);
+        auto *parser = alloc_parser(begin(str), end(str));
         toknum = parse(parser);
 
         assert(is_valid(parser));
@@ -594,11 +594,11 @@ int main() {
         static const char str[] = R"(false)";
 
         error_info ei{};
-        auto toknum = count_tokens(&ei, std::begin(str), std::end(str)-1);
+        auto toknum = count_tokens(&ei, begin(str), end(str));
         assert(ei.code == EC_OK);
         assert(toknum == 1);
 
-        auto *parser = alloc_parser(std::begin(str), std::end(str)-1);
+        auto *parser = alloc_parser(begin(str), end(str));
         toknum = parse(parser);
 
         assert(is_valid(parser));
@@ -624,11 +624,11 @@ int main() {
         static const char str[] = R"(true)";
 
         error_info ei{};
-        auto toknum = count_tokens(&ei, std::begin(str), std::end(str)-1);
+        auto toknum = count_tokens(&ei, begin(str), end(str));
         assert(ei.code == EC_OK);
         assert(toknum == 1);
 
-        auto *parser = alloc_parser(std::begin(str), std::end(str)-1);
+        auto *parser = alloc_parser(begin(str), end(str));
         toknum = parse(parser);
 
         assert(is_valid(parser));
@@ -653,11 +653,11 @@ int main() {
         static const char str[] = R"(null)";
 
         error_info ei{};
-        auto toknum = count_tokens(&ei, std::begin(str), std::end(str)-1);
+        auto toknum = count_tokens(&ei, begin(str), end(str));
         assert(ei.code == EC_OK);
         assert(toknum == 1);
 
-        auto *parser = alloc_parser(std::begin(str), std::end(str)-1);
+        auto *parser = alloc_parser(begin(str), end(str));
         toknum = parse(parser);
 
         assert(is_valid(parser));
@@ -681,11 +681,11 @@ int main() {
         static const char str[] = R"({})";
 
         error_info ei{};
-        auto toknum = count_tokens(&ei, std::begin(str), std::end(str)-1);
+        auto toknum = count_tokens(&ei, begin(str), end(str));
         assert(ei.code == EC_OK);
         assert(toknum == 2);
 
-        auto *parser = alloc_parser(std::begin(str), std::end(str)-1);
+        auto *parser = alloc_parser(begin(str), end(str));
         toknum = parse(parser);
 
         assert(is_valid(parser));
@@ -709,11 +709,11 @@ int main() {
         static const char str[] = R"([])";
 
         error_info ei{};
-        auto toknum = count_tokens(&ei, std::begin(str), std::end(str)-1);
+        auto toknum = count_tokens(&ei, begin(str), end(str));
         assert(ei.code == EC_OK);
         assert(toknum == 2);
 
-        auto *parser = alloc_parser(std::begin(str), std::end(str)-1);
+        auto *parser = alloc_parser(begin(str), end(str));
         toknum = parse(parser);
 
         assert(is_valid(parser));
@@ -737,11 +737,11 @@ int main() {
         static const char str[] = R"({"bb":0, "b":1})";
 
         error_info ei{};
-        auto toknum = count_tokens(&ei, std::begin(str), std::end(str)-1);
+        auto toknum = count_tokens(&ei, begin(str), end(str));
         assert(ei.code == EC_OK);
         assert(toknum == 4);
 
-        auto *parser = alloc_parser(std::begin(str), std::end(str)-1);
+        auto *parser = alloc_parser(begin(str), end(str));
         toknum = parse(parser);
 
         assert(is_valid(parser));
@@ -776,11 +776,11 @@ int main() {
         static const char str[] = R"([1,0])";
 
         error_info ei{};
-        auto toknum = count_tokens(&ei, std::begin(str), std::end(str)-1);
+        auto toknum = count_tokens(&ei, begin(str), end(str));
         assert(ei.code == EC_OK);
         assert(toknum == 4);
 
-        auto *parser = alloc_parser(std::begin(str), std::end(str)-1);
+        auto *parser = alloc_parser(begin(str), end(str));
         toknum = parse(parser);
 
         assert(is_valid(parser));
@@ -817,11 +817,11 @@ int main() {
         static const char str[] = R"({"a":[1,0]})";
 
         error_info ei{};
-        auto toknum = count_tokens(&ei, std::begin(str), std::end(str)-1);
+        auto toknum = count_tokens(&ei, begin(str), end(str));
         assert(ei.code == EC_OK);
         assert(toknum == 6);
 
-        auto *parser = alloc_parser(std::begin(str), std::end(str)-1);
+        auto *parser = alloc_parser(begin(str), end(str));
         toknum = parse(parser);
 
         assert(is_valid(parser));
@@ -861,7 +861,7 @@ int main() {
         using namespace flatjson;
 
         static const char str[] = R"([{"a":0, "b":1}])";
-        auto *parser = alloc_parser(std::begin(str), std::end(str)-1);
+        auto *parser = alloc_parser(begin(str), end(str));
         auto toknum = parse(parser);
 
         assert(is_valid(parser));
@@ -907,7 +907,7 @@ int main() {
 
         static const char str[] = R"({"a":true, "b":false, "c":null, "d":0, "e":"e"})";
         token tokens[10];
-        auto parser = make_parser(std::begin(tokens), std::end(tokens), std::begin(str), std::end(str)-1);
+        auto parser = make_parser(std::begin(tokens), std::end(tokens), begin(str), end(str));
         auto toknum = parse(&parser);
 
         assert(is_valid(&parser));
@@ -965,8 +965,8 @@ int main() {
         auto *parser = alloc_parser(
              std::begin(tokens)
             ,std::end(tokens)
-            ,std::begin(str)
-            ,std::end(str)-1
+            ,begin(str)
+            ,end(str)
             ,&my_alloc
             ,&my_free
         );
@@ -1044,8 +1044,8 @@ int main() {
 
         static const char str[] = R"({"a":true, "b":false, "c":null, "d":0, "e":"e"})";
         auto parser = make_parser(
-             std::begin(str)
-            ,std::end(str)-1
+             begin(str)
+            ,end(str)
             ,false
             ,&my_alloc
             ,&my_free
@@ -1116,8 +1116,8 @@ int main() {
 
         static const char str[] = R"({"a":true, "b":false, "c":null, "d":0, "e":"e"})";
         auto *parser = alloc_parser(
-             std::begin(str)
-            ,std::end(str)-1
+             begin(str)
+            ,end(str)
             ,false
             ,&my_alloc
             ,&my_free
@@ -1207,8 +1207,8 @@ int main() {
         auto parser = alloc_parser(
              std::begin(tokens)
             ,std::end(tokens)
-            ,std::begin(str)
-            ,std::end(str)-1
+            ,begin(str)
+            ,end(str)
         );
         auto toknum = parse(parser);
 
@@ -1225,7 +1225,7 @@ int main() {
         using namespace flatjson;
 
         static const char str[] = R"([{"c":3, "f":5}])";
-        auto parser = make_parser(std::begin(str), std::end(str)-1);
+        auto parser = make_parser(begin(str), end(str));
         auto toknum = parse(&parser);
 
         assert(is_valid(&parser));
@@ -1254,8 +1254,8 @@ int main() {
         auto parser = make_parser(
              std::begin(tokens)
             ,std::end(tokens)
-            ,std::begin(str)
-            ,std::end(str)-1
+            ,begin(str)
+            ,end(str)
         );
         auto toknum = parse(&parser);
 
@@ -1282,8 +1282,8 @@ int main() {
         auto parser = make_parser(
              std::begin(tokens)
             ,std::end(tokens)
-            ,std::begin(str)
-            ,std::end(str)-1
+            ,begin(str)
+            ,end(str)
         );
         auto toknum = parse(&parser);
 
@@ -1349,8 +1349,8 @@ int main() {
         auto parser = make_parser(
              std::begin(tokens)
             ,std::end(tokens)
-            ,std::begin(str)
-            ,std::end(str)-1
+            ,begin(str)
+            ,end(str)
         );
         auto toknum = parse(&parser);
 
@@ -1417,8 +1417,8 @@ int main() {
         auto parser = make_parser(
              std::begin(tokens)
             ,std::end(tokens)
-            ,std::begin(str)
-            ,std::end(str)-1
+            ,begin(str)
+            ,end(str)
         );
         auto toknum = parse(&parser);
 
@@ -1485,8 +1485,8 @@ int main() {
         auto parser = make_parser(
              std::begin(tokens)
             ,std::end(tokens)
-            ,std::begin(str)
-            ,std::end(str)-1
+            ,begin(str)
+            ,end(str)
         );
         auto toknum = parse(&parser);
 
@@ -1535,8 +1535,8 @@ int main() {
         auto parser = make_parser(
              std::begin(tokens)
             ,std::end(tokens)
-            ,std::begin(str)
-            ,std::end(str)-1
+            ,begin(str)
+            ,end(str)
         );
         auto toknum = parse(&parser);
 
@@ -1572,7 +1572,7 @@ int main() {
         using namespace flatjson;
 
         static const char str[] = R"({"a":{"b":true, "c":1234}})";
-        auto *parser = alloc_parser(std::begin(str), std::end(str)-1);
+        auto *parser = alloc_parser(begin(str), end(str));
         auto toknum = parse(parser);
 
         assert(is_valid(parser));
@@ -1630,7 +1630,7 @@ int main() {
         using namespace flatjson;
 
         static const char str[] = R"({"a":[4,3,2,1], "b":[{"a":0,"b":1,"c":2},{"b":4,"a":3,"c":5},{"c":8,"b":7,"a":6}], "c":[0,1,2,3]})";
-        auto *parser = alloc_parser(std::begin(str), std::end(str)-1);
+        auto *parser = alloc_parser(begin(str), end(str));
         auto toknum = parse(parser);
 
         assert(is_valid(parser));
@@ -1779,7 +1779,7 @@ int main() {
         using namespace flatjson;
 
         static const char str[] = R"({"a":[0,1,2]})";
-        auto *parser = alloc_parser(std::begin(str), std::end(str)-1);
+        auto *parser = alloc_parser(begin(str), end(str));
         auto toknum = parse(parser);
 
         assert(is_valid(parser));
@@ -1813,7 +1813,7 @@ int main() {
         using namespace flatjson;
 
         static const char str[] = R"({"a":[0,1,2]})";
-        auto *parser = alloc_parser(std::begin(str), std::end(str)-1);
+        auto *parser = alloc_parser(begin(str), end(str));
         auto toknum = parse(parser);
 
         assert(is_valid(parser));
@@ -1849,7 +1849,7 @@ int main() {
         using namespace flatjson;
 
         static const char str[] = R"({"a":0, "b":1, "c":{"d":2, "e":3}, "f":4})";
-        auto *parser = alloc_parser(std::begin(str), std::end(str)-1);
+        auto *parser = alloc_parser(begin(str), end(str));
         auto toknum = parse(parser);
 
         assert(is_valid(parser));
@@ -1913,7 +1913,7 @@ int main() {
         using namespace flatjson;
 
         static const char str[] = R"({"a":0, "b":1, "c":{"d":2, "e":3}, "f":4})";
-        auto *parser = alloc_parser(std::begin(str), std::end(str)-1);
+        auto *parser = alloc_parser(begin(str), end(str));
         auto toknum = parse(parser);
 
         assert(is_valid(parser));
@@ -2002,7 +2002,7 @@ int main() {
         using namespace flatjson;
 
         static const char str[] = R"({"a":true, "b":{"c":{"d":1, "e":2}}, "c":[0,1,2,3]})";
-        auto *parser = alloc_parser(std::begin(str), std::end(str)-1);
+        auto *parser = alloc_parser(begin(str), end(str));
         auto toknum = parse(parser);
 
         assert(is_valid(parser));
@@ -2052,7 +2052,7 @@ R"({
         using namespace flatjson;
 
         static const char str[] = R"({"a":true, "b":{"c":{"d":1, "e":2}}, "c":[0,1,2,3]})";
-        auto *parser = alloc_parser(std::begin(str), std::end(str)-1);
+        auto *parser = alloc_parser(begin(str), end(str));
         auto toknum = parse(parser);
 
         assert(is_valid(parser));
@@ -2098,7 +2098,7 @@ R"({
         using namespace flatjson;
 
         static const char str[] = R"({"a":0, "b":1, "c":{"d":2, "e":3}, "f":4})";
-        auto *parser = alloc_parser(std::begin(str), std::end(str)-1);
+        auto *parser = alloc_parser(begin(str), end(str));
         auto toknum = parse(parser);
 
         assert(is_valid(parser));
@@ -2142,7 +2142,7 @@ R"({
         using namespace flatjson;
 
         static const char str[] = R"({"a":0, "b":1, "c":{"d":2, "e":3}, "f":4})";
-        auto *parser = alloc_parser(std::begin(str), std::end(str)-1);
+        auto *parser = alloc_parser(begin(str), end(str));
         auto toknum = parse(parser);
 
         assert(is_valid(parser));
@@ -2181,7 +2181,7 @@ R"({
         using namespace flatjson;
 
         static const char str[] = R"({"a":0, "b":1, "c":{"d":2, "e":3}, "f":4})";
-        auto *parser = alloc_parser(std::begin(str), std::end(str)-1);
+        auto *parser = alloc_parser(begin(str), end(str));
         auto toknum = parse(parser);
 
         assert(is_valid(parser));
@@ -2237,7 +2237,7 @@ R"({
         };
 
         static const char str[] = R"({"a":0, "b":1})";
-        auto *parser = alloc_parser(std::begin(str), std::end(str)-1);
+        auto *parser = alloc_parser(begin(str), end(str));
         auto toknum = parse(parser);
 
         assert(is_valid(parser));
@@ -2283,7 +2283,7 @@ R"({
         using namespace flatjson;
 
         static const char str[] = "[]";
-        fjson json{std::begin(str), std::end(str)-1};
+        fjson json{begin(str), end(str)};
         assert(json.is_valid());
         assert(json.tokens() == 2);
         auto beg = json.begin();
@@ -2295,7 +2295,7 @@ R"({
         using namespace flatjson;
 
         static const char str[] = R"({"a":0, "b":1, "c":{"d":2, "e":3}, "f":4})";
-        auto *parser = alloc_parser(std::begin(str), std::end(str)-1);
+        auto *parser = alloc_parser(begin(str), end(str));
         auto toknum = parse(parser);
 
         assert(is_valid(parser));
@@ -2316,7 +2316,7 @@ R"({
         static const char str[] = R"({"a":0, "b":1, "c":{"d":2, "e":3}, "f":4})";
         token toks[10];
 
-        fjson json{std::begin(toks), std::end(toks), std::begin(str), std::end(str)-1};
+        fjson json{std::begin(toks), std::end(toks), begin(str), end(str)};
         assert(json.is_valid());
         assert(json.begin() != json.end());
         assert(json.tokens() == 9);
@@ -2326,7 +2326,7 @@ R"({
         using namespace flatjson;
 
         static const char str[] = R"({"a":0, "b":1, "c":{"d":2, "e":3}, "f":4})";
-        fjson json{std::begin(str), std::end(str)-1};
+        fjson json{begin(str), end(str)};
         assert(json.is_valid());
         assert(json.begin() != json.end());
         assert(json.tokens() == 9);
@@ -2337,7 +2337,7 @@ R"({
         using namespace flatjson;
 
         static const char str[] = R"({"a":[4,3,2,1], "b":[{"a":0,"b":1,"c":2},{"b":4,"a":3,"c":5},{"c":8,"b":7,"a":6}], "c":[0,1,2,3]})";
-        fjson json{std::begin(str), std::end(str)-1};
+        fjson json{begin(str), end(str)};
 
         assert(json.is_valid());
         assert(json.tokens() == 31);
@@ -2530,7 +2530,7 @@ R"({
         using namespace flatjson;
 
         static const char str0[] = R"({"a":0, "b":1, "c":{"d":2, "e":3}, "f":4})";
-        auto *parser0 = alloc_parser(std::begin(str0), std::end(str0)-1);
+        auto *parser0 = alloc_parser(begin(str0), end(str0));
         auto toknum0 = parse(parser0);
 
         assert(is_valid(parser0));
@@ -2538,7 +2538,7 @@ R"({
         assert(fj_parser_tokens_end_ptr(parser0) == fj_parser_tokens_beg_ptr(parser0) + toknum0);
 
         static const char str1[] = R"({"a":0, "b":1, "c":{"d":2, "e":3}, "f":4})";
-        auto *parser1 = alloc_parser(std::begin(str1), std::end(str1)-1);
+        auto *parser1 = alloc_parser(begin(str1), end(str1));
         auto toknum1 = parse(parser1);
 
         assert(is_valid(parser1));
@@ -2558,7 +2558,7 @@ R"({
         using namespace flatjson;
 
         static const char str0[] = R"({"a":0, "b":1, "c":{"d":2, "e":3}, "f":4})";
-        auto *parser0 = alloc_parser(std::begin(str0), std::end(str0)-1);
+        auto *parser0 = alloc_parser(begin(str0), end(str0));
         auto toknum0 = parse(parser0);
 
         assert(is_valid(parser0));
@@ -2566,7 +2566,7 @@ R"({
         assert(fj_parser_tokens_end_ptr(parser0) == fj_parser_tokens_beg_ptr(parser0) + toknum0);
 
         static const char str1[] = R"({"b":1, "a":0, "c":{"d":2, "e":3}, "f":4})";
-        auto *parser1 = alloc_parser(std::begin(str1), std::end(str1)-1);
+        auto *parser1 = alloc_parser(begin(str1), end(str1));
         auto toknum1 = parse(parser1);
 
         assert(is_valid(parser1));
@@ -2586,7 +2586,7 @@ R"({
         using namespace flatjson;
 
         static const char str0[] = R"({"b":1, "a":0, "c":{"d":2, "e":3}, "f":4})";
-        auto *parser0 = alloc_parser(std::begin(str0), std::end(str0)-1);
+        auto *parser0 = alloc_parser(begin(str0), end(str0));
         auto toknum0 = parse(parser0);
 
         assert(is_valid(parser0));
@@ -2594,7 +2594,7 @@ R"({
         assert(fj_parser_tokens_end_ptr(parser0) == fj_parser_tokens_beg_ptr(parser0) + toknum0);
 
         static const char str1[] = R"({"a":0, "b":1, "c":{"d":2, "e":3}, "f":4})";
-        auto *parser1 = alloc_parser(std::begin(str1), std::end(str1)-1);
+        auto *parser1 = alloc_parser(begin(str1), end(str1));
         auto toknum1 = parse(parser1);
 
         assert(is_valid(parser1));
@@ -2614,7 +2614,7 @@ R"({
         using namespace flatjson;
 
         static const char str0[] = R"({"b":1, "a":0, "c":{"d":2, "e":3}, "f":4})";
-        auto *parser0 = alloc_parser(std::begin(str0), std::end(str0)-1);
+        auto *parser0 = alloc_parser(begin(str0), end(str0));
         auto toknum0 = parse(parser0);
 
         assert(is_valid(parser0));
@@ -2622,7 +2622,7 @@ R"({
         assert(fj_parser_tokens_end_ptr(parser0) == fj_parser_tokens_beg_ptr(parser0) + toknum0);
 
         static const char str1[] = R"({"a":0, "c":{"d":2, "e":3}, "b":1, "f":4})";
-        auto *parser1 = alloc_parser(std::begin(str1), std::end(str1)-1);
+        auto *parser1 = alloc_parser(begin(str1), end(str1));
         auto toknum1 = parse(parser1);
 
         assert(is_valid(parser1));
@@ -2642,7 +2642,7 @@ R"({
         using namespace flatjson;
 
         static const char str0[] = R"({"a":0, "b":1, "c":{"d":2, "e":3}, "f":4})";
-        auto *parser0 = alloc_parser(std::begin(str0), std::end(str0)-1);
+        auto *parser0 = alloc_parser(begin(str0), end(str0));
         auto toknum0 = parse(parser0);
 
         assert(is_valid(parser0));
@@ -2650,7 +2650,7 @@ R"({
         assert(fj_parser_tokens_end_ptr(parser0) == fj_parser_tokens_beg_ptr(parser0) + toknum0);
 
         static const char str1[] = R"({"g":0, "b":1, "c":{"d":2, "e":3}, "f":4})";
-        auto *parser1 = alloc_parser(std::begin(str1), std::end(str1)-1);
+        auto *parser1 = alloc_parser(begin(str1), end(str1));
         auto toknum1 = parse(parser1);
 
         assert(is_valid(parser1));
@@ -2673,7 +2673,7 @@ R"({
         using namespace flatjson;
 
         static const char str0[] = R"({"a":0, "b":12, "c":{"d":2, "e":3}, "f":4})";
-        auto *parser0 = alloc_parser(std::begin(str0), std::end(str0)-1);
+        auto *parser0 = alloc_parser(begin(str0), end(str0));
         auto toknum0 = parse(parser0);
 
         assert(is_valid(parser0));
@@ -2681,7 +2681,7 @@ R"({
         assert(fj_parser_tokens_end_ptr(parser0) == fj_parser_tokens_beg_ptr(parser0) + toknum0);
 
         static const char str1[] = R"({"a":0, "b":11, "c":{"d":2, "e":3}, "f":4})";
-        auto *parser1 = alloc_parser(std::begin(str1), std::end(str1)-1);
+        auto *parser1 = alloc_parser(begin(str1), end(str1));
         auto toknum1 = parse(parser1);
 
         assert(is_valid(parser1));
@@ -2700,7 +2700,7 @@ R"({
         using namespace flatjson;
 
         static const char str0[] = R"({"a":0, "b":12, "c":{"d":2, "e":3}, "f":4})";
-        auto *parser0 = alloc_parser(std::begin(str0), std::end(str0)-1);
+        auto *parser0 = alloc_parser(begin(str0), end(str0));
         auto toknum0 = parse(parser0);
 
         assert(is_valid(parser0));
@@ -2708,7 +2708,7 @@ R"({
         assert(fj_parser_tokens_end_ptr(parser0) == fj_parser_tokens_beg_ptr(parser0) + toknum0);
 
         static const char str1[] = R"({"a":0, "b":11, "c":{"d":2, "e":3}, "f":4})";
-        auto *parser1 = alloc_parser(std::begin(str1), std::end(str1)-1);
+        auto *parser1 = alloc_parser(begin(str1), end(str1));
         auto toknum1 = parse(parser1);
 
         assert(is_valid(parser1));
@@ -2733,7 +2733,7 @@ R"({
         using namespace flatjson;
 
         static const char str0[] = R"({"a":0, "b":12, "c":{"d":2, "e":3}, "f":4})";
-        auto *parser0 = alloc_parser(std::begin(str0), std::end(str0)-1);
+        auto *parser0 = alloc_parser(begin(str0), end(str0));
         auto toknum0 = parse(parser0);
 
         assert(is_valid(parser0));
@@ -2741,7 +2741,7 @@ R"({
         assert(fj_parser_tokens_end_ptr(parser0) == fj_parser_tokens_beg_ptr(parser0) + toknum0);
 
         static const char str1[] = R"({"a":0, "b":11, "c":{"d":2, "e":3}, "f":4, "g":5})";
-        auto *parser1 = alloc_parser(std::begin(str1), std::end(str1)-1);
+        auto *parser1 = alloc_parser(begin(str1), end(str1));
         auto toknum1 = parse(parser1);
 
         assert(is_valid(parser1));
@@ -2761,7 +2761,7 @@ R"({
         using namespace flatjson;
 
         static const char str0[] = R"({"a":0, "b":12, "c":{"d":2, "e":3}, "f":4})";
-        auto *parser0 = alloc_parser(std::begin(str0), std::end(str0)-1);
+        auto *parser0 = alloc_parser(begin(str0), end(str0));
         auto toknum0 = parse(parser0);
 
         assert(is_valid(parser0));
@@ -2769,7 +2769,7 @@ R"({
         assert(fj_parser_tokens_end_ptr(parser0) == fj_parser_tokens_beg_ptr(parser0) + toknum0);
 
         static const char str1[] = R"({"a":0, "b":11, "c":{"d":2, "e":3}})";
-        auto *parser1 = alloc_parser(std::begin(str1), std::end(str1)-1);
+        auto *parser1 = alloc_parser(begin(str1), end(str1));
         auto toknum1 = parse(parser1);
 
         assert(is_valid(parser1));
@@ -2789,7 +2789,7 @@ R"({
         using namespace flatjson;
 
         static const char str0[] = R"([1,2,3,4])";
-        auto *parser0 = alloc_parser(std::begin(str0), std::end(str0)-1);
+        auto *parser0 = alloc_parser(begin(str0), end(str0));
         auto toknum0 = parse(parser0);
 
         assert(is_valid(parser0));
@@ -2797,7 +2797,7 @@ R"({
         assert(fj_parser_tokens_end_ptr(parser0) == fj_parser_tokens_beg_ptr(parser0) + toknum0);
 
         static const char str1[] = R"([1,2,3,4])";
-        auto *parser1 = alloc_parser(std::begin(str1), std::end(str1)-1);
+        auto *parser1 = alloc_parser(begin(str1), end(str1));
         auto toknum1 = parse(parser1);
 
         assert(is_valid(parser1));
@@ -2817,7 +2817,7 @@ R"({
         using namespace flatjson;
 
         static const char str0[] = R"([1,2,3,4])";
-        auto *parser0 = alloc_parser(std::begin(str0), std::end(str0)-1);
+        auto *parser0 = alloc_parser(begin(str0), end(str0));
         auto toknum0 = parse(parser0);
 
         assert(is_valid(parser0));
@@ -2825,7 +2825,7 @@ R"({
         assert(fj_parser_tokens_end_ptr(parser0) == fj_parser_tokens_beg_ptr(parser0) + toknum0);
 
         static const char str1[] = R"([4,3,2,1])";
-        auto *parser1 = alloc_parser(std::begin(str1), std::end(str1)-1);
+        auto *parser1 = alloc_parser(begin(str1), end(str1));
         auto toknum1 = parse(parser1);
 
         assert(is_valid(parser1));
@@ -2845,7 +2845,7 @@ R"({
         using namespace flatjson;
 
         static const char str0[] = R"([{"a":0}, {"b":1}])";
-        auto *parser0 = alloc_parser(std::begin(str0), std::end(str0)-1);
+        auto *parser0 = alloc_parser(begin(str0), end(str0));
         auto toknum0 = parse(parser0);
 
         assert(is_valid(parser0));
@@ -2853,7 +2853,7 @@ R"({
         assert(fj_parser_tokens_end_ptr(parser0) == fj_parser_tokens_beg_ptr(parser0) + toknum0);
 
         static const char str1[] = R"([{"a":0}, {"b":1}])";
-        auto *parser1 = alloc_parser(std::begin(str1), std::end(str1)-1);
+        auto *parser1 = alloc_parser(begin(str1), end(str1));
         auto toknum1 = parse(parser1);
 
         assert(is_valid(parser1));
@@ -2873,7 +2873,7 @@ R"({
         using namespace flatjson;
 
         static const char str0[] = R"([{"a":0}, {"b":1}])";
-        auto *parser0 = alloc_parser(std::begin(str0), std::end(str0)-1);
+        auto *parser0 = alloc_parser(begin(str0), end(str0));
         auto toknum0 = parse(parser0);
 
         assert(is_valid(parser0));
@@ -2881,7 +2881,7 @@ R"({
         assert(fj_parser_tokens_end_ptr(parser0) == fj_parser_tokens_beg_ptr(parser0) + toknum0);
 
         static const char str1[] = R"([{"b":1}, {"a":0}])";
-        auto *parser1 = alloc_parser(std::begin(str1), std::end(str1)-1);
+        auto *parser1 = alloc_parser(begin(str1), end(str1));
         auto toknum1 = parse(parser1);
 
         assert(is_valid(parser1));
@@ -2902,7 +2902,7 @@ R"({
         using namespace flatjson;
 
         static const char str[] = R"({"a":0, "b":12, "c":{"d":2, "e":3}, "f":4})";
-        auto parser = make_parser(std::begin(str), std::end(str)-1);
+        auto parser = make_parser(begin(str), end(str));
         auto toknum = parse(&parser);
         assert(is_valid(&parser));
         assert(toknum == 9);
@@ -2917,7 +2917,7 @@ R"({
         using namespace flatjson;
 
         static const char str[] = R"({"a":0, "b":12, "c":{"d":2, "e":3}, "f":4})";
-        auto parser = make_parser(std::begin(str), std::end(str)-1);
+        auto parser = make_parser(begin(str), end(str));
         auto toknum = parse(&parser);
         assert(is_valid(&parser));
         assert(toknum == 9);

@@ -565,6 +565,16 @@ private:
 
 /*************************************************************************************************/
 
+// for testing and examples purposses, at least for now
+
+template<std::size_t N>
+const char* begin(const char (&str)[N]) { return str; }
+
+template<std::size_t N>
+const char* end(const char (&str)[N]) { return &str[N-1]; }
+
+/*************************************************************************************************/
+
 enum token_type: std::uint8_t {
      FJ_TYPE_INVALID = 0
     ,FJ_TYPE_STRING
@@ -1754,7 +1764,7 @@ inline std::size_t count_tokens(
     ,bool despaced_json = false)
 {
     if ( strbeg == strend ) {
-        if ( ei ) { ei->code = EC_OK; }
+        if ( ei ) { ei->code = EC_INVALID; }
 
         return 0;
     }
@@ -3066,14 +3076,14 @@ public:
 
     // construct and parse using dyn-allocated tokens and dyn-allocated parser
     fjson(
-         const char *beg
-        ,const char *end
+         const char *strbeg
+        ,const char *strend
         ,bool despaced_json = false
         ,alloc_fnptr alloc_fn = &malloc
         ,free_fnptr free_fn = &free
     )
         :m_parser{true
-            ,alloc_parser(beg, end, despaced_json, alloc_fn, free_fn)
+            ,alloc_parser(strbeg, strend, despaced_json, alloc_fn, free_fn)
             ,free_parser}
         ,m_beg{}
         ,m_end{}
@@ -3204,9 +3214,8 @@ inline fjson pparse(
     return fjson{beg, end, despaced_json, alloc_fn, free_fn};
 }
 
-template<typename T, typename = typename enable_if_const_char_ptr<T>::type>
 inline fjson pparse(
-     T beg
+     const char *beg
     ,bool despaced_json = false
     ,alloc_fnptr alloc_fn = &malloc
     ,free_fnptr free_fn = &free)
@@ -3228,10 +3237,9 @@ inline fjson pparse(
     return fjson{p, beg, end, despaced_json, alloc_fn, free_fn};
 }
 
-template<typename T, typename = typename enable_if_const_char_ptr<T>::type>
 inline fjson pparse(
      parser *p
-    ,T beg
+    ,const char *beg
     ,bool despaced_json = false
     ,alloc_fnptr alloc_fn = &malloc
     ,free_fnptr free_fn = &free)
@@ -3252,12 +3260,11 @@ inline fjson pparse(
     return fjson{p, toksbeg, toksend, strbeg, strend};
 }
 
-template<typename T, typename = typename enable_if_const_char_ptr<T>::type>
 inline fjson pparse(
      parser *p
     ,token *toksbeg
     ,token *toksend
-    ,T beg)
+    ,const char *beg)
 {
     const auto *end = beg + std::strlen(beg);
 
