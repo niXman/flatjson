@@ -217,7 +217,7 @@ test_result real_test(
     for ( const char **it = tests; *it; ++it ) {
         int expected_error = *it[0] - '0';
         const char *fname = (*it)+2;
-        std::fprintf(stdout, "test %2zu: %s/%s", *tcounter, path, fname);
+        std::fprintf(stdout, "test %2zu: %s%c%s", *tcounter, path, dir_separator, fname);
         std::fflush(stdout);
 //        if ( std::strcmp(fname, "y_structure_lonely_negative_real.json") == 0 ) {
 //            std::cout << std::flush;
@@ -2108,11 +2108,11 @@ R"({
         static const char *fname = "unit_27.json";
 
         std::FILE *stream = nullptr;
-#ifdef _MSC_VER
+#ifdef WIN32
         fopen_s(&stream, fname, "wb");
 #else
-        stream = std::fopen(fname, "w");
-#endif // _MSC_VER
+        stream = std::fopen(fname, "wb");
+#endif // WIN32
         assert(stream);
 
         auto beg = iter_begin(parser);
