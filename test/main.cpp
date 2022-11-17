@@ -2137,7 +2137,7 @@ R"({
         free_parser(parser);
     };
 
-#ifndef _MSC_VER
+#ifndef WIN32
     test += FJ_TEST(test for serialization to file descriptor) {
         using namespace flatjson;
 
@@ -2175,7 +2175,7 @@ R"({
 
         free_parser(parser);
     };
-#endif // _MSC_VER
+#endif // WIN32
 
     test += FJ_TEST(test for serialization to file_handle) {
         using namespace flatjson;
