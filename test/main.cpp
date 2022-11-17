@@ -10,7 +10,6 @@
 // ----------------------------------------------------------------------------
 
 #include <flatjson/flatjson.hpp>
-#include <flatjson/io.hpp>
 
 #include <iostream>
 #include <fstream>
@@ -53,8 +52,7 @@ static const TCHAR dir_separator = '\\';
 static const char dir_separator = '/';
 #endif // WIN32
 
-#define FJ_TEST(...) \
-    []{ \
+#define FJ_TEST(...) []{ \
         const char *fileline = __FILE__ "(" FJ_STRINGIZE(__LINE__) ")"; \
         const char *ptr = std::strrchr(fileline, dir_separator); \
         ptr = ptr ? ptr+1 : ptr; \
@@ -155,18 +153,26 @@ static void my_free(void *ptr) { return myallocator.free(ptr); }
 /*************************************************************************************************/
 
 std::string read_file(const char *fname) {
+    std::string str;
+
+#ifndef FJ_NO_TOPLEV_IO
     int ec{};
     flatjson::file_handle fh{};
-    const char *ptr = static_cast<const char *>(flatjson::mmap_for_read(&fh, fname, &ec));
+    std::size_t fsize{};
+    const char *ptr = static_cast<const char *>(flatjson::mmap_for_read(&fh, &fsize, fname, &ec));
     assert(ec == 0);
 
-    auto fsize = flatjson::file_size(fname, &ec);
-    assert(ec == 0);
-
-    std::string str{ptr, ptr + fsize};
+    str.assign(ptr, fsize);
 
     flatjson::munmap_file_fd(ptr, fh, &ec);
     assert(ec == 0);
+#else
+    std::ifstream file{fname};
+    assert(file);
+
+    str.assign((std::istreambuf_iterator<char>(file)),
+                std::istreambuf_iterator<char>());
+#endif
 
     return str;
 }
@@ -175,22 +181,79 @@ std::string read_file(const char *fname) {
 
 struct test_result {
     int ec;
-    const char *name;
+    int expected;
+    std::string emsg;
+    const char *path;
+    const char *fname;
 };
 
-int parse_file(const char *path, const char *fname) {
+flatjson::error_info parse_file(std::size_t *readed, const char *path, const char *fname) {
     std::string p{path};
+    p += '/';
     p += fname;
 
-    auto content = read_file(p.c_str());
-    flatjson::error_code ec{};
-    flatjson::num_tokens(&ec, &(content.front()), &(content.back()));
+    std::string content = read_file(p.c_str());
+    assert(!content.empty());
+
+    (*readed) += content.size();
+
+    auto parser = flatjson::parse(content.c_str(), content.c_str() + content.length());
+
+    auto ec = parser->error;
+
+    flatjson::free_parser(parser);
 
     return ec;
 }
 
+test_result real_test(
+     std::size_t *readed
+    ,std::size_t *scounter
+    ,std::size_t *fcounter
+    ,std::size_t *tcounter
+    ,const char *path
+    ,const char **tests)
+{
+    for ( const char **it = tests; *it; ++it ) {
+        int expected_error = *it[0] - '0';
+        const char *fname = (*it)+2;
+        std::fprintf(stdout, "test %2zu: %s/%s", *tcounter, path, fname);
+        std::fflush(stdout);
+//        if ( std::strcmp(fname, "y_structure_lonely_negative_real.json") == 0 ) {
+//            std::cout << std::flush;
+//        }
+
+        (*tcounter)++;
+        auto ec = parse_file(readed, path, fname);
+        int received_error = ec.code != flatjson::EC_OK;
+        std::fprintf(stdout, ", expected=%s, received=%s\n"
+            ,expected_error ? "ERROR" : "OK"
+            ,received_error ? "ERROR" : "OK"
+        );
+        std::fflush(stdout);
+
+        if ( received_error ) {
+            (*fcounter)++;
+        } else {
+            (*scounter)++;
+        }
+
+        if ( expected_error != received_error ) {
+            return {ec.code, expected_error, flatjson::error_message(ec), path, *it+2};
+        }
+    }
+
+    return {};
+}
+
 test_result test_conformance() {
-    static const char *part0_path = "jsonchecker/";
+    std::size_t readed{}, test_counter{};
+
+    const std::size_t expected_success_part0 = 3;
+    const std::size_t expected_failure_part0 = 31;
+    std::size_t part0_scounter{}, part0_fcounter{};
+
+    static const char *part0_path = "jsonchecker";
     static const char *part0[] = {
          "0:pass01.json","0:pass02.json","0:pass03.json","1:fail02.json"
         ,"1:fail03.json","1:fail04.json","1:fail05.json","1:fail06.json"
@@ -203,15 +266,18 @@ test_result test_conformance() {
         ,"1:fail32.json","1:fail33.json"
         ,nullptr
     };
-    for ( const char **it = part0; *it; ++it ) {
-        int exp = *it[0] - '0';
-        int ec = parse_file(part0_path, *it+2);
-        if ( exp && 0 == ec ) {
-            return {ec, *it+2};
-        }
+    auto ec = real_test(&readed, &part0_scounter, &part0_fcounter, &test_counter, part0_path, part0);
+    if ( ec.expected != ec.ec ) {
+        return ec;
     }
+    assert(readed == 2410);
+    assert(part0_scounter == expected_success_part0);
+    assert(part0_fcounter == expected_failure_part0);
 
-    static const char *part1_path = "roundtrip/";
+    const std::size_t expected_success_part1 = 28;
+    const std::size_t expected_failure_part1 = 0;
+    std::size_t part1_scounter{}, part1_fcounter{};
+    static const char *part1_path = "roundtrip";
     static const char *part1[] = {
          "0:roundtrip01.json","0:roundtrip04.json","0:roundtrip07.json","0:roundtrip10.json"
         ,"0:roundtrip13.json","0:roundtrip16.json","0:roundtrip19.json","0:roundtrip22.json"
@@ -219,16 +285,126 @@ test_result test_conformance() {
         ,"0:roundtrip11.json","0:roundtrip14.json","0:roundtrip17.json","0:roundtrip20.json"
         ,"0:roundtrip23.json","0:roundtrip26.json","0:roundtrip03.json","0:roundtrip06.json"
         ,"0:roundtrip09.json","0:roundtrip12.json","0:roundtrip15.json","0:roundtrip18.json"
-        ,"0:roundtrip21.json","0:roundtrip24.json","0:roundtrip27.json"
+        ,"0:roundtrip21.json","0:roundtrip24.json","0:roundtrip27.json","0:roundtrip-double.json"
         ,nullptr
     };
-    for ( const char **it = part1; *it; ++it ) {
-        int exp = *it[0] - '0';
-        int ec = parse_file(part1_path, *it+2);
-        if ( exp && 0 == ec ) {
-            return {ec, *it+2};
-        }
+    ec = real_test(&readed, &part1_scounter, &part1_fcounter, &test_counter, part1_path, part1);
+    if ( ec.ec != flatjson::EC_OK ) {
+        return ec;
     }
+    assert(readed == 3057);
+    assert(part1_scounter == expected_success_part1);
+    assert(part1_fcounter == expected_failure_part1);
+
+    // excluded:
+    // "n_structure_100000_opening_arrays.json" - because I think it is imposible.
+    // "n_structure_no_data.json" - because nonsensical.
+    // "n_structure_open_array_object.json" - imposible case.
+
+    const std::size_t expected_success_part2 = 95;
+    const std::size_t expected_failure_part2 = 185;
+    std::size_t part2_scounter{}, part2_fcounter{};
+    static const char *part2_path = "test_parsing";
+    static const char *part2[] = {
+         "1:n_array_1_true_without_comma.json", "1:n_array_a_invalid_utf8.json", "1:n_array_colon_instead_of_comma.json"
+        ,"1:n_array_comma_after_close.json", "1:n_array_comma_and_number.json", "1:n_array_double_comma.json"
+        ,"1:n_array_double_extra_comma.json", "1:n_array_extra_close.json", "1:n_array_extra_comma.json"
+        ,"1:n_array_incomplete_invalid_value.json", "1:n_array_incomplete.json", "1:n_array_inner_array_no_comma.json"
+        ,"1:n_array_invalid_utf8.json", "1:n_array_items_separated_by_semicolon.json", "1:n_array_just_comma.json"
+        ,"1:n_array_just_minus.json", "1:n_array_missing_value.json", "1:n_array_newlines_unclosed.json"
+        ,"1:n_array_number_and_comma.json", "1:n_array_number_and_several_commas.json", "1:n_array_spaces_vertical_tab_formfeed.json"
+        ,"1:n_array_star_inside.json", "1:n_array_unclosed.json", "1:n_array_unclosed_trailing_comma.json"
+        ,"1:n_array_unclosed_with_new_lines.json", "1:n_array_unclosed_with_object_inside.json", "1:n_incomplete_false.json"
+        ,"1:n_incomplete_null.json", "1:n_incomplete_true.json", "1:n_multidigit_number_then_00.json", "1:n_number_0.1.2.json"
+        ,"1:n_number_-01.json", "1:n_number_0.3e+.json", "1:n_number_0.3e.json", "1:n_number_0_capital_E+.json"
+        ,"1:n_number_0_capital_E.json", "1:n_number_0.e1.json", "1:n_number_0e+.json", "1:n_number_0e.json", "1:n_number_1_000.json"
+        ,"1:n_number_1.0e+.json", "1:n_number_1.0e-.json", "1:n_number_1.0e.json", "1:n_number_-1.0..json", "1:n_number_1eE2.json"
+        ,"1:n_number_+1.json", "1:n_number_.-1.json", "1:n_number_2.e+3.json", "1:n_number_2.e-3.json", "1:n_number_2.e3.json"
+        ,"1:n_number_.2e-3.json", "1:n_number_-2..json", "1:n_number_9.e+.json", "1:n_number_expression.json"
+        ,"1:n_number_hex_1_digit.json", "1:n_number_hex_2_digits.json", "1:n_number_infinity.json", "1:n_number_+Inf.json"
+        ,"1:n_number_Inf.json", "1:n_number_invalid+-.json", "1:n_number_invalid-negative-real.json"
+        ,"1:n_number_invalid-utf-8-in-bigger-int.json", "1:n_number_invalid-utf-8-in-exponent.json"
+        ,"1:n_number_invalid-utf-8-in-int.json", "1:n_number_++.json", "1:n_number_minus_infinity.json"
+        ,"1:n_number_minus_sign_with_trailing_garbage.json", "1:n_number_minus_space_1.json", "1:n_number_-NaN.json"
+        ,"1:n_number_NaN.json", "1:n_number_neg_int_starting_with_zero.json", "1:n_number_neg_real_without_int_part.json"
+        ,"1:n_number_neg_with_garbage_at_end.json", "1:n_number_real_garbage_after_e.json", "1:n_number_real_with_invalid_utf8_after_e.json"
+        ,"1:n_number_real_without_fractional_part.json", "1:n_number_starting_with_dot.json", "1:n_number_U+FF11_fullwidth_digit_one.json"
+        ,"1:n_number_with_alpha_char.json", "1:n_number_with_alpha.json", "1:n_number_with_leading_zero.json", "1:n_object_bad_value.json"
+        ,"1:n_object_bracket_key.json", "1:n_object_comma_instead_of_colon.json", "1:n_object_double_colon.json", "1:n_object_emoji.json"
+        ,"1:n_object_garbage_at_end.json", "1:n_object_key_with_single_quotes.json", "1:n_object_lone_continuation_byte_in_key_and_trailing_comma.json"
+        ,"1:n_object_missing_colon.json", "1:n_object_missing_key.json", "1:n_object_missing_semicolon.json", "1:n_object_missing_value.json"
+        ,"1:n_object_no-colon.json", "1:n_object_non_string_key_but_huge_number_instead.json", "1:n_object_non_string_key.json"
+        ,"1:n_object_repeated_null_null.json", "1:n_object_several_trailing_commas.json", "1:n_object_single_quote.json"
+        ,"1:n_object_trailing_comma.json", "1:n_object_trailing_comment.json", "1:n_object_trailing_comment_open.json"
+        ,"1:n_object_trailing_comment_slash_open_incomplete.json", "1:n_object_trailing_comment_slash_open.json"
+        ,"1:n_object_two_commas_in_a_row.json", "1:n_object_unquoted_key.json", "1:n_object_unterminated-value.json"
+        ,"1:n_object_with_single_string.json", "1:n_object_with_trailing_garbage.json", "1:n_single_space.json"
+        ,"1:n_string_1_surrogate_then_escape.json", "1:n_string_1_surrogate_then_escape_u1.json", "1:n_string_1_surrogate_then_escape_u1x.json"
+        ,"1:n_string_1_surrogate_then_escape_u.json", "1:n_string_accentuated_char_no_quotes.json", "1:n_string_backslash_00.json"
+        ,"1:n_string_escaped_backslash_bad.json", "1:n_string_escaped_ctrl_char_tab.json", "1:n_string_escaped_emoji.json"
+        ,"1:n_string_escape_x.json", "1:n_string_incomplete_escaped_character.json", "1:n_string_incomplete_escape.json"
+        ,"1:n_string_incomplete_surrogate_escape_invalid.json", "1:n_string_incomplete_surrogate.json", "1:n_string_invalid_backslash_esc.json"
+        ,"1:n_string_invalid_unicode_escape.json", "1:n_string_invalid_utf8_after_escape.json", "1:n_string_invalid-utf-8-in-escape.json"
+        ,"1:n_string_leading_uescaped_thinspace.json", "1:n_string_no_quotes_with_bad_escape.json", "1:n_string_single_doublequote.json"
+        ,"1:n_string_single_quote.json", "1:n_string_single_string_no_double_quotes.json", "1:n_string_start_escape_unclosed.json"
+        ,"1:n_string_unescaped_crtl_char.json", "1:n_string_unescaped_newline.json", "1:n_string_unescaped_tab.json"
+        ,"1:n_string_unicode_CapitalU.json", "1:n_string_with_trailing_garbage.json"
+        ,"1:n_structure_angle_bracket_..json", "1:n_structure_angle_bracket_null.json", "1:n_structure_array_trailing_garbage.json"
+        ,"1:n_structure_array_with_extra_array_close.json", "1:n_structure_array_with_unclosed_string.json"
+        ,"1:n_structure_ascii-unicode-identifier.json", "1:n_structure_capitalized_True.json", "1:n_structure_close_unopened_array.json"
+        ,"1:n_structure_comma_instead_of_closing_brace.json", "1:n_structure_double_array.json", "1:n_structure_end_array.json"
+        ,"1:n_structure_incomplete_UTF8_BOM.json", "1:n_structure_lone-invalid-utf-8.json", "1:n_structure_lone-open-bracket.json"
+        ,"1:n_structure_null-byte-outside-string.json", "1:n_structure_number_with_trailing_garbage.json"
+        ,"1:n_structure_object_followed_by_closing_object.json", "1:n_structure_object_unclosed_no_value.json"
+        ,"1:n_structure_object_with_comment.json", "1:n_structure_object_with_trailing_garbage.json"
+        ,"1:n_structure_open_array_apostrophe.json", "1:n_structure_open_array_comma.json"
+        ,"1:n_structure_open_array_open_object.json", "1:n_structure_open_array_open_string.json", "1:n_structure_open_array_string.json"
+        ,"1:n_structure_open_object_close_array.json", "1:n_structure_open_object_comma.json", "1:n_structure_open_object.json"
+        ,"1:n_structure_open_object_open_array.json", "1:n_structure_open_object_open_string.json"
+        ,"1:n_structure_open_object_string_with_apostrophes.json", "1:n_structure_open_open.json", "1:n_structure_single_eacute.json"
+        ,"1:n_structure_single_star.json", "1:n_structure_trailing_#.json", "1:n_structure_U+2060_word_joined.json"
+        ,"1:n_structure_uescaped_LF_before_string.json", "1:n_structure_unclosed_array.json", "1:n_structure_unclosed_array_partial_null.json"
+        ,"1:n_structure_unclosed_array_unfinished_false.json", "1:n_structure_unclosed_array_unfinished_true.json"
+        ,"1:n_structure_unclosed_object.json", "1:n_structure_unicode-identifier.json", "1:n_structure_UTF8_BOM_no_data.json"
+        ,"1:n_structure_whitespace_formfeed.json", "1:n_structure_whitespace_U+2060_word_joiner.json", "0:y_array_arraysWithSpaces.json"
+        ,"0:y_array_empty.json", "0:y_array_empty-string.json", "0:y_array_ending_with_newline.json", "0:y_array_false.json"
+        ,"0:y_array_heterogeneous.json", "0:y_array_null.json", "0:y_array_with_1_and_newline.json", "0:y_array_with_leading_space.json"
+        ,"0:y_array_with_several_null.json", "0:y_array_with_trailing_space.json", "0:y_number_0e+1.json", "0:y_number_0e1.json"
+        ,"0:y_number_after_space.json", "0:y_number_double_close_to_zero.json", "0:y_number_int_with_exp.json", "0:y_number.json"
+        ,"0:y_number_minus_zero.json", "0:y_number_negative_int.json", "0:y_number_negative_one.json", "0:y_number_negative_zero.json"
+        ,"0:y_number_real_capital_e.json", "0:y_number_real_capital_e_neg_exp.json", "0:y_number_real_capital_e_pos_exp.json"
+        ,"0:y_number_real_exponent.json", "0:y_number_real_fraction_exponent.json", "0:y_number_real_neg_exp.json"
+        ,"0:y_number_real_pos_exponent.json", "0:y_number_simple_int.json", "0:y_number_simple_real.json", "0:y_object_basic.json"
+        ,"0:y_object_duplicated_key_and_value.json", "0:y_object_duplicated_key.json", "0:y_object_empty.json", "0:y_object_empty_key.json"
+        ,"0:y_object_escaped_null_in_key.json", "0:y_object_extreme_numbers.json", "0:y_object.json", "0:y_object_long_strings.json"
+        ,"0:y_object_simple.json", "0:y_object_string_unicode.json", "0:y_object_with_newlines.json"
+        ,"0:y_string_1_2_3_bytes_UTF-8_sequences.json", "0:y_string_accepted_surrogate_pair.json", "0:y_string_accepted_surrogate_pairs.json"
+        ,"0:y_string_allowed_escapes.json", "0:y_string_backslash_and_u_escaped_zero.json", "0:y_string_backslash_doublequotes.json"
+        ,"0:y_string_comments.json", "0:y_string_double_escape_a.json", "0:y_string_double_escape_n.json"
+        ,"0:y_string_escaped_control_character.json", "0:y_string_escaped_noncharacter.json", "0:y_string_in_array.json"
+        ,"0:y_string_in_array_with_leading_space.json", "0:y_string_last_surrogates_1_and_2.json", "0:y_string_nbsp_uescaped.json"
+        ,"0:y_string_nonCharacterInUTF-8_U+10FFFF.json", "0:y_string_nonCharacterInUTF-8_U+FFFF.json", "0:y_string_null_escape.json"
+        ,"0:y_string_one-byte-utf-8.json", "0:y_string_pi.json", "0:y_string_reservedCharacterInUTF-8_U+1BFFF.json"
+        ,"0:y_string_simple_ascii.json", "0:y_string_space.json", "0:y_string_surrogates_U+1D11E_MUSICAL_SYMBOL_G_CLEF.json"
+        ,"0:y_string_three-byte-utf-8.json", "0:y_string_two-byte-utf-8.json", "0:y_string_u+2028_line_sep.json"
+        ,"0:y_string_u+2029_par_sep.json", "0:y_string_uescaped_newline.json", "0:y_string_uEscape.json"
+        ,"0:y_string_unescaped_char_delete.json", "0:y_string_unicode_2.json", "0:y_string_unicodeEscapedBackslash.json"
+        ,"0:y_string_unicode_escaped_double_quote.json", "0:y_string_unicode.json", "0:y_string_unicode_U+10FFFE_nonchar.json"
+        ,"0:y_string_unicode_U+1FFFE_nonchar.json", "0:y_string_unicode_U+200B_ZERO_WIDTH_SPACE.json"
+        ,"0:y_string_unicode_U+2064_invisible_plus.json", "0:y_string_unicode_U+FDD0_nonchar.json", "0:y_string_unicode_U+FFFE_nonchar.json"
+        ,"0:y_string_utf8.json", "0:y_string_with_del_character.json", "0:y_structure_lonely_false.json", "0:y_structure_lonely_int.json"
+        ,"0:y_structure_lonely_negative_real.json", "0:y_structure_lonely_null.json", "0:y_structure_lonely_string.json"
+        ,"0:y_structure_lonely_true.json", "0:y_structure_string_empty.json", "0:y_structure_trailing_newline.json"
+        ,"0:y_structure_true_in_array.json", "0:y_structure_whitespace_array.json"
+        ,nullptr
+    };
+    ec = real_test(&readed, &part2_scounter, &part2_fcounter, &test_counter, part2_path, part2);
+    if ( ec.ec != ec.expected ) {
+        return ec;
+    }
+    assert(readed == 5518);
+    assert(part2_scounter == expected_success_part2);
+    assert(part2_fcounter == expected_failure_part2);
 
     return {};
 }
@@ -243,12 +419,25 @@ test_result test_conformance() {
 int main() {
     std::cout << "sizeof(fj_token) = " << sizeof(flatjson::token) << std::endl;
     std::cout << "version str=" << FJ_VERSION_STRING << std::endl;
+#ifdef FJ_SIMD_TYPE
+    std::cout << "simd type=" << FJ_SIMD_TYPE << std::endl;
+#endif
 
     auto res = test_conformance();
-    if ( res.ec ) {
-        std::cout << "test \"" << res.name << "\" FAILED!" << std::endl;
+    if ( res.expected != res.ec ) {
+        const char *expstr = (res.expected == 0) ? "SUCCESS" : "FAIL";
+        const char *retstr = (res.ec == flatjson::EC_OK) ? "SUCCESS" : "FAIL";
+        std::cout
+            << "test \"" << res.path << '/' << res.fname << "\" FAILED because \"" << expstr << "\" expected but \"" << retstr << "\" was received:\n"
+            << res.emsg
+        << std::endl;
+
+        return EXIT_FAILURE;
     } else {
-        std::cout << "conformance tests PASSED!" << std::endl;
+        std::cout
+            << "conformance tests PASSED!\n"
+            << "**************************************************************************************"
+        << std::endl;
     }
 
     test_t test;
@@ -271,12 +460,18 @@ int main() {
         using namespace flatjson;
 
         static const char str[] = R"()";
-        auto *parser = alloc_parser(str);
-        auto toknum = parse(parser);
+
+        error_info ei{};
+        auto toknum = count_tokens(&ei, std::begin(str), std::end(str)-1);
+        assert(ei.code == EC_OK);
+        assert(toknum == 0);
+
+        auto *parser = alloc_parser(std::begin(str), std::end(str)-1);
+        toknum = parse(parser);
 
         assert(!is_valid(parser));
         assert(toknum == 0);
-        assert(parser->toks_end == parser->toks_beg + toknum);
+        assert(fj_parser_tokens_end_ptr(parser) == fj_parser_tokens_beg_ptr(parser) + toknum);
 
         free_parser(parser);
     };
@@ -285,12 +480,18 @@ int main() {
         using namespace flatjson;
 
         static const char str[] = R"("")";
-        auto *parser = alloc_parser(str);
-        auto toknum = parse(parser);
+
+        error_info ei{};
+        auto toknum = count_tokens(&ei, std::begin(str), std::end(str)-1);
+        assert(ei.code == EC_OK);
+        assert(toknum == 1);
+
+        auto *parser = alloc_parser(std::begin(str), std::end(str)-1);
+        toknum = parse(parser);
 
         assert(is_valid(parser));
         assert(toknum == 1);
-        assert(parser->toks_end == parser->toks_beg + toknum);
+        assert(fj_parser_tokens_end_ptr(parser) == fj_parser_tokens_beg_ptr(parser) + toknum);
 
         auto beg = iter_begin(parser);
         assert(beg.is_valid());
@@ -307,12 +508,18 @@ int main() {
         using namespace flatjson;
 
         static const char str[] = R"(3)";
-        auto *parser = alloc_parser(str);
-        auto toknum = parse(parser);
+
+        error_info ei{};
+        auto toknum = count_tokens(&ei, std::begin(str), std::end(str)-1);
+        assert(ei.code == EC_OK);
+        assert(toknum == 1);
+
+        auto *parser = alloc_parser(std::begin(str), std::end(str)-1);
+        toknum = parse(parser);
 
         assert(is_valid(parser));
         assert(toknum == 1);
-        assert(parser->toks_end == parser->toks_beg + toknum);
+        assert(fj_parser_tokens_end_ptr(parser) == fj_parser_tokens_beg_ptr(parser) + toknum);
 
         auto beg = iter_begin(parser);
         assert(beg.is_valid());
@@ -329,12 +536,18 @@ int main() {
         using namespace flatjson;
 
         static const char str[] = R"(3.14)";
-        auto *parser = alloc_parser(str);
-        auto toknum = parse(parser);
+
+        error_info ei{};
+        auto toknum = count_tokens(&ei, std::begin(str), std::end(str)-1);
+        assert(ei.code == EC_OK);
+        assert(toknum == 1);
+
+        auto *parser = alloc_parser(std::begin(str), std::end(str)-1);
+        toknum = parse(parser);
 
         assert(is_valid(parser));
         assert(toknum == 1);
-        assert(parser->toks_end == parser->toks_beg + toknum);
+        assert(fj_parser_tokens_end_ptr(parser) == fj_parser_tokens_beg_ptr(parser) + toknum);
 
         auto beg = iter_begin(parser);
         assert(beg.is_valid());
@@ -351,12 +564,18 @@ int main() {
         using namespace flatjson;
 
         static const char str[] = R"("string")";
-        auto *parser = alloc_parser(str);
-        auto toknum = parse(parser);
+
+        error_info ei{};
+        auto toknum = count_tokens(&ei, std::begin(str), std::end(str)-1);
+        assert(ei.code == EC_OK);
+        assert(toknum == 1);
+
+        auto *parser = alloc_parser(std::begin(str), std::end(str)-1);
+        toknum = parse(parser);
 
         assert(is_valid(parser));
         assert(toknum == 1);
-        assert(parser->toks_end == parser->toks_beg + toknum);
+        assert(fj_parser_tokens_end_ptr(parser) == fj_parser_tokens_beg_ptr(parser) + toknum);
 
         auto beg = iter_begin(parser);
         assert(beg.is_valid());
@@ -373,12 +592,18 @@ int main() {
         using namespace flatjson;
 
         static const char str[] = R"(false)";
-        auto *parser = alloc_parser(str);
-        auto toknum = parse(parser);
+
+        error_info ei{};
+        auto toknum = count_tokens(&ei, std::begin(str), std::end(str)-1);
+        assert(ei.code == EC_OK);
+        assert(toknum == 1);
+
+        auto *parser = alloc_parser(std::begin(str), std::end(str)-1);
+        toknum = parse(parser);
 
         assert(is_valid(parser));
         assert(toknum == 1);
-        assert(parser->toks_end == parser->toks_beg + toknum);
+        assert(fj_parser_tokens_end_ptr(parser) == fj_parser_tokens_beg_ptr(parser) + toknum);
 
         auto beg = iter_begin(parser);
         assert(beg.is_valid());
@@ -397,12 +622,18 @@ int main() {
         using namespace flatjson;
 
         static const char str[] = R"(true)";
-        auto *parser = alloc_parser(str);
-        auto toknum = parse(parser);
+
+        error_info ei{};
+        auto toknum = count_tokens(&ei, std::begin(str), std::end(str)-1);
+        assert(ei.code == EC_OK);
+        assert(toknum == 1);
+
+        auto *parser = alloc_parser(std::begin(str), std::end(str)-1);
+        toknum = parse(parser);
 
         assert(is_valid(parser));
         assert(toknum == 1);
-        assert(parser->toks_end == parser->toks_beg + toknum);
+        assert(fj_parser_tokens_end_ptr(parser) == fj_parser_tokens_beg_ptr(parser) + toknum);
 
         auto beg = iter_begin(parser);
         assert(beg.is_valid());
@@ -420,12 +651,18 @@ int main() {
         using namespace flatjson;
 
         static const char str[] = R"(null)";
-        auto *parser = alloc_parser(str);
-        auto toknum = parse(parser);
+
+        error_info ei{};
+        auto toknum = count_tokens(&ei, std::begin(str), std::end(str)-1);
+        assert(ei.code == EC_OK);
+        assert(toknum == 1);
+
+        auto *parser = alloc_parser(std::begin(str), std::end(str)-1);
+        toknum = parse(parser);
 
         assert(is_valid(parser));
         assert(toknum == 1);
-        assert(parser->toks_end == parser->toks_beg + toknum);
+        assert(fj_parser_tokens_end_ptr(parser) == fj_parser_tokens_beg_ptr(parser) + toknum);
 
         auto beg = iter_begin(parser);
         assert(beg.is_valid());
@@ -442,12 +679,18 @@ int main() {
         using namespace flatjson;
 
         static const char str[] = R"({})";
-        auto *parser = alloc_parser(str);
-        auto toknum = parse(parser);
+
+        error_info ei{};
+        auto toknum = count_tokens(&ei, std::begin(str), std::end(str)-1);
+        assert(ei.code == EC_OK);
+        assert(toknum == 2);
+
+        auto *parser = alloc_parser(std::begin(str), std::end(str)-1);
+        toknum = parse(parser);
 
         assert(is_valid(parser));
         assert(toknum == 2);
-        assert(parser->toks_end == parser->toks_beg + toknum);
+        assert(fj_parser_tokens_end_ptr(parser) == fj_parser_tokens_beg_ptr(parser) + toknum);
 
         auto beg = iter_begin(parser);
         assert(beg.is_valid());
@@ -464,12 +707,18 @@ int main() {
         using namespace flatjson;
 
         static const char str[] = R"([])";
-        auto *parser = alloc_parser(str);
-        auto toknum = parse(parser);
+
+        error_info ei{};
+        auto toknum = count_tokens(&ei, std::begin(str), std::end(str)-1);
+        assert(ei.code == EC_OK);
+        assert(toknum == 2);
+
+        auto *parser = alloc_parser(std::begin(str), std::end(str)-1);
+        toknum = parse(parser);
 
         assert(is_valid(parser));
         assert(toknum == 2);
-        assert(parser->toks_end == parser->toks_beg + toknum);
+        assert(fj_parser_tokens_end_ptr(parser) == fj_parser_tokens_beg_ptr(parser) + toknum);
 
         auto beg = iter_begin(parser);
         assert(beg.is_valid());
@@ -486,30 +735,37 @@ int main() {
         using namespace flatjson;
 
         static const char str[] = R"({"bb":0, "b":1})";
-        auto *parser = alloc_parser(str);
-        auto toknum = parse(parser);
+
+        error_info ei{};
+        auto toknum = count_tokens(&ei, std::begin(str), std::end(str)-1);
+        assert(ei.code == EC_OK);
+        assert(toknum == 4);
+
+        auto *parser = alloc_parser(std::begin(str), std::end(str)-1);
+        toknum = parse(parser);
 
         assert(is_valid(parser));
         assert(toknum == 4);
-        assert(parser->toks_end == parser->toks_beg + toknum);
-        assert(parser->toks_beg->flags == 1);
+        assert(fj_parser_tokens_end_ptr(parser) == fj_parser_tokens_beg_ptr(parser) + toknum);
+        assert(fj_parser_tokens_beg_ptr(parser)->flags == 1);
 
         auto beg = iter_begin(parser);
         assert(beg.is_object());
-        assert(beg.beg == parser->toks_beg);
+        assert(beg.beg == fj_parser_tokens_beg_ptr(parser));
 
         auto end = iter_end(parser);
         assert(end.cur == beg.end);
         assert(end.cur == end.end);
 
         auto b = iter_at("b", beg);
-        assert(b.cur == parser->toks_beg + 2);
+        assert(b.cur == fj_parser_tokens_beg_ptr(parser) + 2);
 
         auto bb = iter_at("bb", beg);
-        assert(bb.cur == parser->toks_beg + 1);
+        assert(bb.cur == fj_parser_tokens_beg_ptr(parser) + 1);
 
         auto c = iter_at("c", beg);
-        assert(c.cur == parser->toks_end);
+//        assert(c.cur == fj_parser_tokens_end_ptr(parser));
+        assert(c.cur == beg.end);
 
         free_parser(parser);
     };
@@ -518,16 +774,23 @@ int main() {
         using namespace flatjson;
 
         static const char str[] = R"([1,0])";
-        auto *parser = alloc_parser(str);
-        auto toknum = parse(parser);
+
+        error_info ei{};
+        auto toknum = count_tokens(&ei, std::begin(str), std::end(str)-1);
+        assert(ei.code == EC_OK);
+        assert(toknum == 4);
+
+        auto *parser = alloc_parser(std::begin(str), std::end(str)-1);
+        toknum = parse(parser);
 
         assert(is_valid(parser));
         assert(toknum == 4);
-        assert(parser->toks_end == parser->toks_beg + toknum);
-        assert(parser->toks_beg->flags == 1);
+        assert(fj_parser_tokens_end_ptr(parser) == fj_parser_tokens_beg_ptr(parser) + toknum);
+        assert(fj_parser_tokens_beg_ptr(parser)->flags == 1);
 
         auto beg = iter_begin(parser);
         assert(beg.is_array());
+        assert(beg.cur->end = fj_parser_tokens_beg_ptr(parser) + toknum);
 
         auto end = iter_end(parser);
         assert(end.cur == beg.end);
@@ -537,13 +800,13 @@ int main() {
         assert(i0.is_valid());
         assert(i0.is_number());
         assert(i0.value() == "1");
-        assert(i0.cur == parser->toks_beg + 1);
+        assert(i0.cur == fj_parser_tokens_beg_ptr(parser) + 1);
 
         auto i1 = iter_at(1, beg);
         assert(i1.is_valid());
         assert(i1.is_number());
         assert(i1.value() == "0");
-        assert(i1.cur == parser->toks_beg + 2);
+        assert(i1.cur == fj_parser_tokens_beg_ptr(parser) + 2);
 
         free_parser(parser);
     };
@@ -552,13 +815,19 @@ int main() {
         using namespace flatjson;
 
         static const char str[] = R"({"a":[1,0]})";
-        auto *parser = alloc_parser(str);
-        auto toknum = parse(parser);
+
+        error_info ei{};
+        auto toknum = count_tokens(&ei, std::begin(str), std::end(str)-1);
+        assert(ei.code == EC_OK);
+        assert(toknum == 6);
+
+        auto *parser = alloc_parser(std::begin(str), std::end(str)-1);
+        toknum = parse(parser);
 
         assert(is_valid(parser));
         assert(toknum == 6);
-        assert(parser->toks_end == parser->toks_beg + toknum);
-        assert(parser->toks_beg->flags == 0);
+        assert(fj_parser_tokens_end_ptr(parser) == fj_parser_tokens_beg_ptr(parser) + toknum);
+        assert(fj_parser_tokens_beg_ptr(parser)->flags == 0);
 
         auto beg = iter_begin(parser);
         assert(beg.is_object());
@@ -571,19 +840,19 @@ int main() {
         assert(i0.is_valid());
         assert(i0.is_array());
         assert(i0.key() == "a");
-        assert(i0.cur == parser->toks_beg + 1);
+        assert(i0.cur == fj_parser_tokens_beg_ptr(parser) + 1);
 
         auto i1 = iter_at(0, i0);
         assert(i1.is_valid());
         assert(i1.is_number());
         assert(i1.value() == "1");
-        assert(i1.cur == parser->toks_beg + 2);
+        assert(i1.cur == fj_parser_tokens_beg_ptr(parser) + 2);
 
         auto i2 = iter_at(1, i0);
         assert(i2.is_valid());
         assert(i2.is_number());
         assert(i2.value() == "0");
-        assert(i2.cur == parser->toks_beg + 3);
+        assert(i2.cur == fj_parser_tokens_beg_ptr(parser) + 3);
 
         free_parser(parser);
     };
@@ -592,13 +861,13 @@ int main() {
         using namespace flatjson;
 
         static const char str[] = R"([{"a":0, "b":1}])";
-        auto *parser = alloc_parser(str);
+        auto *parser = alloc_parser(std::begin(str), std::end(str)-1);
         auto toknum = parse(parser);
 
         assert(is_valid(parser));
         assert(toknum == 6);
-        assert(parser->toks_end == parser->toks_beg + toknum);
-        assert(parser->toks_beg->flags == 0);
+        assert(fj_parser_tokens_end_ptr(parser) == fj_parser_tokens_beg_ptr(parser) + toknum);
+        assert(fj_parser_tokens_beg_ptr(parser)->flags == 0);
 
         auto beg = iter_begin(parser);
         assert(beg.is_array());
@@ -610,24 +879,24 @@ int main() {
         auto obj = iter_next(beg);
         assert(obj.is_valid());
         assert(obj.is_object());
-        assert(obj.cur == parser->toks_beg + 1);
+        assert(obj.cur == fj_parser_tokens_beg_ptr(parser) + 1);
 
         auto a = iter_at("a", obj);
         assert(a.is_valid());
         assert(a.is_number());
         assert(a.value() == "0");
-        assert(a.cur == parser->toks_beg + 2);
+        assert(a.cur == fj_parser_tokens_beg_ptr(parser) + 2);
 
         auto b = iter_at("b", obj);
         assert(b.is_valid());
         assert(b.is_number());
         assert(b.value() == "1");
-        assert(b.cur == parser->toks_beg + 3);
+        assert(b.cur == fj_parser_tokens_beg_ptr(parser) + 3);
 
         auto objend = iter_next(b);
         assert(objend.is_valid());
         assert(objend.type() == FJ_TYPE_OBJECT_END);
-        assert(objend.cur == parser->toks_beg + 4);
+        assert(objend.cur == fj_parser_tokens_beg_ptr(parser) + 4);
 
         free_parser(parser);
     };
@@ -638,13 +907,14 @@ int main() {
 
         static const char str[] = R"({"a":true, "b":false, "c":null, "d":0, "e":"e"})";
         token tokens[10];
-        auto parser = make_parser(std::begin(tokens), std::end(tokens), str);
+        auto parser = make_parser(std::begin(tokens), std::end(tokens), std::begin(str), std::end(str)-1);
         auto toknum = parse(&parser);
 
         assert(is_valid(&parser));
         assert(toknum == 7);
-        assert(parser.toks_end == parser.toks_beg + toknum);
-        assert(parser.toks_beg->flags == 1);
+        assert(fj_parser_tokens_end_ptr((&parser)) == (&tokens[9]) + 1);
+        assert(fj_parser_tokens_beg_ptr((&parser)) + toknum == fj_parser_tokens_cur_ptr((&parser)));
+        assert(fj_parser_tokens_beg_ptr((&parser))->flags == 1);
 
         assert(tokens[0].type == FJ_TYPE_OBJECT);
         assert(token_childs(&tokens[0]) == 6);
@@ -695,7 +965,8 @@ int main() {
         auto *parser = alloc_parser(
              std::begin(tokens)
             ,std::end(tokens)
-            ,str
+            ,std::begin(str)
+            ,std::end(str)-1
             ,&my_alloc
             ,&my_free
         );
@@ -705,15 +976,24 @@ int main() {
         assert(myallocator.allocations() == 1);
         auto total_allocated = myallocator.total_alloc();
         if ( sizeof(void *) == 4 ) {
-            assert(total_allocated == 44);
-        } else {
+#ifdef __FJ__ANALYZE_PARSER
+            assert(total_allocated == 140);
+#else
             assert(total_allocated == 80);
+#endif // __FJ__ANALYZE_PARSER
+        } else {
+#ifdef __FJ__ANALYZE_PARSER
+            assert(total_allocated == 200);
+#else
+            assert(total_allocated == 120);
+#endif // __FJ__ANALYZE_PARSER
         }
 
         assert(is_valid(parser));
         assert(toknum == 7);
-        assert(parser->toks_end == parser->toks_beg + toknum);
-        assert(parser->toks_beg->flags == 1);
+        assert(fj_parser_tokens_end_ptr(parser) == (&tokens[9]) + 1);
+        assert(fj_parser_tokens_beg_ptr(parser) + toknum == fj_parser_tokens_cur_ptr(parser));
+        assert(fj_parser_tokens_beg_ptr(parser)->flags == 1);
 
         assert(tokens[0].type == FJ_TYPE_OBJECT);
         assert(token_childs(&tokens[0]) == 6);
@@ -764,12 +1044,18 @@ int main() {
 
         static const char str[] = R"({"a":true, "b":false, "c":null, "d":0, "e":"e"})";
         auto parser = make_parser(
-             str
+             std::begin(str)
+            ,std::end(str)-1
+            ,false
             ,&my_alloc
             ,&my_free
         );
 
         auto toknum = parse(&parser);
+        assert(is_valid(&parser));
+        assert(toknum == 7);
+        assert(fj_parser_tokens_end_ptr((&parser)) == fj_parser_tokens_beg_ptr((&parser)) + toknum);
+        assert(fj_parser_tokens_beg_ptr((&parser))->flags == 1);
 
         //myallocator.dump(std::cout);
         assert(myallocator.allocations() == 1);
@@ -780,12 +1066,7 @@ int main() {
             assert(total_allocated == 280);
         }
 
-        assert(is_valid(&parser));
-        assert(toknum == 7);
-        assert(parser.toks_end == parser.toks_beg + toknum);
-        assert(parser.toks_beg->flags == 1);
-
-        auto *tokens = parser.toks_beg;
+        auto *tokens = fj_parser_tokens_beg_ptr((&parser));
         assert(tokens[0].type == FJ_TYPE_OBJECT);
         assert(token_childs(&tokens[0]) == 6);
         assert(token_parent(&tokens[0]) == nullptr);
@@ -835,29 +1116,46 @@ int main() {
 
         static const char str[] = R"({"a":true, "b":false, "c":null, "d":0, "e":"e"})";
         auto *parser = alloc_parser(
-             str
+             std::begin(str)
+            ,std::end(str)-1
+            ,false
             ,&my_alloc
             ,&my_free
         );
 
+#ifdef __FJ__ANALYZE_PARSER
+        dump_parser_stat(parser);
+#endif
+
         auto toknum = parse(parser);
+        assert(is_valid(parser));
+        assert(toknum == 7);
+        assert(fj_parser_tokens_end_ptr(parser) == fj_parser_tokens_beg_ptr(parser) + toknum);
+        assert(fj_parser_tokens_beg_ptr(parser)->flags == 1);
+
+#ifdef __FJ__ANALYZE_PARSER
+        dump_parser_stat(parser);
+#endif
 
     //    myallocator.dump(std::cout);
     //    std::cout << "total: " << myallocator.total_alloc() << std::endl;
         assert(myallocator.allocations() == 2);
         auto total_allocated = myallocator.total_alloc();
         if ( sizeof(void *) == 4 ) {
-            assert(total_allocated == 212);
+#ifdef __FJ__ANALYZE_PARSER
+            assert(total_allocated == 308);
+#else
+            assert(total_allocated == 248);
+#endif
         } else {
-            assert(total_allocated == 360);
+#ifdef __FJ__ANALYZE_PARSER
+            assert(total_allocated == 480);
+#else
+            assert(total_allocated == 400);
+#endif
         }
 
-        assert(is_valid(parser));
-        assert(toknum == 7);
-        assert(parser->toks_end == parser->toks_beg + toknum);
-        assert(parser->toks_beg->flags == 1);
-
-        auto *tokens = parser->toks_beg;
+        auto *tokens = fj_parser_tokens_beg_ptr(parser);
         assert(tokens[0].type == FJ_TYPE_OBJECT);
         assert(token_childs(&tokens[0]) == 6);
         assert(token_parent(&tokens[0]) == nullptr);
@@ -906,14 +1204,19 @@ int main() {
 
         static const char str[] = R"({"a":true, "b":false, "c":null, "d":0, "e":"e"})";
         token tokens[4]{};
-        auto parser = alloc_parser(std::begin(tokens), std::end(tokens), str);
+        auto parser = alloc_parser(
+             std::begin(tokens)
+            ,std::end(tokens)
+            ,std::begin(str)
+            ,std::end(str)-1
+        );
         auto toknum = parse(parser);
 
         assert(!is_valid(parser));
         assert(toknum == 4);
         assert(num_tokens(parser) == 4);
-        assert(get_error(parser) == flatjson::FJ_EC_NO_FREE_TOKENS);
-        assert(parser->toks_beg->flags == 1);
+        assert(get_error(parser) == flatjson::EC_NO_FREE_TOKENS);
+        assert(fj_parser_tokens_beg_ptr(parser)->flags == 1);
 
         free_parser(parser);
     };
@@ -922,13 +1225,13 @@ int main() {
         using namespace flatjson;
 
         static const char str[] = R"([{"c":3, "f":5}])";
-        auto parser = make_parser(str);
+        auto parser = make_parser(std::begin(str), std::end(str)-1);
         auto toknum = parse(&parser);
 
         assert(is_valid(&parser));
         assert(toknum == 6);
-        assert(parser.toks_end == parser.toks_beg + toknum);
-        assert(parser.toks_beg->flags == 0);
+        assert(fj_parser_tokens_end_ptr((&parser)) == fj_parser_tokens_beg_ptr((&parser)) + toknum);
+        assert(fj_parser_tokens_beg_ptr((&parser))->flags == 0);
 
         auto beg = iter_begin(&parser);
         assert(beg.is_array());
@@ -948,13 +1251,18 @@ int main() {
 
         static const char str[] = R"({"a":true, "b":false, "c":null})";
         token tokens[10];
-        auto parser = make_parser(std::begin(tokens), std::end(tokens), str);
+        auto parser = make_parser(
+             std::begin(tokens)
+            ,std::end(tokens)
+            ,std::begin(str)
+            ,std::end(str)-1
+        );
         auto toknum = parse(&parser);
 
         assert(is_valid(&parser));
         assert(toknum == 5);
-        assert(parser.toks_end == parser.toks_beg + toknum);
-        assert(parser.toks_beg->flags == 1);
+        assert(fj_parser_tokens_beg_ptr((&parser)) + toknum == fj_parser_tokens_cur_ptr((&parser)));
+        assert(fj_parser_tokens_beg_ptr((&parser))->flags == 1);
 
         auto beg = iter_begin(&parser);
         assert(beg.is_object());
@@ -971,13 +1279,18 @@ int main() {
 
         static const char str[] = R"({"a":true, "b":false, "c":null, "d":0, "e":"e"})";
         token tokens[10];
-        auto parser = make_parser(std::begin(tokens), std::end(tokens), str);
+        auto parser = make_parser(
+             std::begin(tokens)
+            ,std::end(tokens)
+            ,std::begin(str)
+            ,std::end(str)-1
+        );
         auto toknum = parse(&parser);
 
         assert(is_valid(&parser));
         assert(toknum == 7);
-        assert(parser.toks_end == parser.toks_beg + toknum);
-        assert(parser.toks_beg->flags == 1);
+        assert(fj_parser_tokens_beg_ptr((&parser)) + toknum == fj_parser_tokens_cur_ptr((&parser)));
+        assert(fj_parser_tokens_beg_ptr((&parser))->flags == 1);
 
         auto beg = iter_begin(&parser);
         assert(beg.is_object());
@@ -1033,13 +1346,18 @@ int main() {
 
         static const char str[] = R"([4,3,2,1])";
         token tokens[10];
-        auto parser = make_parser(std::begin(tokens), std::end(tokens), str);
+        auto parser = make_parser(
+             std::begin(tokens)
+            ,std::end(tokens)
+            ,std::begin(str)
+            ,std::end(str)-1
+        );
         auto toknum = parse(&parser);
 
         assert(is_valid(&parser));
         assert(toknum == 6);
-        assert(parser.toks_end == parser.toks_beg + toknum);
-        assert(parser.toks_beg->flags == 1);
+        assert(fj_parser_tokens_beg_ptr((&parser)) + toknum == fj_parser_tokens_cur_ptr((&parser)));
+        assert(fj_parser_tokens_beg_ptr((&parser))->flags == 1);
 
         auto beg = iter_begin(&parser);
         assert(beg.is_array());
@@ -1096,13 +1414,18 @@ int main() {
 
         static const char str[] = R"([[4],[3],[2],[1]])";
         token tokens[14];
-        auto parser = make_parser(std::begin(tokens), std::end(tokens), str);
+        auto parser = make_parser(
+             std::begin(tokens)
+            ,std::end(tokens)
+            ,std::begin(str)
+            ,std::end(str)-1
+        );
         auto toknum = parse(&parser);
 
         assert(is_valid(&parser));
         assert(toknum == 14);
-        assert(parser.toks_end == parser.toks_beg + toknum);
-        assert(parser.toks_beg->flags == 0);
+        assert(fj_parser_tokens_end_ptr((&parser)) == fj_parser_tokens_beg_ptr((&parser)) + toknum);
+        assert(fj_parser_tokens_beg_ptr((&parser))->flags == 0);
 
         auto beg = iter_begin(&parser);
         assert(beg.is_array());
@@ -1159,13 +1482,18 @@ int main() {
 
         static const char str[] = R"([0, "1", 3.14, -314])";
         token tokens[10]{};
-        auto parser = make_parser(std::begin(tokens), std::end(tokens), str);
+        auto parser = make_parser(
+             std::begin(tokens)
+            ,std::end(tokens)
+            ,std::begin(str)
+            ,std::end(str)-1
+        );
         auto toknum = parse(&parser);
 
         assert(is_valid(&parser));
         assert(toknum == 6);
-        assert(parser.toks_end == parser.toks_beg + toknum);
-        assert(parser.toks_beg->flags == 1);
+        assert(fj_parser_tokens_beg_ptr((&parser)) + toknum == fj_parser_tokens_cur_ptr((&parser)));
+        assert(fj_parser_tokens_beg_ptr((&parser))->flags == 1);
 
         assert(num_tokens(&parser) == 6);
         assert(num_childs(&parser) == 4);
@@ -1204,13 +1532,18 @@ int main() {
 
         static const char str[] = R"({"a":true, "b":"false", "c":null})";
         token tokens[10];
-        auto parser = make_parser(std::begin(tokens), std::end(tokens), str);
+        auto parser = make_parser(
+             std::begin(tokens)
+            ,std::end(tokens)
+            ,std::begin(str)
+            ,std::end(str)-1
+        );
         auto toknum = parse(&parser);
 
         assert(is_valid(&parser));
         assert(toknum == 5);
-        assert(parser.toks_end == parser.toks_beg + toknum);
-        assert(parser.toks_beg->flags == 1);
+        assert(fj_parser_tokens_beg_ptr((&parser)) + toknum == fj_parser_tokens_cur_ptr((&parser)));
+        assert(fj_parser_tokens_beg_ptr((&parser))->flags == 1);
 
         assert(num_tokens(&parser) == 5);
         assert(num_childs(&parser) == 3);
@@ -1239,13 +1572,13 @@ int main() {
         using namespace flatjson;
 
         static const char str[] = R"({"a":{"b":true, "c":1234}})";
-        auto *parser = alloc_parser(str);
+        auto *parser = alloc_parser(std::begin(str), std::end(str)-1);
         auto toknum = parse(parser);
 
         assert(is_valid(parser));
         assert(toknum == 6);
-        assert(parser->toks_end == parser->toks_beg + toknum);
-        assert(parser->toks_beg->flags == 0);
+        assert(fj_parser_tokens_end_ptr(parser) == fj_parser_tokens_beg_ptr(parser) + toknum);
+        assert(fj_parser_tokens_beg_ptr(parser)->flags == 0);
 
         assert(num_childs(parser) == 1);
         assert(is_object(parser));
@@ -1297,13 +1630,13 @@ int main() {
         using namespace flatjson;
 
         static const char str[] = R"({"a":[4,3,2,1], "b":[{"a":0,"b":1,"c":2},{"b":4,"a":3,"c":5},{"c":8,"b":7,"a":6}], "c":[0,1,2,3]})";
-        auto *parser = alloc_parser(str);
+        auto *parser = alloc_parser(std::begin(str), std::end(str)-1);
         auto toknum = parse(parser);
 
         assert(is_valid(parser));
         assert(toknum == 31);
-        assert(parser->toks_end == parser->toks_beg + toknum);
-        assert(parser->toks_beg->flags == 0);
+        assert(fj_parser_tokens_end_ptr(parser) == fj_parser_tokens_beg_ptr(parser) + toknum);
+        assert(fj_parser_tokens_beg_ptr(parser)->flags == 0);
 
 //        details::fj_dump_tokens(stdout, "", parser);
 
@@ -1446,12 +1779,12 @@ int main() {
         using namespace flatjson;
 
         static const char str[] = R"({"a":[0,1,2]})";
-        auto *parser = alloc_parser(str);
+        auto *parser = alloc_parser(std::begin(str), std::end(str)-1);
         auto toknum = parse(parser);
 
         assert(is_valid(parser));
         assert(toknum == 7);
-        assert(parser->toks_end == parser->toks_beg + toknum);
+        assert(fj_parser_tokens_end_ptr(parser) == fj_parser_tokens_beg_ptr(parser) + toknum);
 
         auto beg = iter_begin(parser);
         assert(beg.is_object());
@@ -1480,12 +1813,12 @@ int main() {
         using namespace flatjson;
 
         static const char str[] = R"({"a":[0,1,2]})";
-        auto *parser = alloc_parser(str);
+        auto *parser = alloc_parser(std::begin(str), std::end(str)-1);
         auto toknum = parse(parser);
 
         assert(is_valid(parser));
         assert(toknum == 7);
-        assert(parser->toks_end == parser->toks_beg + toknum);
+        assert(fj_parser_tokens_end_ptr(parser) == fj_parser_tokens_beg_ptr(parser) + toknum);
 
         auto beg = iter_begin(parser);
         assert(beg.is_object());
@@ -1516,12 +1849,12 @@ int main() {
         using namespace flatjson;
 
         static const char str[] = R"({"a":0, "b":1, "c":{"d":2, "e":3}, "f":4})";
-        auto *parser = alloc_parser(str);
+        auto *parser = alloc_parser(std::begin(str), std::end(str)-1);
         auto toknum = parse(parser);
 
         assert(is_valid(parser));
         assert(toknum == 9);
-        assert(parser->toks_end == parser->toks_beg + toknum);
+        assert(fj_parser_tokens_end_ptr(parser) == fj_parser_tokens_beg_ptr(parser) + toknum);
 
         auto beg = iter_begin(parser);
         auto end = iter_end(parser);
@@ -1580,12 +1913,12 @@ int main() {
         using namespace flatjson;
 
         static const char str[] = R"({"a":0, "b":1, "c":{"d":2, "e":3}, "f":4})";
-        auto *parser = alloc_parser(str);
+        auto *parser = alloc_parser(std::begin(str), std::end(str)-1);
         auto toknum = parse(parser);
 
         assert(is_valid(parser));
         assert(toknum == 9);
-        assert(parser->toks_end == parser->toks_beg + toknum);
+        assert(fj_parser_tokens_end_ptr(parser) == fj_parser_tokens_beg_ptr(parser) + toknum);
 
         auto beg = iter_begin(parser);
         auto end = iter_end(parser);
@@ -1664,16 +1997,17 @@ int main() {
         free_parser(parser);
     };
 
+#ifndef FJ_NO_TOPLEV_IO
     test += FJ_TEST(test for serialization to std::ostringstream) {
         using namespace flatjson;
 
         static const char str[] = R"({"a":true, "b":{"c":{"d":1, "e":2}}, "c":[0,1,2,3]})";
-        auto *parser = alloc_parser(str);
+        auto *parser = alloc_parser(std::begin(str), std::end(str)-1);
         auto toknum = parse(parser);
 
         assert(is_valid(parser));
         assert(toknum == 15);
-        assert(parser->toks_end == parser->toks_beg + toknum);
+        assert(fj_parser_tokens_end_ptr(parser) == fj_parser_tokens_beg_ptr(parser) + toknum);
 
         static const char *expected =
 R"({
@@ -1718,12 +2052,12 @@ R"({
         using namespace flatjson;
 
         static const char str[] = R"({"a":true, "b":{"c":{"d":1, "e":2}}, "c":[0,1,2,3]})";
-        auto *parser = alloc_parser(str);
+        auto *parser = alloc_parser(std::begin(str), std::end(str)-1);
         auto toknum = parse(parser);
 
         assert(is_valid(parser));
         assert(toknum == 15);
-        assert(parser->toks_end == parser->toks_beg + toknum);
+        assert(fj_parser_tokens_end_ptr(parser) == fj_parser_tokens_beg_ptr(parser) + toknum);
 
         static const char *expected =
 R"({
@@ -1764,12 +2098,12 @@ R"({
         using namespace flatjson;
 
         static const char str[] = R"({"a":0, "b":1, "c":{"d":2, "e":3}, "f":4})";
-        auto *parser = alloc_parser(str);
+        auto *parser = alloc_parser(std::begin(str), std::end(str)-1);
         auto toknum = parse(parser);
 
         assert(is_valid(parser));
         assert(toknum == 9);
-        assert(parser->toks_end == parser->toks_beg + toknum);
+        assert(fj_parser_tokens_end_ptr(parser) == fj_parser_tokens_beg_ptr(parser) + toknum);
 
         static const char *fname = "unit_27.json";
 
@@ -1808,12 +2142,12 @@ R"({
         using namespace flatjson;
 
         static const char str[] = R"({"a":0, "b":1, "c":{"d":2, "e":3}, "f":4})";
-        auto *parser = alloc_parser(str);
+        auto *parser = alloc_parser(std::begin(str), std::end(str)-1);
         auto toknum = parse(parser);
 
         assert(is_valid(parser));
         assert(toknum == 9);
-        assert(parser->toks_end == parser->toks_beg + toknum);
+        assert(fj_parser_tokens_end_ptr(parser) == fj_parser_tokens_beg_ptr(parser) + toknum);
 
         static const char *fname = "unit_28.json";
 
@@ -1847,12 +2181,12 @@ R"({
         using namespace flatjson;
 
         static const char str[] = R"({"a":0, "b":1, "c":{"d":2, "e":3}, "f":4})";
-        auto *parser = alloc_parser(str);
+        auto *parser = alloc_parser(std::begin(str), std::end(str)-1);
         auto toknum = parse(parser);
 
         assert(is_valid(parser));
         assert(toknum == 9);
-        assert(parser->toks_end == parser->toks_beg + toknum);
+        assert(fj_parser_tokens_end_ptr(parser) == fj_parser_tokens_beg_ptr(parser) + toknum);
 
         static const char *fname = "unit_28.json";
 
@@ -1881,6 +2215,7 @@ R"({
 
         free_parser(parser);
     };
+#endif // FJ_NO_TOPLEV_IO
 
     test += FJ_TEST(test for fj_walk_through_keys() for collecting keys) {
         using namespace flatjson;
@@ -1902,12 +2237,12 @@ R"({
         };
 
         static const char str[] = R"({"a":0, "b":1})";
-        auto *parser = alloc_parser(str);
+        auto *parser = alloc_parser(std::begin(str), std::end(str)-1);
         auto toknum = parse(parser);
 
         assert(is_valid(parser));
         assert(toknum == 4);
-        assert(parser->toks_end == parser->toks_beg + toknum);
+        assert(fj_parser_tokens_end_ptr(parser) == fj_parser_tokens_beg_ptr(parser) + toknum);
 
         auto beg = iter_begin(parser);
         auto end = iter_end(parser);
@@ -1935,6 +2270,7 @@ R"({
         free_parser(parser);
     };
 
+#ifndef FJ_NO_TOPLEV_FJSON
     test += FJ_TEST(test for empty c++ fjson object constructor) {
         using namespace flatjson;
 
@@ -1946,7 +2282,8 @@ R"({
     test += FJ_TEST(test for empty ARRAY for c++ fjson object constructor) {
         using namespace flatjson;
 
-        fjson json{"[]"};
+        static const char str[] = "[]";
+        fjson json{std::begin(str), std::end(str)-1};
         assert(json.is_valid());
         assert(json.tokens() == 2);
         auto beg = json.begin();
@@ -1958,12 +2295,12 @@ R"({
         using namespace flatjson;
 
         static const char str[] = R"({"a":0, "b":1, "c":{"d":2, "e":3}, "f":4})";
-        auto *parser = alloc_parser(str);
+        auto *parser = alloc_parser(std::begin(str), std::end(str)-1);
         auto toknum = parse(parser);
 
         assert(is_valid(parser));
         assert(toknum == 9);
-        assert(parser->toks_end == parser->toks_beg + toknum);
+        assert(fj_parser_tokens_end_ptr(parser) == fj_parser_tokens_beg_ptr(parser) + toknum);
 
         fjson json{parser};
         assert(json.is_valid());
@@ -1979,7 +2316,7 @@ R"({
         static const char str[] = R"({"a":0, "b":1, "c":{"d":2, "e":3}, "f":4})";
         token toks[10];
 
-        fjson json{std::begin(toks), std::end(toks), str};
+        fjson json{std::begin(toks), std::end(toks), std::begin(str), std::end(str)-1};
         assert(json.is_valid());
         assert(json.begin() != json.end());
         assert(json.tokens() == 9);
@@ -1989,7 +2326,7 @@ R"({
         using namespace flatjson;
 
         static const char str[] = R"({"a":0, "b":1, "c":{"d":2, "e":3}, "f":4})";
-        fjson json{str};
+        fjson json{std::begin(str), std::end(str)-1};
         assert(json.is_valid());
         assert(json.begin() != json.end());
         assert(json.tokens() == 9);
@@ -2000,7 +2337,7 @@ R"({
         using namespace flatjson;
 
         static const char str[] = R"({"a":[4,3,2,1], "b":[{"a":0,"b":1,"c":2},{"b":4,"a":3,"c":5},{"c":8,"b":7,"a":6}], "c":[0,1,2,3]})";
-        fjson json{str};
+        fjson json{std::begin(str), std::end(str)-1};
 
         assert(json.is_valid());
         assert(json.tokens() == 31);
@@ -2187,25 +2524,26 @@ R"({
         assert(dist_1);
         assert(dist_2);
     };
+#endif // FJ_NO_TOPLEV_FJSON
 
     test += FJ_TEST(test for equality for compare(markup)) {
         using namespace flatjson;
 
         static const char str0[] = R"({"a":0, "b":1, "c":{"d":2, "e":3}, "f":4})";
-        auto *parser0 = alloc_parser(str0);
+        auto *parser0 = alloc_parser(std::begin(str0), std::end(str0)-1);
         auto toknum0 = parse(parser0);
 
         assert(is_valid(parser0));
         assert(toknum0 == 9);
-        assert(parser0->toks_end == parser0->toks_beg + toknum0);
+        assert(fj_parser_tokens_end_ptr(parser0) == fj_parser_tokens_beg_ptr(parser0) + toknum0);
 
         static const char str1[] = R"({"a":0, "b":1, "c":{"d":2, "e":3}, "f":4})";
-        auto *parser1 = alloc_parser(str1);
+        auto *parser1 = alloc_parser(std::begin(str1), std::end(str1)-1);
         auto toknum1 = parse(parser1);
 
         assert(is_valid(parser1));
         assert(toknum1 == 9);
-        assert(parser1->toks_end == parser1->toks_beg + toknum1);
+        assert(fj_parser_tokens_end_ptr(parser1) == fj_parser_tokens_beg_ptr(parser1) + toknum1);
 
         iterator ldiff, rdiff;
         auto r = compare(&ldiff, &rdiff, parser0, parser1);
@@ -2220,20 +2558,20 @@ R"({
         using namespace flatjson;
 
         static const char str0[] = R"({"a":0, "b":1, "c":{"d":2, "e":3}, "f":4})";
-        auto *parser0 = alloc_parser(str0);
+        auto *parser0 = alloc_parser(std::begin(str0), std::end(str0)-1);
         auto toknum0 = parse(parser0);
 
         assert(is_valid(parser0));
         assert(toknum0 == 9);
-        assert(parser0->toks_end == parser0->toks_beg + toknum0);
+        assert(fj_parser_tokens_end_ptr(parser0) == fj_parser_tokens_beg_ptr(parser0) + toknum0);
 
         static const char str1[] = R"({"b":1, "a":0, "c":{"d":2, "e":3}, "f":4})";
-        auto *parser1 = alloc_parser(str1);
+        auto *parser1 = alloc_parser(std::begin(str1), std::end(str1)-1);
         auto toknum1 = parse(parser1);
 
         assert(is_valid(parser1));
         assert(toknum1 == 9);
-        assert(parser1->toks_end == parser1->toks_beg + toknum1);
+        assert(fj_parser_tokens_end_ptr(parser1) == fj_parser_tokens_beg_ptr(parser1) + toknum1);
 
         iterator ldiff, rdiff;
         auto r = compare(&ldiff, &rdiff, parser0, parser1);
@@ -2248,20 +2586,20 @@ R"({
         using namespace flatjson;
 
         static const char str0[] = R"({"b":1, "a":0, "c":{"d":2, "e":3}, "f":4})";
-        auto *parser0 = alloc_parser(str0);
+        auto *parser0 = alloc_parser(std::begin(str0), std::end(str0)-1);
         auto toknum0 = parse(parser0);
 
         assert(is_valid(parser0));
         assert(toknum0 == 9);
-        assert(parser0->toks_end == parser0->toks_beg + toknum0);
+        assert(fj_parser_tokens_end_ptr(parser0) == fj_parser_tokens_beg_ptr(parser0) + toknum0);
 
         static const char str1[] = R"({"a":0, "b":1, "c":{"d":2, "e":3}, "f":4})";
-        auto *parser1 = alloc_parser(str1);
+        auto *parser1 = alloc_parser(std::begin(str1), std::end(str1)-1);
         auto toknum1 = parse(parser1);
 
         assert(is_valid(parser1));
         assert(toknum1 == 9);
-        assert(parser1->toks_end == parser1->toks_beg + toknum1);
+        assert(fj_parser_tokens_end_ptr(parser1) == fj_parser_tokens_beg_ptr(parser1) + toknum1);
 
         iterator ldiff, rdiff;
         auto r = compare(&ldiff, &rdiff, parser0, parser1);
@@ -2276,20 +2614,20 @@ R"({
         using namespace flatjson;
 
         static const char str0[] = R"({"b":1, "a":0, "c":{"d":2, "e":3}, "f":4})";
-        auto *parser0 = alloc_parser(str0);
+        auto *parser0 = alloc_parser(std::begin(str0), std::end(str0)-1);
         auto toknum0 = parse(parser0);
 
         assert(is_valid(parser0));
         assert(toknum0 == 9);
-        assert(parser0->toks_end == parser0->toks_beg + toknum0);
+        assert(fj_parser_tokens_end_ptr(parser0) == fj_parser_tokens_beg_ptr(parser0) + toknum0);
 
         static const char str1[] = R"({"a":0, "c":{"d":2, "e":3}, "b":1, "f":4})";
-        auto *parser1 = alloc_parser(str1);
+        auto *parser1 = alloc_parser(std::begin(str1), std::end(str1)-1);
         auto toknum1 = parse(parser1);
 
         assert(is_valid(parser1));
         assert(toknum1 == 9);
-        assert(parser1->toks_end == parser1->toks_beg + toknum1);
+        assert(fj_parser_tokens_end_ptr(parser1) == fj_parser_tokens_beg_ptr(parser1) + toknum1);
 
         iterator ldiff, rdiff;
         auto r = compare(&ldiff, &rdiff, parser0, parser1);
@@ -2304,20 +2642,20 @@ R"({
         using namespace flatjson;
 
         static const char str0[] = R"({"a":0, "b":1, "c":{"d":2, "e":3}, "f":4})";
-        auto *parser0 = alloc_parser(str0);
+        auto *parser0 = alloc_parser(std::begin(str0), std::end(str0)-1);
         auto toknum0 = parse(parser0);
 
         assert(is_valid(parser0));
         assert(toknum0 == 9);
-        assert(parser0->toks_end == parser0->toks_beg + toknum0);
+        assert(fj_parser_tokens_end_ptr(parser0) == fj_parser_tokens_beg_ptr(parser0) + toknum0);
 
         static const char str1[] = R"({"g":0, "b":1, "c":{"d":2, "e":3}, "f":4})";
-        auto *parser1 = alloc_parser(str1);
+        auto *parser1 = alloc_parser(std::begin(str1), std::end(str1)-1);
         auto toknum1 = parse(parser1);
 
         assert(is_valid(parser1));
         assert(toknum1 == 9);
-        assert(parser1->toks_end == parser1->toks_beg + toknum1);
+        assert(fj_parser_tokens_end_ptr(parser1) == fj_parser_tokens_beg_ptr(parser1) + toknum1);
 
         iterator ldiff, rdiff;
         auto r = compare(&ldiff, &rdiff, parser0, parser1);
@@ -2335,20 +2673,20 @@ R"({
         using namespace flatjson;
 
         static const char str0[] = R"({"a":0, "b":12, "c":{"d":2, "e":3}, "f":4})";
-        auto *parser0 = alloc_parser(str0);
+        auto *parser0 = alloc_parser(std::begin(str0), std::end(str0)-1);
         auto toknum0 = parse(parser0);
 
         assert(is_valid(parser0));
         assert(toknum0 == 9);
-        assert(parser0->toks_end == parser0->toks_beg + toknum0);
+        assert(fj_parser_tokens_end_ptr(parser0) == fj_parser_tokens_beg_ptr(parser0) + toknum0);
 
         static const char str1[] = R"({"a":0, "b":11, "c":{"d":2, "e":3}, "f":4})";
-        auto *parser1 = alloc_parser(str1);
+        auto *parser1 = alloc_parser(std::begin(str1), std::end(str1)-1);
         auto toknum1 = parse(parser1);
 
         assert(is_valid(parser1));
         assert(toknum1 == 9);
-        assert(parser1->toks_end == parser1->toks_beg + toknum1);
+        assert(fj_parser_tokens_end_ptr(parser1) == fj_parser_tokens_beg_ptr(parser1) + toknum1);
 
         iterator ldiff, rdiff;
         auto r = compare(&ldiff, &rdiff, parser0, parser1, compare_mode::length_only);
@@ -2362,20 +2700,20 @@ R"({
         using namespace flatjson;
 
         static const char str0[] = R"({"a":0, "b":12, "c":{"d":2, "e":3}, "f":4})";
-        auto *parser0 = alloc_parser(str0);
+        auto *parser0 = alloc_parser(std::begin(str0), std::end(str0)-1);
         auto toknum0 = parse(parser0);
 
         assert(is_valid(parser0));
         assert(toknum0 == 9);
-        assert(parser0->toks_end == parser0->toks_beg + toknum0);
+        assert(fj_parser_tokens_end_ptr(parser0) == fj_parser_tokens_beg_ptr(parser0) + toknum0);
 
         static const char str1[] = R"({"a":0, "b":11, "c":{"d":2, "e":3}, "f":4})";
-        auto *parser1 = alloc_parser(str1);
+        auto *parser1 = alloc_parser(std::begin(str1), std::end(str1)-1);
         auto toknum1 = parse(parser1);
 
         assert(is_valid(parser1));
         assert(toknum1 == 9);
-        assert(parser1->toks_end == parser1->toks_beg + toknum1);
+        assert(fj_parser_tokens_end_ptr(parser1) == fj_parser_tokens_beg_ptr(parser1) + toknum1);
 
         iterator ldiff, rdiff;
         auto r = compare(&ldiff, &rdiff, parser0, parser1, compare_mode::full);
@@ -2395,20 +2733,20 @@ R"({
         using namespace flatjson;
 
         static const char str0[] = R"({"a":0, "b":12, "c":{"d":2, "e":3}, "f":4})";
-        auto *parser0 = alloc_parser(str0);
+        auto *parser0 = alloc_parser(std::begin(str0), std::end(str0)-1);
         auto toknum0 = parse(parser0);
 
         assert(is_valid(parser0));
         assert(toknum0 == 9);
-        assert(parser0->toks_end == parser0->toks_beg + toknum0);
+        assert(fj_parser_tokens_end_ptr(parser0) == fj_parser_tokens_beg_ptr(parser0) + toknum0);
 
         static const char str1[] = R"({"a":0, "b":11, "c":{"d":2, "e":3}, "f":4, "g":5})";
-        auto *parser1 = alloc_parser(str1);
+        auto *parser1 = alloc_parser(std::begin(str1), std::end(str1)-1);
         auto toknum1 = parse(parser1);
 
         assert(is_valid(parser1));
         assert(toknum1 == 10);
-        assert(parser1->toks_end == parser1->toks_beg + toknum1);
+        assert(fj_parser_tokens_end_ptr(parser1) == fj_parser_tokens_beg_ptr(parser1) + toknum1);
 
         iterator ldiff, rdiff;
         auto r = compare(&ldiff, &rdiff, parser0, parser1);
@@ -2423,20 +2761,20 @@ R"({
         using namespace flatjson;
 
         static const char str0[] = R"({"a":0, "b":12, "c":{"d":2, "e":3}, "f":4})";
-        auto *parser0 = alloc_parser(str0);
+        auto *parser0 = alloc_parser(std::begin(str0), std::end(str0)-1);
         auto toknum0 = parse(parser0);
 
         assert(is_valid(parser0));
         assert(toknum0 == 9);
-        assert(parser0->toks_end == parser0->toks_beg + toknum0);
+        assert(fj_parser_tokens_end_ptr(parser0) == fj_parser_tokens_beg_ptr(parser0) + toknum0);
 
         static const char str1[] = R"({"a":0, "b":11, "c":{"d":2, "e":3}})";
-        auto *parser1 = alloc_parser(str1);
+        auto *parser1 = alloc_parser(std::begin(str1), std::end(str1)-1);
         auto toknum1 = parse(parser1);
 
         assert(is_valid(parser1));
         assert(toknum1 == 8);
-        assert(parser1->toks_end == parser1->toks_beg + toknum1);
+        assert(fj_parser_tokens_end_ptr(parser1) == fj_parser_tokens_beg_ptr(parser1) + toknum1);
 
         iterator ldiff, rdiff;
         auto r = compare(&ldiff, &rdiff, parser0, parser1);
@@ -2451,20 +2789,20 @@ R"({
         using namespace flatjson;
 
         static const char str0[] = R"([1,2,3,4])";
-        auto *parser0 = alloc_parser(str0);
+        auto *parser0 = alloc_parser(std::begin(str0), std::end(str0)-1);
         auto toknum0 = parse(parser0);
 
         assert(is_valid(parser0));
         assert(toknum0 == 6);
-        assert(parser0->toks_end == parser0->toks_beg + toknum0);
+        assert(fj_parser_tokens_end_ptr(parser0) == fj_parser_tokens_beg_ptr(parser0) + toknum0);
 
         static const char str1[] = R"([1,2,3,4])";
-        auto *parser1 = alloc_parser(str1);
+        auto *parser1 = alloc_parser(std::begin(str1), std::end(str1)-1);
         auto toknum1 = parse(parser1);
 
         assert(is_valid(parser1));
         assert(toknum1 == 6);
-        assert(parser1->toks_end == parser1->toks_beg + toknum1);
+        assert(fj_parser_tokens_end_ptr(parser1) == fj_parser_tokens_beg_ptr(parser1) + toknum1);
 
         iterator ldiff, rdiff;
         auto r = compare(&ldiff, &rdiff, parser0, parser1);
@@ -2479,20 +2817,20 @@ R"({
         using namespace flatjson;
 
         static const char str0[] = R"([1,2,3,4])";
-        auto *parser0 = alloc_parser(str0);
+        auto *parser0 = alloc_parser(std::begin(str0), std::end(str0)-1);
         auto toknum0 = parse(parser0);
 
         assert(is_valid(parser0));
         assert(toknum0 == 6);
-        assert(parser0->toks_end == parser0->toks_beg + toknum0);
+        assert(fj_parser_tokens_end_ptr(parser0) == fj_parser_tokens_beg_ptr(parser0) + toknum0);
 
         static const char str1[] = R"([4,3,2,1])";
-        auto *parser1 = alloc_parser(str1);
+        auto *parser1 = alloc_parser(std::begin(str1), std::end(str1)-1);
         auto toknum1 = parse(parser1);
 
         assert(is_valid(parser1));
         assert(toknum1 == 6);
-        assert(parser1->toks_end == parser1->toks_beg + toknum1);
+        assert(fj_parser_tokens_end_ptr(parser1) == fj_parser_tokens_beg_ptr(parser1) + toknum1);
 
         iterator ldiff, rdiff;
         auto r = compare(&ldiff, &rdiff, parser0, parser1, compare_mode::full);
@@ -2507,20 +2845,20 @@ R"({
         using namespace flatjson;
 
         static const char str0[] = R"([{"a":0}, {"b":1}])";
-        auto *parser0 = alloc_parser(str0);
+        auto *parser0 = alloc_parser(std::begin(str0), std::end(str0)-1);
         auto toknum0 = parse(parser0);
 
         assert(is_valid(parser0));
         assert(toknum0 == 8);
-        assert(parser0->toks_end == parser0->toks_beg + toknum0);
+        assert(fj_parser_tokens_end_ptr(parser0) == fj_parser_tokens_beg_ptr(parser0) + toknum0);
 
         static const char str1[] = R"([{"a":0}, {"b":1}])";
-        auto *parser1 = alloc_parser(str1);
+        auto *parser1 = alloc_parser(std::begin(str1), std::end(str1)-1);
         auto toknum1 = parse(parser1);
 
         assert(is_valid(parser1));
         assert(toknum1 == 8);
-        assert(parser1->toks_end == parser1->toks_beg + toknum1);
+        assert(fj_parser_tokens_end_ptr(parser1) == fj_parser_tokens_beg_ptr(parser1) + toknum1);
 
         iterator ldiff, rdiff;
         auto r = compare(&ldiff, &rdiff, parser0, parser1);
@@ -2535,20 +2873,20 @@ R"({
         using namespace flatjson;
 
         static const char str0[] = R"([{"a":0}, {"b":1}])";
-        auto *parser0 = alloc_parser(str0);
+        auto *parser0 = alloc_parser(std::begin(str0), std::end(str0)-1);
         auto toknum0 = parse(parser0);
 
         assert(is_valid(parser0));
         assert(toknum0 == 8);
-        assert(parser0->toks_end == parser0->toks_beg + toknum0);
+        assert(fj_parser_tokens_end_ptr(parser0) == fj_parser_tokens_beg_ptr(parser0) + toknum0);
 
         static const char str1[] = R"([{"b":1}, {"a":0}])";
-        auto *parser1 = alloc_parser(str1);
+        auto *parser1 = alloc_parser(std::begin(str1), std::end(str1)-1);
         auto toknum1 = parse(parser1);
 
         assert(is_valid(parser1));
         assert(toknum1 == 8);
-        assert(parser1->toks_end == parser1->toks_beg + toknum1);
+        assert(fj_parser_tokens_end_ptr(parser1) == fj_parser_tokens_beg_ptr(parser1) + toknum1);
 
         iterator ldiff, rdiff;
         auto r = compare(&ldiff, &rdiff, parser0, parser1);
@@ -2559,11 +2897,12 @@ R"({
         free_parser(parser0);
     };
 
+#ifndef FJ_NO_TOPLEV_IO
     test += FJ_TEST(test for fj_packed_state_size()) {
         using namespace flatjson;
 
         static const char str[] = R"({"a":0, "b":12, "c":{"d":2, "e":3}, "f":4})";
-        auto parser = make_parser(str);
+        auto parser = make_parser(std::begin(str), std::end(str)-1);
         auto toknum = parse(&parser);
         assert(is_valid(&parser));
         assert(toknum == 9);
@@ -2578,14 +2917,14 @@ R"({
         using namespace flatjson;
 
         static const char str[] = R"({"a":0, "b":12, "c":{"d":2, "e":3}, "f":4})";
-        auto parser = make_parser(str);
+        auto parser = make_parser(std::begin(str), std::end(str)-1);
         auto toknum = parse(&parser);
         assert(is_valid(&parser));
         assert(toknum == 9);
 
         auto size = packed_state_size(&parser);
 
-        char *ptr = static_cast<char *>(parser.alloc_fn(size));
+        char *ptr = static_cast<char *>(parser.alloc_func(size));
         auto writen = pack_state(ptr, size, &parser);
         assert(size == writen);
 
@@ -2599,10 +2938,11 @@ R"({
         auto res = compare(&left_diff, &right_diff, &parser, &parser2, compare_mode::full);
         assert(res == compare_result::equal);
 
-        parser.free_fn(ptr);
+        parser.free_func(ptr);
         free_parser(&parser2);
         free_parser(&parser);
     };
+#endif // FJ_NO_TOPLEV_IO
 
     /*********************************************************************************************/
 

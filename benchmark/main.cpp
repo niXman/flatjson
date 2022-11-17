@@ -10,7 +10,7 @@
 // ----------------------------------------------------------------------------
 
 
-// to compile: g++ -std=c++11 parsetest.cpp -O2 -o parsetest
+// to compile: g++ -std=c++11 main.cpp -O2 -o benchmark
 
 #include <flatjson/flatjson.hpp>
 
@@ -33,7 +33,7 @@ std::string read_file(const char *fname) {
 
 int main(int argc, char **argv) {
 	if ( argc != 2 ) {
-		std::cout << "parsetest <filename.json>" << std::endl;
+        std::cout << argv[0] << " <filename.json>" << std::endl;
 
 		return EXIT_FAILURE;
 	}
