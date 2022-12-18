@@ -676,37 +676,6 @@ inline void dump_tokens_impl(
 /*************************************************************************************************/
 // iterate
 
-#if 0
-#define __FJ__ITERATE_WHILE(parser, off, chars_map) do { \
-        const auto *cur = fj_parser_json_cur_uptr(parser) + off; \
-        const auto *end = fj_parser_json_end_uptr(parser); \
-        fprintf(stdout, "enter, cur=%p, end=%p\n", cur, end); \
-        const auto step = fj_parser_json_left_chars(parser) < 8u \
-            ? fj_parser_json_left_chars(parser) : 8u; \
-        for ( ; cur <= end; cur += step ) { \
-            fprintf(stdout, "  in body, cur=%p, end=%p, ch=0x%02x, map=%i\n", cur, end, cur[0], chars_map[cur[0]]); \
-            if ( __FJ__LIKELY(0 == chars_map[cur[0]]) ) \
-            { fprintf(stdout, "  0: %i\n", chars_map[cur[0]]); fj_parser_json_set_cur_ptr(parser, cur+0); break; } \
-            if ( __FJ__LIKELY(0 == chars_map[cur[1]]) ) \
-            { fprintf(stdout, "  1: %i\n", chars_map[cur[1]]); fj_parser_json_set_cur_ptr(parser, cur+1); break; } \
-            if ( __FJ__LIKELY(0 == chars_map[cur[2]]) ) \
-            { fprintf(stdout, "  2: %i\n", chars_map[cur[2]]); fj_parser_json_set_cur_ptr(parser, cur+2); break; } \
-            if ( __FJ__LIKELY(0 == chars_map[cur[3]]) ) \
-            { fprintf(stdout, "  3: %i\n", chars_map[cur[3]]); fj_parser_json_set_cur_ptr(parser, cur+3); break; } \
-            if ( __FJ__LIKELY(0 == chars_map[cur[4]]) ) \
-            { fprintf(stdout, "  4: %i\n", chars_map[cur[4]]); fj_parser_json_set_cur_ptr(parser, cur+4); break; } \
-            if ( __FJ__LIKELY(0 == chars_map[cur[5]]) ) \
-            { fprintf(stdout, "  5: %i\n", chars_map[cur[5]]); fj_parser_json_set_cur_ptr(parser, cur+5); break; } \
-            if ( __FJ__LIKELY(0 == chars_map[cur[6]]) ) \
-            { fprintf(stdout, "  6: %i\n", chars_map[cur[6]]); fj_parser_json_set_cur_ptr(parser, cur+6); break; } \
-            if ( __FJ__LIKELY(0 == chars_map[cur[7]]) ) \
-            { fprintf(stdout, "  7: %i\n", chars_map[cur[7]]); fj_parser_json_set_cur_ptr(parser, cur+7); break; } \
-        } \
-        fprintf(stdout, "leave\n"); \
-        fflush(stdout); \
-    } while (false)
-#endif
-
 #define __FJ__ITERATE_WHILE(parser, off, chars_map) do { \
         const auto *cur = fj_parser_json_cur_uptr(parser) + off; \
         for ( const auto *end = fj_parser_json_end_uptr(parser) \
@@ -715,12 +684,35 @@ inline void dump_tokens_impl(
         fj_parser_json_set_cur_ptr(parser, cur); \
     } while (false)
 
-
+#if 1
 #define __FJ__SKIP_WHITESPACE(parser) do { \
         const auto *cur = fj_parser_json_cur_uptr(parser); \
-        for ( const auto *end = fj_parser_json_end_uptr(parser); cur != end && *cur < ' '+1; ++cur ) {} \
+        for ( ; cur <= fj_parser_json_end_uptr(parser); cur += 8 ) { \
+            if ( (0 == details::fj_is_whitespace_char_map[cur[0]]) ) \
+            { fj_parser_json_set_cur_ptr(parser, cur+0); break; } \
+            if ( (0 == details::fj_is_whitespace_char_map[cur[1]]) ) \
+            { fj_parser_json_set_cur_ptr(parser, cur+1); break; } \
+            if ( (0 == details::fj_is_whitespace_char_map[cur[2]]) ) \
+            { fj_parser_json_set_cur_ptr(parser, cur+2); break; } \
+            if ( (0 == details::fj_is_whitespace_char_map[cur[3]]) ) \
+            { fj_parser_json_set_cur_ptr(parser, cur+3); break; } \
+            if ( (0 == details::fj_is_whitespace_char_map[cur[4]]) ) \
+            { fj_parser_json_set_cur_ptr(parser, cur+4); break; } \
+            if ( (0 == details::fj_is_whitespace_char_map[cur[5]]) ) \
+            { fj_parser_json_set_cur_ptr(parser, cur+5); break; } \
+            if ( (0 == details::fj_is_whitespace_char_map[cur[6]]) ) \
+            { fj_parser_json_set_cur_ptr(parser, cur+6); break; } \
+            if ( (0 == details::fj_is_whitespace_char_map[cur[7]]) ) \
+            { fj_parser_json_set_cur_ptr(parser, cur+7); break; } \
+        } \
+    } while (false)
+#else
+#define __FJ__SKIP_WHITESPACE(parser) do { \
+        const auto *cur = fj_parser_json_cur_uptr(parser); \
+        for ( const auto *end = fj_parser_json_end_uptr(parser); cur != end && details::fj_is_whitespace_char_map[*cur]; ++cur ) {} \
         fj_parser_json_set_cur_ptr(parser, cur); \
     } while (false)
+#endif
 
 /*************************************************************************************************/
 
@@ -780,18 +772,18 @@ static const std::uint8_t fj_is_hex_and_digit_char_map[] = {
 };
 static_assert(sizeof(fj_is_hex_and_digit_char_map) == 256, "");
 
-//// 0x00/0x09/0x0a/0x0d/0x20
-//static const std::uint8_t fj_is_whitespace_char_map[] = {
-//     0,0,0,0,0,0,0,0,0,1,1,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
-//    ,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
-//    ,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
-//    ,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
-//    ,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
-//    ,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
-//    ,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
-//    ,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
-//};
-//static_assert(sizeof(fj_is_whitespace_char_map) == 256, "");
+// 0x00/0x09/0x0a/0x0d/0x20
+static const std::uint8_t fj_is_whitespace_char_map[] = {
+     0,0,0,0,0,0,0,0,0,1,1,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    ,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    ,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    ,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    ,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    ,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    ,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    ,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+};
+static_assert(sizeof(fj_is_whitespace_char_map) == 256, "");
 
 // '\0', '\r', '\n', '\t', '"', '\\'
 static const std::uint8_t fj_special_string_chars_negated_map[] = {
@@ -1337,18 +1329,19 @@ inline error_code parse_value(
 
     error_code ec = FJ_INVALID;
     auto ch = fj_parser_json_cur_uchar(parser);
-    if ( __FJ__LIKELY(fj_is_digit_char_map[ch] || ch == '-') ) {
+    if ( fj_is_digit_char_map[ch] || ch == '-' ) {
         ec = parse_number<ParseMode>(prev_func, parser, value, vlen);
         *toktype = FJ_TYPE_NUMBER;
         goto parse_value_exit;
     }
-    if ( __FJ__LIKELY(ch == '"') ) {
+    if ( ch == '"' ) {
         fj_parser_json_advance_cur(parser, 1);
         ec = parse_string<ParseMode>(prev_func, parser, value, vlen);
         *toktype = FJ_TYPE_STRING;
         goto parse_value_exit;
     }
-    if ( __FJ__LIKELY(fj_is_true_keyword_chars_map[ch] + fj_is_false_keyword_chars_map[ch] + fj_is_null_keyword_chars_map[ch]) ) {
+    if ( fj_is_true_keyword_chars_map[ch] + fj_is_false_keyword_chars_map[ch]
+         + fj_is_null_keyword_chars_map[ch] ) {
         const char *start = fj_parser_json_cur_ptr(parser);
         fj_parser_json_advance_cur(parser, fj_is_false_keyword_chars_map[ch]);
         *toktype = static_cast<token_type>(FJ_TYPE_BOOL + fj_is_null_keyword_chars_map[ch]);
