@@ -289,7 +289,7 @@ template<std::size_t N>
 const char* begin(const char (&str)[N]) noexcept { return str; }
 
 template<std::size_t N>
-const char* end(const char (&str)[N]) noexcept { return &str[N-1]; }
+const char* end(const char (&str)[N]) noexcept { return str + N-1; }
 
 /*************************************************************************************************/
 
@@ -1348,12 +1348,12 @@ inline error_code parse_value(
         *toktype = FJ_TYPE_STRING;
         goto parse_value_exit;
     }
-    if ( __FJ__LIKELY(ch == 't' || ch == 'f' || ch == 'n') ) {
+    if ( __FJ__LIKELY(fj_is_true_keyword_chars_map[ch] + fj_is_false_keyword_chars_map[ch] + fj_is_null_keyword_chars_map[ch]) ) {
         const char *start = fj_parser_json_cur_ptr(parser);
-        fj_parser_json_advance_cur(parser, static_cast<unsigned>(ch == 'f'));
-        *toktype = static_cast<token_type>(FJ_TYPE_BOOL + static_cast<unsigned>(ch == 'n'));
+        fj_parser_json_advance_cur(parser, fj_is_false_keyword_chars_map[ch]);
+        *toktype = static_cast<token_type>(FJ_TYPE_BOOL + fj_is_null_keyword_chars_map[ch]);
         auto v = *reinterpret_cast<const std::uint32_t *>(fj_parser_json_cur_uptr(parser));
-        if ( 0x65757274 == v || 0x65736C61 == v || 0x6C6C756E == v ) {
+        if ( __FJ__LIKELY(0x65757274 == v || 0x65736C61 == v || 0x6C6C756E == v) ) {
             fj_parser_json_advance_cur(parser, 4);
             __FJ__CONSTEXPR_IF ( ParseMode ) {
                 *value = start;
