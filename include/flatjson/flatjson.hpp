@@ -1348,15 +1348,12 @@ inline error_code parse_value(
         *toktype = FJ_TYPE_STRING;
         goto parse_value_exit;
     }
-    if ( ch == 't' || ch == 'f' || ch == 'n' ) {
+    if ( __FJ__LIKELY(ch == 't' || ch == 'f' || ch == 'n') ) {
         const char *start = fj_parser_json_cur_ptr(parser);
         fj_parser_json_advance_cur(parser, static_cast<unsigned>(ch == 'f'));
         *toktype = static_cast<token_type>(FJ_TYPE_BOOL + static_cast<unsigned>(ch == 'n'));
         auto v = *reinterpret_cast<const std::uint32_t *>(fj_parser_json_cur_uptr(parser));
-        int ok0 = 0x65757274 == v;
-        int ok1 = 0x65736C61 == v;
-        int ok2 = 0x6C6C756E == v;
-        if ( ok0 + ok1 + ok2 ) {
+        if ( 0x65757274 == v || 0x65736C61 == v || 0x6C6C756E == v ) {
             fj_parser_json_advance_cur(parser, 4);
             __FJ__CONSTEXPR_IF ( ParseMode ) {
                 *value = start;
