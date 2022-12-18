@@ -43,321 +43,16 @@
 #endif // FJ_NO_TOPLEV_IO
 
 /*************************************************************************************************/
-// simd headers and definitions
-
-#ifndef FJ_DONT_USE_SIMD
-#   ifdef __AVX2__
-#       define FJ_SIMD_TYPE "avx2"
-#       define __FJ__HAS_AVX2
-#   elif defined(__SSE2__)
-#       define FJ_SIMD_TYPE "sse2"
-#       define __FJ__HAS_SSE2
-#   endif
-
-#   if defined(__ARM_NEON) || defined(_M_ARM64)
-#       define FJ_SIMD_TYPE "neon"
-#       define __FJ__HAS_NEON
-#   endif
-
-#   if defined(__FJ__HAS_SSE2) || defined(__FJ__HAS_AVX2)
-#       include <x86intrin.h>
-#   endif
-
-#   if defined(__FJ__HAS_NEON)
-#       include <arm_neon.h>
-#   endif
-
-#ifdef _MSC_VER
-#   include <intrin.h>
-#endif // _MSC_VER
-
-namespace flatjson {
-namespace details {
-
-#   ifdef __FJ__HAS_AVX2
-        using simd_type = __m256i;
-#   elif defined(__FJ__HAS_SSE2)
-        using simd_type = __m128i;
-#   elif defined(__FJ__HAS_NEON)
-        using simd_type = int8x16_t;
-#   else
-#       error "wrong arch type!"
-#   endif // neon
-
-#   define __FJ__SIMD_SIZEOF \
-        (unsigned int)sizeof(::flatjson::details::simd_type)
-
-#   define __FJ__SIMD_ALIGNED \
-        alignas(::flatjson::details::simd_type)
-
-#   ifdef _MSC_VER
-        template<typename T>
-        std::size_t fj_ctz_safe(T v) { DWORD r = 0;  return v ? (_BitScanReverse(&r, v),r) : __FJ__SIMD_SIZEOF; }
-        template<typename T>
-        std::size_t fj_ffs_safe(T v) { DWORD r = 0; return v ? (_BitScanForward(&r, v),r) : 0; }
-#   else
-        template<typename T>
-        std::size_t fj_ctz_safe(T v) { return v ? __builtin_ctz(v) : __FJ__SIMD_SIZEOF; }
-        template<typename T>
-        std::size_t fj_ffs_safe(T v) { return v ? __builtin_ffs(v)-1 : 0; }
-#   endif // WIN32
-
-    // because I don't want to include huge <algorithm> just because of one small std::min()
-    template<typename T>
-    T fj_min(T l, T r) { return l < r ? l : r; }
-
-#   ifdef __FJ__HAS_AVX2 // avx2
-#       define __FJ__SIMD_INIT1(ch) \
-            _mm256_set1_epi8(ch)
-
-#       define __FJ__SIMD_LOAD(p) \
-            _mm256_load_si256(reinterpret_cast<const ::flatjson::details::simd_type *>(p))
-
-#       define __FJ__SIMD_LOADU(p) \
-            _mm256_loadu_si256(reinterpret_cast<const ::flatjson::details::simd_type *>(p))
-
-#       define __FJ__SIMD_CMP_EQ(l, r) \
-            _mm256_cmpeq_epi8(l, r)
-
-#       define __FJ__SIMD_CMP_LT(l, r) \
-            _mm256_cmplt_epi8(l, r)
-
-#       define __FJ__SIMD_CMP_GT(l, r) \
-            _mm256_cmpgt_epi8(l, r)
-
-#       define __FJ__SIMD_AND(l, r) \
-            _mm256_and_si256(l, r)
-
-#       define __FJ__SIMD_OR(l, r) \
-            _mm256_or_si256(l, r)
-
-#       define __FJ__SIMD_ADD(l, r) \
-            _mm256_add_epi8(l, r)
-
-#       define __FJ__SIMD_MIN(l, r) \
-            _mm256_min_epu8(l, r)
-
-#       define __FJ__SIMD_TO_MASK(v) \
-            _mm256_movemask_epi8(v)
-
-#       define __FJ__SIMD_SET_ZERO() \
-            _mm256_setzero_si256()
-
-#   elif defined(__FJ__HAS_SSE2) // sse2
-
-#       define __FJ__SIMD_INIT1(ch) \
-            _mm_set1_epi8(ch)
-
-#       define __FJ__SIMD_LOAD(p) \
-            _mm_load_si128(reinterpret_cast<const ::flatjson::details::simd_type *>(p))
-
-#       define __FJ__SIMD_LOADU(p) \
-            _mm_loadu_si128(reinterpret_cast<const ::flatjson::details::simd_type *>(p))
-
-#       define __FJ__SIMD_CMP_EQ(l, r) \
-            _mm_cmpeq_epi8(l, r)
-
-#       define __FJ__SIMD_CMP_LT(l, r) \
-            _mm_cmplt_epi8(l, r)
-
-#       define __FJ__SIMD_CMP_GT(l, r) \
-            _mm_cmpgt_epi8(l, r)
-
-#       define __FJ__SIMD_AND(l, r) \
-            _mm_and_si128(l, r)
-
-#       define __FJ__SIMD_OR(l, r) \
-            _mm_or_si128(l, r)
-
-#       define __FJ__SIMD_ADD(l, r) \
-            _mm_add_epi8(l, r)
-
-#       define __FJ__SIMD_MIN(l, r) \
-            _mm_min_epu8(l, r)
-
-#       define __FJ__SIMD_TO_MASK(v) \
-            _mm_movemask_epi8(v)
-
-#       define __FJ__SIMD_SET_ZERO() \
-            _mm_setzero_si128()
-
-#   elif defined(__FJ__HAS_NEON) // neon
-
-#       define __FJ__SIMD_INIT1(ch) \
-            vreinterpretq_s32_s8(vdupq_n_s8(ch))
-
-#       define __FJ__SIMD_LOAD(p) \
-            vld1q_s32(reinterpret_cast<std::int32_t *>(p))
-
-#       define __FJ__SIMD_LOADU(p) \
-            __FJ__SIMD_LOAD(p)
-
-#       define __FJ__SIMD_CMP_EQ(l, r) \
-            vreinterpretq_s32_u8(vceqq_s8(vreinterpretq_s8_s32(l), vreinterpretq_s8_s32(r)))
-
-#       define __FJ__SIMD_CMP_LT(l, r) \
-            vreinterpretq_s32_u8(vcltq_s8(vreinterpretq_s8_s32(l), vreinterpretq_s8_s32(r)))
-
-#       define __FJ__SIMD_CMP_GT(l, r) \
-            vreinterpretq_s32_u8(vcgtq_s8(vreinterpretq_s8_s32(l), vreinterpretq_s8_s32(r)))
-
-#       define __FJ__SIMD_AND(l, r) \
-            vandq_s32(l, r)
-
-#       define __FJ__SIMD_OR(l, r) \
-            vorrq_s32(l, r)
-
-#       define __FJ__SIMD_ADD(l, r) \
-            vreinterpretq_s32_s8(vaddq_s8(vreinterpretq_s8_s32(l), vreinterpretq_s8_s32(r)))
-
-#       define __FJ__SIMD_MIN(l, r) \
-            vreinterpretq_s32_u8(vminq_u8(vreinterpretq_u8_s32(l), vreinterpretq_u8_s32(r)))
-
-#       define __FJ__SIMD_TO_MASK(v) \
-            [](const ::flatjson::details::simd_type &in) -> uint32_t { \
-                uint8x16_t vmask = vshlq_u8( \
-                     vandq_u8(in, vdupq_n_u8(0x80)) \
-                    ,vld1q_u8((uint8_t[]){-7,-6,-5,-4,-3,-2,-1,0,-7,-6,-5,-4,-3,-2,-1,0}) \
-                ); \
-                return vaddv_u8(vget_low_u8(vmask)) + (vaddv_u8(vget_high_u8(vmask)) << 8); \
-            }(v)
-
-#       define __FJ__SIMD_SET_ZERO() \
-            vdupq_n_s32(0)
-
-#   endif // __FJ_HAS_SSE2
-
-#   if defined(__FJ__HAS_AVX2)
-        __FJ__SIMD_ALIGNED static const char simd_mask_lut[__FJ__SIMD_SIZEOF * 2] = {
-             -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1
-            ,-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1
-            , 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0
-            , 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0
-        };
-#   elif defined(__FJ__HAS_SSE2) || defined(__FJ__HAS_NEON)
-        __FJ__SIMD_ALIGNED static const char simd_mask_lut[__FJ__SIMD_SIZEOF * 2] = {
-            -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1
-            ,0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0
-        };
-#   else
-#       error "wrong arch type!"
-#   endif // __FJ__HAS_SSE2 || __FJ__HAS_NEON
-
-#   define __FJ__SIMD_COUNT_VALID_CHARS(pptr, pend) \
-        [](const char *ptr, const char *end) -> std::size_t { \
-            const auto *start = ptr; \
-            for ( ; static_cast<unsigned>(end - ptr) >= __FJ__SIMD_SIZEOF \
-                ; ptr += __FJ__SIMD_SIZEOF ) \
-            { \
-                auto line = __FJ__SIMD_LOADU(ptr); \
-                auto mask = __FJ__SIMD_TO_MASK( \
-                    __FJ__SIMD_OR( \
-                        __FJ__SIMD_OR( \
-                             __FJ__SIMD_CMP_EQ(line, __FJ__SIMD_INIT1('"')) \
-                            ,__FJ__SIMD_CMP_EQ(line, __FJ__SIMD_INIT1('\\')) \
-                        ) \
-                        ,__FJ__SIMD_CMP_EQ( \
-                             __FJ__SIMD_MIN(line, __FJ__SIMD_INIT1(0x1f)) \
-                            ,line \
-                        ) \
-                    ) \
-                ); \
-                if ( mask ) { \
-                    auto pos = fj_ctz_safe(mask); \
-                    return ptr - start + pos; \
-                } \
-            } \
-            \
-            for ( ; ptr != end; ++ptr ) { \
-                if ( *ptr == '"' || *ptr == '\\' || *ptr < ' ' ) \
-                    break; \
-            } \
-            \
-            return ptr - start; \
-        }(pptr, pend)
-
-#   ifdef __FJ__ADDRESS_SANITIZER_ENABLED
-#       define __FJ__SIMD_LOAD_LINE_OR_LESS(pptr, pavail) \
-            [](const char *ptr, std::size_t avail) -> ::flatjson::details::simd_type { \
-                __FJ__SIMD_ALIGNED union { \
-                    ::flatjson::details::simd_type simd; \
-                    std::uint8_t arr[__FJ__SIMD_SIZEOF]; \
-                } u; \
-                u.simd = __FJ__SIMD_SET_ZERO(); \
-                std::size_t to_read = ::flatjson::details::fj_min<std::size_t> \
-                    (__FJ__SIMD_SIZEOF, avail); \
-                std::memcpy(u.arr, ptr, to_read); \
-                return __FJ__SIMD_LOAD(&(u.simd)); \
-            }(pptr, pavail)
-#   else
-#       define __FJ__SIMD_LOAD_LINE_OR_LESS(pptr, pavail) \
-            __FJ__SIMD_LOADU(pptr)
-#   endif // __FJ__ADDRESS_SANITIZER_ENABLED
-
-// returns NULL if no non-digits found
-#   define __FJ__SIMD_FIND_NONDIGIT(pptr, plen) \
-        [](const char *ptr, std::size_t len) -> const char* { \
-            const char *end = ptr + len; \
-            for ( ; ptr + __FJ__SIMD_SIZEOF <= end; ptr += __FJ__SIMD_SIZEOF ) { \
-                auto line = __FJ__SIMD_LOADU(ptr); \
-                auto mask = __FJ__SIMD_TO_MASK( \
-                    __FJ__SIMD_OR( \
-                         __FJ__SIMD_CMP_GT(__FJ__SIMD_INIT1('0'), line) \
-                        ,__FJ__SIMD_CMP_GT(line, __FJ__SIMD_INIT1('9')) \
-                    ) \
-                ); \
-                if ( mask ) { \
-                    auto pos = fj_ffs_safe(mask); \
-                    return ptr + pos; \
-                } \
-            } \
-            std::size_t left = end - ptr; \
-            if ( left ) { \
-                auto line = __FJ__SIMD_LOAD_LINE_OR_LESS(ptr, left); \
-                auto mask = __FJ__SIMD_TO_MASK( \
-                    __FJ__SIMD_AND( \
-                        __FJ__SIMD_OR( \
-                             __FJ__SIMD_CMP_GT(__FJ__SIMD_INIT1('0'), line) \
-                            ,__FJ__SIMD_CMP_GT(line, __FJ__SIMD_INIT1('9')) \
-                        ) \
-                        ,__FJ__SIMD_LOADU((simd_mask_lut + __FJ__SIMD_SIZEOF - left)) \
-                    ) \
-                ); \
-                if ( mask ) { \
-                    auto pos = fj_ffs_safe(mask); \
-                    return ptr + pos; \
-                } \
-            } \
-            return nullptr; \
-        }(pptr, plen)
-
-} // ns details
-} // ns flatjson
-
-#else // FJ_DONT_USE_SIMD
-#   define __FJ__SIMD_ALIGNED
-#   define __FJ__SIMD_COUNT_VALID_CHARS(pptr, pend) \
-        [](const char *ptr, const char *end) -> std::size_t { \
-            const char *start = ptr; \
-            for ( ; ptr != end; ++ptr ) { \
-                if ( *ptr == '"' || *ptr == '\\' || *ptr < ' ' ) \
-                    break; \
-            } \
-            return ptr - start; \
-        }(pptr, pend)
-
-#   define __FJ__SIMD_FIND_NONDIGIT(pptr, plen) \
-        (pptr + std::strspn(pptr, "0123456789"))
-
-#endif // FJ_DONT_USE_SIMD
-
-/*************************************************************************************************/
+// misc
 
 #define __FJ__CAT_I(x, y) x##y
 #define __FJ__CAT(x, y) __FJ__CAT_I(x, y)
 
 #define __FJ__STRINGIZE_I(x) #x
 #define __FJ__STRINGIZE(x) __FJ__STRINGIZE_I(x)
+
+/*************************************************************************************************/
+// version
 
 // FJ_VERSION_HEX >> 24 - is the major version
 // FJ_VERSION_HEX >> 16 - is the minor version
@@ -378,23 +73,34 @@ namespace details {
     "." __FJ__STRINGIZE(FJ_VERSION_BUGFIX)
 
 /*************************************************************************************************/
+// likely/unlikely
+
+#ifdef _MSC_VER
+#   define __FJ__LIKELY(...) __VA_ARGS__
+#   define __FJ__UNLIKELY(...) __VA_ARGS__
+#elif defined(__GNUC__) || defined(__clang__)
+#   define __FJ__LIKELY(...) __builtin_expect(static_cast<bool>(__VA_ARGS__), 1)
+#   define __FJ__UNLIKELY(...) __builtin_expect(static_cast<bool>(__VA_ARGS__), 0)
+#else
+#   error "unknown compiler!"
+#endif
+
+/*************************************************************************************************/
+// overflow
 
 #ifndef FJ_DONT_CHECK_OVERFLOW
 #   define __FJ__CHECK_OVERFLOW(expr, type, err) \
-        if ( (expr) >= (std::numeric_limits<type>::max)() ) return err
+        if ( __FJ__UNLIKELY((expr) >= (std::numeric_limits<type>::max)()) ) return err
 #else
 #   define __FJ__CHECK_OVERFLOW(expr, type, err)
 #endif // FJ_DONT_CHECK_OVERFLOW
 
 /*************************************************************************************************/
+// fallthrough/constexpr if()
 
 #if __cplusplus >= 201703L
 #   define __FJ__FALLTHROUGH [[fallthrough]]
 #   define __FJ__CONSTEXPR_IF(...) if constexpr (__VA_ARGS__)
-#   include <string_view>
-    namespace flatjson {
-        using string_view = std::string_view;
-    } // ns flatjson
 #else
 #   define __FJ__CONSTEXPR_IF(...) if (__VA_ARGS__)
 #   if defined(__clang__)
@@ -408,17 +114,30 @@ namespace details {
 #   endif //
 #endif // __cplusplus >= 201703L
 
-#ifndef FJ_KLEN_TYPE
-#   define FJ_KLEN_TYPE std::uint8_t
-#endif // FJ_KLEN_TYPE
-#ifndef FJ_VLEN_TYPE
-#   define FJ_VLEN_TYPE std::uint16_t
-#endif // FJ_VLEN_TYPE
-#ifndef FJ_CHILDS_TYPE
-#   define FJ_CHILDS_TYPE std::uint16_t
-#endif // FJ_CHILDS_TYPE
+/*************************************************************************************************/
+// string view
+#if __cplusplus >= 201703L
+#   include <string_view>
+    namespace flatjson {
+        using string_view = std::string_view;
+    } // ns flatjson
+#endif
 
 /*************************************************************************************************/
+// types
+
+#ifndef fj_klen_type
+#   define fj_klen_type std::uint8_t
+#endif // fj_klen_type
+#ifndef fj_vlen_type
+#   define fj_vlen_type std::uint16_t
+#endif // fj_vlen_type
+#ifndef fj_childs_type
+#   define fj_childs_type std::uint16_t
+#endif // fj_childs_type
+
+/*************************************************************************************************/
+// analizer
 
 //#define __FJ__ANALYZE_PARSER
 #ifdef __FJ__ANALYZE_PARSER
@@ -427,7 +146,7 @@ namespace details {
 namespace flatjson {
 namespace details {
 
-inline std::uint64_t fj_ns_time() {
+inline std::uint64_t fj_ns_time() noexcept {
     struct timespec ts;
     ::clock_gettime(CLOCK_MONOTONIC_RAW, &ts);
     return (std::uint64_t)ts.tv_sec * 1000000000ULL + (std::uint64_t)ts.tv_nsec;
@@ -436,16 +155,16 @@ inline std::uint64_t fj_ns_time() {
 } // ns details
 
 struct parse_stat {
-    std::size_t   f_skip_ws_num;
-    std::uint64_t f_skip_ws_ns;
-    std::size_t   f_parse_expected_num;
-    std::uint64_t f_parse_expected_ns;
+    std::size_t   f_parse_value_num;
+    std::uint64_t f_parse_value_ns;
+    std::size_t   f_parse_object_num;
+    std::uint64_t f_parse_object_ns;
+    std::size_t   f_parse_array_num;
+    std::uint64_t f_parse_array_ns;
     std::size_t   f_parse_string_num;
     std::uint64_t f_parse_string_ns;
-    std::size_t   f_parse_integer_num;
-    std::uint64_t f_parse_integer_ns;
-    std::size_t   f_parse_double_num;
-    std::uint64_t f_parse_double_ns;
+    std::size_t   f_parse_number_num;
+    std::uint64_t f_parse_number_ns;
 };
 
 } // ns flatjson
@@ -491,66 +210,66 @@ struct enable_if_const_char_ptr<const char *> {
 
 struct string_view {
     string_view() = default;
-    explicit string_view(const char *s)
+    explicit string_view(const char *s) noexcept
         :m_ptr{s}
         ,m_len{std::strlen(m_ptr)}
     {}
     template<std::size_t N>
-    explicit string_view(const char (&str)[N])
+    explicit string_view(const char (&str)[N]) noexcept
         :m_ptr{str}
         ,m_len{N-1}
     {}
-    string_view(const char *ptr, std::size_t len)
+    string_view(const char *ptr, std::size_t len) noexcept
         :m_ptr{ptr}
         ,m_len{len}
     {}
-    string_view(const char *beg, const char *end)
+    string_view(const char *beg, const char *end) noexcept
         :m_ptr{beg}
         ,m_len{static_cast<std::size_t>(end - beg)}
     {}
 
-    std::size_t size() const { return m_len; }
-    bool empty() const { return size() == 0; }
-    const char* data() const { return m_ptr; }
+    std::size_t size() const noexcept { return m_len; }
+    bool empty() const noexcept { return size() == 0; }
+    const char* data() const noexcept { return m_ptr; }
 
-    string_view substr(std::size_t pos = 0, std::size_t n = std::string::npos) const {
+    string_view substr(std::size_t pos = 0, std::size_t n = std::string::npos) const noexcept {
         assert(pos <= size());
         return string_view( data() + pos, (std::min)( n, size() - pos ) );
     }
 
-    int compare(string_view other) const
+    int compare(string_view other) const noexcept
     { int res = std::strncmp(data(), other.data(), (std::min)(size(), other.size()));
         return res ? res : size() == other.size() ? 0 : size() < other.size() ? -1 : 1; }
-    int compare(std::size_t pos1, std::size_t n1, string_view other) const
+    int compare(std::size_t pos1, std::size_t n1, string_view other) const noexcept
     { return substr(pos1, n1).compare(other); }
-    int compare(std::size_t pos1, std::size_t n1, string_view other, std::size_t pos2, std::size_t n2) const
+    int compare(std::size_t pos1, std::size_t n1, string_view other, std::size_t pos2, std::size_t n2) const noexcept
     { return substr(pos1, n1).compare(other.substr(pos2, n2)); }
     template<std::size_t N>
-    int compare(const char (&r)[N]) const { return compare(string_view{r, N-1}); }
-    int compare(const char *s) const { return compare(string_view(s)); }
+    int compare(const char (&r)[N]) const noexcept { return compare(string_view{r, N-1}); }
+    int compare(const char *s) const noexcept { return compare(string_view(s)); }
     template<std::size_t N>
-    int compare(std::size_t pos1, std::size_t n1, const char (&s)[N]) const
+    int compare(std::size_t pos1, std::size_t n1, const char (&s)[N]) const noexcept
     { return substr(pos1, n1).compare(string_view(s, N-1)); }
-    int compare(std::size_t pos1, std::size_t n1, const char *s) const
+    int compare(std::size_t pos1, std::size_t n1, const char *s) const noexcept
     { return substr(pos1, n1).compare(string_view(s)); }
-    int compare( std::size_t pos1, std::size_t n1, const char *s, std::size_t n2 ) const
+    int compare( std::size_t pos1, std::size_t n1, const char *s, std::size_t n2 ) const noexcept
     { return substr(pos1, n1).compare(string_view(s, n2)); }
 
     template<typename T, typename = typename enable_if_const_char_ptr<T>::type>
-    friend bool operator==(const string_view &l, T r) { return l.compare(r) == 0; }
+    friend bool operator==(const string_view &l, T r) noexcept { return l.compare(r) == 0; }
     template<std::size_t N>
-    friend bool operator==(const string_view &l, const char (&r)[N])
+    friend bool operator==(const string_view &l, const char (&r)[N]) noexcept
     { return l.compare(0, N-1, r, N-1) == 0; }
-    friend bool operator==(const string_view &l, const string_view &r)
+    friend bool operator==(const string_view &l, const string_view &r) noexcept
     { return l.compare(r) == 0; }
 
     template<typename T, typename = typename enable_if_const_char_ptr<T>::type>
-    friend bool operator!=(const string_view &l, T r) { return !(l == r); }
+    friend bool operator!=(const string_view &l, T r) noexcept { return !(l == r); }
     template<std::size_t N>
-    friend bool operator!=(const string_view &l, const char (&r)[N]) { return !(l == r); }
-    friend bool operator!=(const string_view &l, const string_view &r) { return !(l == r); }
+    friend bool operator!=(const string_view &l, const char (&r)[N]) noexcept { return !(l == r); }
+    friend bool operator!=(const string_view &l, const string_view &r) noexcept { return !(l == r); }
 
-    friend std::ostream& operator<< (std::ostream &os, const string_view &s) {
+    friend std::ostream& operator<< (std::ostream &os, const string_view &s) noexcept {
         os.write(s.m_ptr, s.m_len);
 
         return os;
@@ -564,14 +283,13 @@ private:
 #endif // __cplusplus >= 201703L
 
 /*************************************************************************************************/
-
 // for testing and examples purposses, at least for now
 
 template<std::size_t N>
-const char* begin(const char (&str)[N]) { return str; }
+const char* begin(const char (&str)[N]) noexcept { return str; }
 
 template<std::size_t N>
-const char* end(const char (&str)[N]) { return &str[N-1]; }
+const char* end(const char (&str)[N]) noexcept { return &str[N-1]; }
 
 /*************************************************************************************************/
 
@@ -587,7 +305,7 @@ enum token_type: std::uint8_t {
     ,FJ_TYPE_ARRAY_END
 };
 
-inline const char *type_name(token_type t) {
+inline const char *type_name(token_type t) noexcept {
     static const char* strs[] = {
          "INVALID"
         ,"STRING"
@@ -608,22 +326,23 @@ inline const char *type_name(token_type t) {
     return "UNKNOWN TYPE";
 }
 
-enum error_code: char {
-     EC_OK = 0
-    ,EC_INVALID = -1
-    ,EC_INCOMPLETE = -2
-    ,EC_EXTRA_DATA = -3
-    ,EC_NO_FREE_TOKENS = -4
-    ,EC_KLEN_OVERFLOW = -5
-    ,EC_VLEN_OVERFLOW = -6
-    ,EC_CHILDS_OVERFLOW = -7
+enum error_code: std::int8_t {
+     FJ_OK = 0
+    ,FJ_INVALID = -1
+    ,FJ_INCOMPLETE = -2
+    ,FJ_EXTRA_DATA = -3
+    ,FJ_NO_FREE_TOKENS = -4
+    ,FJ_KLEN_OVERFLOW = -5
+    ,FJ_VLEN_OVERFLOW = -6
+    ,FJ_CHILDS_OVERFLOW = -7
 };
 
-inline const char* error_string(error_code e) {
+inline const char* error_string(error_code e) noexcept {
     static const char* strs[] = {
          "OK"
         ,"INVALID"
         ,"INCOMPLETE"
+        ,"EXTRA_DATA"
         ,"NO_FREE_TOKENS"
         ,"KLEN_OVERFLOW"
         ,"VLEN_OVERFLOW"
@@ -669,19 +388,22 @@ struct error_info {
         p->error.prev_func = pprev_func; \
     }
 
-inline const char* error_message(const error_info &e) {
+inline const char* error_message(const error_info &e) noexcept {
     static char buf[512];
     const char *p = e.js_str;
     auto f = [](const char *p) -> char { return isprint(*p) ? *p : '.'; };
     auto c = [](const char *p) -> std::uint8_t { return std::uint8_t(*p); };
+    char prevfunc[128]{};
+    if ( e.prev_func ) {
+        std::snprintf(prevfunc, sizeof(prevfunc), ", prev function \"%s()\"", e.prev_func);
+    }
     auto len = std::snprintf(buf, sizeof(buf)
-        ,"%s, in function \"%s()\"(%u), prev function \"%s()\", at json position %u, content:\n"
+        ,"%s, in function \"%s()\"(%u)%s, at json position %u, content:\n"
          "c|%c  %c  %c  %c  %c  %c  %c  %c  %c  %c  %c  %c  %c  %c  %c  %c |\n"
          "x|%02x|%02x|%02x|%02x|%02x|%02x|%02x|%02x|%02x|%02x|%02x|%02x|%02x|%02x|%02x|%02x|\n"
          "%*s^\n"
         ,error_string(e.code)
-        ,e.func, e.line ,e.prev_func
-        ,e.js_pos
+        ,e.func, e.line, (e.prev_func ? prevfunc : ""), e.js_pos
         ,f(p+0), f(p+1), f(p+2), f(p+3), f(p+4), f(p+5), f(p+6), f(p+7)
             ,f(p+8), f(p+9), f(p+10), f(p+11), f(p+12), f(p+13), f(p+14), f(p+15)
         ,c(p+0), c(p+1), c(p+2), c(p+3), c(p+4), c(p+5), c(p+6), c(p+7)
@@ -704,7 +426,7 @@ typename std::enable_if<
     (std::is_integral<To>::value && std::is_unsigned<To>::value) &&
     !std::is_same<To, bool>::value, To
 >::type
-conv_to(const char *ptr, std::size_t len, To) {
+conv_to(const char *ptr, std::size_t len, To) noexcept {
     const auto *str = reinterpret_cast<const std::uint8_t *>(ptr);
     std::uint64_t res = 0;
 
@@ -752,7 +474,7 @@ typename std::enable_if<
     (std::is_integral<To>::value && std::is_signed<To>::value) &&
     !std::is_same<To, bool>::value, To
 >::type
-conv_to(const char *ptr, std::size_t len, To) {
+conv_to(const char *ptr, std::size_t len, To) noexcept {
     using UnsignedTo = typename std::make_unsigned<To>::type;
     if ( *ptr == '-' ) {
         ++ptr;
@@ -769,13 +491,13 @@ conv_to(const char *ptr, std::size_t len, To) {
 
 template<typename To>
 typename std::enable_if<std::is_same<To, bool>::value, To>::type
-conv_to(const char *ptr, std::size_t len, To) {
+conv_to(const char *ptr, std::size_t len, To) noexcept {
     return *ptr == 't' && len == 4;
 }
 
 template<typename To>
 typename std::enable_if<std::is_same<To, double>::value, To>::type
-conv_to(const char *ptr, std::size_t len, To) {
+conv_to(const char *ptr, std::size_t len, To) noexcept {
     char buf[std::numeric_limits<To>::max_exponent10 + 20];
     std::memcpy(buf, ptr, len);
     buf[len] = 0;
@@ -785,7 +507,7 @@ conv_to(const char *ptr, std::size_t len, To) {
 
 template<typename To>
 typename std::enable_if<std::is_same<To, float>::value, To>::type
-conv_to(const char *ptr, std::size_t len, To) {
+conv_to(const char *ptr, std::size_t len, To) noexcept {
     char buf[std::numeric_limits<To>::max_exponent10 + 20];
     std::memcpy(buf, ptr, len);
     buf[len] = 0;
@@ -795,11 +517,11 @@ conv_to(const char *ptr, std::size_t len, To) {
 
 template<typename To>
 typename std::enable_if<std::is_same<To, std::string>::value, To>::type
-conv_to(const char *ptr, std::size_t len, To) { return {ptr, len}; }
+conv_to(const char *ptr, std::size_t len, To) noexcept { return {ptr, len}; }
 
 template<typename To>
 typename std::enable_if<std::is_same<To, flatjson::string_view>::value, To>::type
-conv_to(const char *ptr, std::size_t len, To) { return {ptr, len}; }
+conv_to(const char *ptr, std::size_t len, To) noexcept { return {ptr, len}; }
 
 } // ns details
 
@@ -810,9 +532,9 @@ struct token {
     const char *val;
     token *parent;
     token *end;
-    FJ_CHILDS_TYPE childs;
-    FJ_VLEN_TYPE vlen;
-    FJ_KLEN_TYPE klen;
+    fj_childs_type childs;
+    fj_vlen_type vlen;
+    fj_klen_type klen;
     token_type type;
     std::uint8_t flags;
     std::uint8_t unused;
@@ -829,8 +551,12 @@ struct parser {
     const char *json_end;
 #define fj_parser_json_beg_ptr(parser) (parser->json_beg)
 #define fj_parser_json_cur_ptr(parser) (parser->json_cur)
+#define fj_parser_json_set_cur_ptr(parser, to) (parser->json_cur) = ((const char *)(to))
+#define fj_parser_json_cur_uptr(parser) ((const std::uint8_t *)(parser->json_cur))
 #define fj_parser_json_end_ptr(parser) (parser->json_end)
+#define fj_parser_json_end_uptr(parser) ((const std::uint8_t *)(parser->json_end))
 #define fj_parser_json_cur_char(parser) (*fj_parser_json_cur_ptr(parser))
+#define fj_parser_json_cur_uchar(parser) (std::uint8_t)(*fj_parser_json_cur_ptr(parser))
 #define fj_parser_json_increment_cur(parser) ++(parser->json_cur)
 #define fj_parser_json_advance_cur(parser, num) (parser->json_cur += (num))
 #define fj_parser_json_left_chars(parser) \
@@ -873,25 +599,26 @@ struct parser {
 
 #ifdef __FJ__ANALYZE_PARSER
 
-inline const parse_stat& get_parse_stat(const parser *p) {
+inline const parse_stat& get_parse_stat(const parser *p) noexcept {
     return p->pstat;
 }
 
-inline void dump_parser_stat(const parser *p, std::FILE *os = stdout) {
+inline void dump_parser_stat(const parser *p, std::FILE *os = stdout) noexcept {
     std::fprintf(os,
-        "skip_ws: times-%zu, ns-%" PRIu64 "\n"
-        "expect : times-%zu, ns-%" PRIu64 "\n"
-        "string : times-%zu, ns-%" PRIu64 "\n"
-        "integer: times-%zu, ns-%" PRIu64 "\n"
-        "double : times-%zu, ns-%" PRIu64 "\n"
-        ,p->pstat.f_skip_ws_num, p->pstat.f_skip_ws_ns
-        ,p->pstat.f_parse_expected_num, p->pstat.f_parse_expected_ns
+        "value  : times:%zu, ns:%" PRIu64 "\n"
+        "object : times:%zu, ns:%" PRIu64 "\n"
+        "array  : times:%zu, ns:%" PRIu64 "\n"
+        "string : times:%zu, ns:%" PRIu64 "\n"
+        "number : times:%zu, ns:%" PRIu64 "\n"
+        ,p->pstat.f_parse_value_num, p->pstat.f_parse_value_ns
+        ,p->pstat.f_parse_object_num, p->pstat.f_parse_object_ns
+        ,p->pstat.f_parse_array_num, p->pstat.f_parse_array_ns
         ,p->pstat.f_parse_string_num, p->pstat.f_parse_string_ns
-        ,p->pstat.f_parse_integer_num, p->pstat.f_parse_integer_ns
-        ,p->pstat.f_parse_double_num, p->pstat.f_parse_double_ns
+        ,p->pstat.f_parse_number_num, p->pstat.f_parse_number_ns
     );
     std::fflush(os);
 }
+
 #endif // __FJ__ANALYZE_PARSER
 
 /*************************************************************************************************/
@@ -906,7 +633,7 @@ inline void dump_tokens_impl(
     ,const token *beg
     ,const token *cur
     ,const token *end
-    ,std::size_t indent)
+    ,std::size_t indent) noexcept
 {
     static const char* tnames[] = {
          "INV" // invalid type
@@ -947,689 +674,810 @@ inline void dump_tokens_impl(
 }
 
 /*************************************************************************************************/
+// iterate
 
-static const std::uint8_t fj_utf8_char_len_map[] = {
-     1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
-    ,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
-    ,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
-    ,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2
-    ,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2
-    ,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2
-    ,2,2,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4
-};
+#if 0
+#define __FJ__ITERATE_WHILE(parser, off, chars_map) do { \
+        const auto *cur = fj_parser_json_cur_uptr(parser) + off; \
+        const auto *end = fj_parser_json_end_uptr(parser); \
+        fprintf(stdout, "enter, cur=%p, end=%p\n", cur, end); \
+        const auto step = fj_parser_json_left_chars(parser) < 8u \
+            ? fj_parser_json_left_chars(parser) : 8u; \
+        for ( ; cur <= end; cur += step ) { \
+            fprintf(stdout, "  in body, cur=%p, end=%p, ch=0x%02x, map=%i\n", cur, end, cur[0], chars_map[cur[0]]); \
+            if ( __FJ__LIKELY(0 == chars_map[cur[0]]) ) \
+            { fprintf(stdout, "  0: %i\n", chars_map[cur[0]]); fj_parser_json_set_cur_ptr(parser, cur+0); break; } \
+            if ( __FJ__LIKELY(0 == chars_map[cur[1]]) ) \
+            { fprintf(stdout, "  1: %i\n", chars_map[cur[1]]); fj_parser_json_set_cur_ptr(parser, cur+1); break; } \
+            if ( __FJ__LIKELY(0 == chars_map[cur[2]]) ) \
+            { fprintf(stdout, "  2: %i\n", chars_map[cur[2]]); fj_parser_json_set_cur_ptr(parser, cur+2); break; } \
+            if ( __FJ__LIKELY(0 == chars_map[cur[3]]) ) \
+            { fprintf(stdout, "  3: %i\n", chars_map[cur[3]]); fj_parser_json_set_cur_ptr(parser, cur+3); break; } \
+            if ( __FJ__LIKELY(0 == chars_map[cur[4]]) ) \
+            { fprintf(stdout, "  4: %i\n", chars_map[cur[4]]); fj_parser_json_set_cur_ptr(parser, cur+4); break; } \
+            if ( __FJ__LIKELY(0 == chars_map[cur[5]]) ) \
+            { fprintf(stdout, "  5: %i\n", chars_map[cur[5]]); fj_parser_json_set_cur_ptr(parser, cur+5); break; } \
+            if ( __FJ__LIKELY(0 == chars_map[cur[6]]) ) \
+            { fprintf(stdout, "  6: %i\n", chars_map[cur[6]]); fj_parser_json_set_cur_ptr(parser, cur+6); break; } \
+            if ( __FJ__LIKELY(0 == chars_map[cur[7]]) ) \
+            { fprintf(stdout, "  7: %i\n", chars_map[cur[7]]); fj_parser_json_set_cur_ptr(parser, cur+7); break; } \
+        } \
+        fprintf(stdout, "leave\n"); \
+        fflush(stdout); \
+    } while (false)
+#endif
 
-#define fj_utf8_char_len_macro(ch) \
-    fj_utf8_char_len_map[static_cast<std::uint8_t>(ch)]
+#define __FJ__ITERATE_WHILE(parser, off, chars_map) do { \
+        const auto *cur = fj_parser_json_cur_uptr(parser) + off; \
+        for ( const auto *end = fj_parser_json_end_uptr(parser) \
+            ; cur != end && chars_map[*cur] \
+            ; ++cur ) {} \
+        fj_parser_json_set_cur_ptr(parser, cur); \
+    } while (false)
 
+
+#define __FJ__SKIP_WHITESPACE(parser) do { \
+        const auto *cur = fj_parser_json_cur_uptr(parser); \
+        for ( const auto *end = fj_parser_json_end_uptr(parser); cur != end && *cur < ' '+1; ++cur ) {} \
+        fj_parser_json_set_cur_ptr(parser, cur); \
+    } while (false)
+
+/*************************************************************************************************/
+
+// simple type
 #define fj_is_simple_type_macro(v) \
     ("011110000"[v] == '1')
 
-static const bool fj_is_digit_map[] = {
-     0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
-    ,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
-    ,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
-    ,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
-    ,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
-    ,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
-    ,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+// escaped
+static const std::uint8_t fj_is_escaped_chars_map[] = {
+     0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    ,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    ,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0
+    ,0,0,1,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0,1,0,1,0,0,0,0,0,0,0,0,0,0,0
+    ,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    ,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    ,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    ,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
 };
-static_assert(sizeof(fj_is_digit_map) == 256, "");
+static_assert(sizeof(fj_is_escaped_chars_map) == 256, "");
 
-#define fj_is_digit_macro(ch) \
-    (fj_is_digit_map[static_cast<std::uint8_t>(ch)])
-
-static const bool fj_is_hex_digit_map[] = {
-     0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
-    ,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,0,0,0
-    ,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,0,0,0,0,0,0,0,0
-    ,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
-    ,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
-    ,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
-    ,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+// utf-8
+static const std::uint8_t fj_utf8_char_len_map[] = {
+     1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
+    ,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
+    ,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
+    ,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
+    ,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2
+    ,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2
+    ,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2
+    ,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4
 };
-static_assert(sizeof(fj_is_hex_digit_map) == 256, "");
+static_assert(sizeof(fj_utf8_char_len_map) == 256, "");
 
-#define fj_is_hex_digit_macro(ch) \
-    (fj_is_digit_macro(ch) || fj_is_hex_digit_map[static_cast<std::uint8_t>(ch)])
-
-#define fj_is_hex_digit4_macro(ch0, ch1, ch2, ch3) \
-    (fj_is_hex_digit_macro(ch0) && fj_is_hex_digit_macro(ch1) \
-        && fj_is_hex_digit_macro(ch2) && fj_is_hex_digit_macro(ch3))
-
-// 0x09/0x0a/0x0d/0x20
-static const bool fj_skip_ws_char_map[] = {
-     0,0,0,0,0,0,0,0,0,1,1,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0
-    ,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
-    ,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
-    ,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
-    ,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
-    ,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
-    ,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+// digits
+static const std::uint8_t fj_is_digit_char_map[] = {
+     0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    ,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0
+    ,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    ,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    ,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    ,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    ,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    ,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
 };
-static_assert(sizeof(fj_skip_ws_char_map) == 256, "");
+static_assert(sizeof(fj_is_digit_char_map) == 256, "");
 
-template<bool ParseMode>
-inline const char* fj_skip_ws(parser *p) {
-    __FJ__ANALYZE__BLOCK(p, ParseMode, skip_ws);
+// hex + digits
+static const std::uint8_t fj_is_hex_and_digit_char_map[] = {
+     0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    ,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0
+    ,0,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    ,0,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    ,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    ,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    ,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    ,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+};
+static_assert(sizeof(fj_is_hex_and_digit_char_map) == 256, "");
 
-    for ( ;fj_skip_ws_char_map[static_cast<std::uint8_t>(fj_parser_json_cur_char(p))]
-          ; fj_parser_json_increment_cur(p) )
-    {}
+//// 0x00/0x09/0x0a/0x0d/0x20
+//static const std::uint8_t fj_is_whitespace_char_map[] = {
+//     0,0,0,0,0,0,0,0,0,1,1,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+//    ,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+//    ,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+//    ,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+//    ,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+//    ,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+//    ,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+//    ,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+//};
+//static_assert(sizeof(fj_is_whitespace_char_map) == 256, "");
 
-    return fj_parser_json_cur_ptr(p);
-}
+// '\0', '\r', '\n', '\t', '"', '\\'
+static const std::uint8_t fj_special_string_chars_negated_map[] = {
+     0,1,1,1,1,1,1,1,1,0,0,1,1,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
+    ,1,1,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
+    ,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,1,1,1
+    ,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
+    ,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
+    ,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
+    ,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
+    ,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
+};
+static_assert(sizeof(fj_special_string_chars_negated_map) == 256, "");
 
-#define fj_current_char_macro(p) \
-    (fj_parser_json_cur_char(p) <= ' ' ? *fj_skip_ws<ParseMode>(p) : fj_parser_json_cur_char(p))
+// null
+static const std::uint8_t fj_is_null_keyword_chars_map[] = {
+     0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    ,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    ,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    ,0,0,0,0,0,0,0,0,0,0,0,0,1,0,1,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0
+    ,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    ,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    ,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    ,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+};
+static_assert(sizeof(fj_is_null_keyword_chars_map) == 256, "");
 
-#define fj_check_and_skip_macro(p, exp) \
-    ((fj_parser_json_cur_char(p) - exp) \
-        ? (EC_INVALID) \
-        : (fj_parser_json_increment_cur(p),EC_OK))
+// true
+static const std::uint8_t fj_is_true_keyword_chars_map[] = {
+     0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    ,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    ,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    ,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,1,0,1,1,0,0,0,0,0,0,0,0,0,0
+    ,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    ,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    ,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    ,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+};
+static_assert(sizeof(fj_is_true_keyword_chars_map) == 256, "");
+
+// false
+static const std::uint8_t fj_is_false_keyword_chars_map[] = {
+     0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    ,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    ,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    ,0,1,0,0,0,1,1,0,0,0,0,0,1,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0
+    ,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    ,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    ,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    ,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+};
+static_assert(sizeof(fj_is_false_keyword_chars_map) == 256, "");
 
 /*************************************************************************************************/
-// string
+// expected
 
-enum class expected_type {
+enum class e_keyword_type{
      true_
     ,false_
     ,null_
 };
 
-template<bool ParseMode, expected_type Ex>
-inline error_code parse_expected(
+template<bool ParseMode, e_keyword_type K, std::size_t Off, std::size_t L>
+inline error_code parse_keyword(
      const char *prev_func
-    ,parser *p
+    ,parser *parser
     ,const char **value
-    ,std::size_t *vlen
-    ,token_type */*tokt*/
-    ,token */*parent*/)
+    ,std::size_t *vlen)
 {
-    __FJ__ANALYZE__BLOCK(p, ParseMode, parse_expected);
-
-    // without first letters
-    static const char *exp_str = (Ex == expected_type::true_)
-        ? "true"
-        : (Ex == expected_type::false_)
-            ? "false"
-            : "null"
+    constexpr auto &map = K == e_keyword_type::true_
+        ? fj_is_true_keyword_chars_map
+        : K == e_keyword_type::false_
+            ? fj_is_false_keyword_chars_map
+            : fj_is_null_keyword_chars_map
     ;
-    static const auto exp_len = (Ex == expected_type::true_)
-        ? 4u
-        : (Ex == expected_type::false_)
-            ? 5u
-            : 4u
-    ;
+    const char *start = fj_parser_json_cur_ptr(parser);
+    __FJ__ITERATE_WHILE(parser, Off, map);
+    auto len = fj_parser_json_cur_ptr(parser) - start;
+    if ( __FJ__LIKELY(len == L+Off) ) {
+        __FJ__CONSTEXPR_IF( ParseMode ) {
+            *vlen = L+Off;
+            *value = start;
+        }
 
-    if ( std::memcmp(fj_parser_json_cur_ptr(p), exp_str, exp_len) != 0 ) {
-        __FJ__INIT_ERROR_INFO(p, EC_INVALID, prev_func);
-
-        return p->error.code;
+        return FJ_OK;
     }
 
-    __FJ__CONSTEXPR_IF( ParseMode ) {
-        *value = fj_parser_json_cur_ptr(p);
-        *vlen = exp_len;
-    }
-
-    fj_parser_json_advance_cur(p, exp_len);
-
-    return EC_OK;
+    __FJ__INIT_ERROR_INFO(parser, FJ_INVALID, prev_func);
+    return FJ_INVALID;
 }
 
-template<bool ParseMode>
-inline error_code validate_escaped(const char *prev_func, parser *p) {
-    switch ( fj_parser_json_cur_char(p) ) {
-        case 'u': {
-            if ( fj_parser_json_left_chars(p) < 5 ) {
-                __FJ__INIT_ERROR_INFO(p, EC_INCOMPLETE, prev_func);
+/*************************************************************************************************/
+// string
 
-                return EC_INCOMPLETE;
-            }
-            if ( !fj_is_hex_digit4_macro(
-                     *(fj_parser_json_cur_ptr(p)+1)
-                    ,*(fj_parser_json_cur_ptr(p)+2)
-                    ,*(fj_parser_json_cur_ptr(p)+3)
-                    ,*(fj_parser_json_cur_ptr(p)+4)) )
-            {
-                __FJ__INIT_ERROR_INFO(p, EC_INVALID, prev_func);
-
-                return EC_INVALID;
-            }
-
-            fj_parser_json_advance_cur(p, 5);
-
-            return EC_OK;
-        }
-        case '"':
-        case '\\':
-        case '/':
-        case 'b':
-        case 'f':
-        case 'n':
-        case 'r':
-        case 't': {
-            if ( fj_parser_json_left_chars(p) < 2 ) {
-                return EC_INCOMPLETE;
-            }
-            fj_parser_json_advance_cur(p, 1);
-
-            return EC_OK;
+inline error_code validate_escaped(const char *prev_func, parser *parser) noexcept {
+    auto ch = fj_parser_json_cur_uchar(parser);
+    if ( __FJ__LIKELY(fj_is_escaped_chars_map[ch]) ) {
+        if ( __FJ__LIKELY(fj_parser_json_left_chars(parser) >= 2) ) {
+            fj_parser_json_advance_cur(parser, 1);
+            return FJ_OK;
         }
     }
 
-    return EC_INVALID;
+    if ( __FJ__UNLIKELY(ch == 'u') ) {
+        if ( __FJ__UNLIKELY(fj_parser_json_left_chars(parser) < 5) ) {
+            __FJ__INIT_ERROR_INFO(parser, FJ_INCOMPLETE, prev_func);
+            return FJ_INCOMPLETE;
+        }
+        const std::uint8_t *ptr = reinterpret_cast<const std::uint8_t *>
+            (fj_parser_json_cur_ptr(parser));
+        const std::uint8_t rs0 = fj_is_hex_and_digit_char_map[ptr[1]];
+        const std::uint8_t rs1 = fj_is_hex_and_digit_char_map[ptr[2]];
+        const std::uint8_t rs2 = fj_is_hex_and_digit_char_map[ptr[3]];
+        const std::uint8_t rs3 = fj_is_hex_and_digit_char_map[ptr[4]];
+        if ( (rs0 + rs1 + rs2 + rs3) == 4 ) {
+            fj_parser_json_advance_cur(parser, 5);
+            return FJ_OK;
+        }
+    }
+
+    __FJ__INIT_ERROR_INFO(parser, FJ_INVALID, prev_func);
+    return FJ_INVALID;
 }
 
 template<bool ParseMode>
 inline error_code parse_string(
      const char *prev_func
-    ,parser *p
+    ,parser *parser
     ,const char **value
-    ,std::size_t *vlen
-    ,token_type */*tokt*/
-    ,token */*parent*/)
+    ,std::size_t *vlen) noexcept
 {
-    __FJ__ANALYZE__BLOCK(p, ParseMode, parse_string);
+    __FJ__ANALYZE__BLOCK(parser, ParseMode, parse_string);
 
     std::uint8_t ch = 0;
-    auto *start = fj_parser_json_cur_ptr(p);
+    auto *start = fj_parser_json_cur_ptr(parser);
 
-    while ( fj_parser_json_left_chars(p) ) {
-        auto pos = __FJ__SIMD_COUNT_VALID_CHARS(
-             fj_parser_json_cur_ptr(p)
-            ,fj_parser_json_end_ptr(p)
-        );
-        fj_parser_json_advance_cur(p, pos);
+    while ( fj_parser_json_left_chars(parser) ) {
 
-        ch = fj_parser_json_cur_char(p);
+#define __FJ__PARSE_STRING_SELECTOR 3
+#if __FJ__PARSE_STRING_SELECTOR == 1
+        for ( ; !fj_is_special_string_char_macro(fj_parser_json_cur_char(parser))
+              ; fj_parser_json_increment_cur(parser) )
+        {}
+#elif __FJ__PARSE_STRING_SELECTOR == 2
+        auto pos = std::strcspn(fj_parser_json_cur_ptr(parser), "\r\n\t\"\\");
+        fj_parser_json_advance_cur(parser, pos);
+#elif __FJ__PARSE_STRING_SELECTOR == 3
+        __FJ__ITERATE_WHILE(parser, 0, fj_special_string_chars_negated_map);
+#endif
+
+        ch = fj_parser_json_cur_char(parser);
         if ( ch < ' ' ) {
-            __FJ__INIT_ERROR_INFO(p, EC_INVALID, prev_func);
-
-            return EC_INVALID;
+            __FJ__INIT_ERROR_INFO(parser, FJ_INVALID, prev_func);
+            return FJ_INVALID;
         }
         if ( ch != '"' ) {
             if ( ch & 0x80 ) {
-                auto len = fj_utf8_char_len_macro(ch);
-                if ( fj_parser_json_left_chars(p) < len ) {
-                    __FJ__INIT_ERROR_INFO(p, EC_INCOMPLETE, prev_func);
-
-                    return EC_INCOMPLETE;
+                auto len = fj_utf8_char_len_map[ch];
+                if ( fj_parser_json_left_chars(parser) < len ) {
+                    __FJ__INIT_ERROR_INFO(parser, FJ_INCOMPLETE, prev_func);
+                    return FJ_INCOMPLETE;
                 }
-                fj_parser_json_advance_cur(p, len);
+                fj_parser_json_advance_cur(parser, len);
+
+                continue;
             } else if ( ch == '\\' ) {
-                fj_parser_json_increment_cur(p);
-                auto ec = validate_escaped<ParseMode>(__func__, p);
-                if ( ec != EC_OK ) {
+                fj_parser_json_increment_cur(parser);
+                auto ec = validate_escaped(__func__, parser);
+                if ( ec != FJ_OK ) {
                     return ec;
                 }
             }
         } else {
             __FJ__CONSTEXPR_IF( ParseMode ) {
                 *value = start;
-                *vlen = fj_parser_json_cur_ptr(p) - start;
+                *vlen = fj_parser_json_cur_ptr(parser) - start;
             }
 
-            fj_parser_json_increment_cur(p);
+            fj_parser_json_increment_cur(parser);
 
             break;
         }
     }
 
-    return ch == '"' ? EC_OK : EC_INCOMPLETE;
+    return ch == '"' ? FJ_OK : FJ_INCOMPLETE;
 }
 
 /*************************************************************************************************/
 // number
 
 template<bool ParseMode>
-inline error_code parse_integer(
+inline error_code parse_number(
      const char *prev_func
-    ,parser *p
+    ,parser *parser
     ,const char **value
-    ,std::size_t *vlen
-    ,token_type */*tokt*/
-    ,token */*parent*/)
+    ,std::size_t *vlen) noexcept
 {
-    __FJ__ANALYZE__BLOCK(p, ParseMode, parse_integer);
+    __FJ__ANALYZE__BLOCK(parser, ParseMode, parse_number);
 
-    const auto *start = fj_parser_json_cur_ptr(p);
-
-    fj_parser_json_advance_cur(p
-        ,static_cast<unsigned>(!(fj_parser_json_cur_char(p) - '-'))
-    );
-
-    if ( !(fj_parser_json_cur_char(p) == '0'
-         && fj_is_digit_macro(*(fj_parser_json_cur_ptr(p) + 1))) )
-    {
-        const char *non_digit = __FJ__SIMD_FIND_NONDIGIT(
-             fj_parser_json_cur_ptr(p)
-            ,fj_parser_json_left_chars(p)
-        );
-        if ( non_digit && non_digit != fj_parser_json_cur_ptr(p) ) {
-            if ( *non_digit == '.' ) {
-                fj_parser_json_cur_ptr(p) = non_digit + 1;
-
-                non_digit = __FJ__SIMD_FIND_NONDIGIT(
-                     fj_parser_json_cur_ptr(p)
-                    ,fj_parser_json_left_chars(p)
-                );
-                if ( non_digit == fj_parser_json_cur_ptr(p) ) {
-                    __FJ__INIT_ERROR_INFO(p, EC_INVALID, prev_func);
-
-                    return EC_INVALID;
-                }
-                if ( !non_digit ) {
-                    fj_parser_json_advance_cur(p, fj_parser_json_left_chars(p));
-
-                    __FJ__CONSTEXPR_IF( ParseMode ) {
-                        *value = start;
-                        *vlen = fj_parser_json_cur_ptr(p) - start;
-                    }
-
-                    return EC_OK;
-                }
-            }
-            if ( (*non_digit | 0x20) == 'e' ) {
-                fj_parser_json_cur_ptr(p) = non_digit + 1;
-
-                std::size_t pm = fj_parser_json_cur_char(p) == '-'
-                    || fj_parser_json_cur_char(p) == '+'
-                ;
-                fj_parser_json_advance_cur(p, pm);
-
-                non_digit = __FJ__SIMD_FIND_NONDIGIT(
-                     fj_parser_json_cur_ptr(p)
-                    ,fj_parser_json_left_chars(p)
-                );
-                if ( non_digit == fj_parser_json_cur_ptr(p) ) {
-                    __FJ__INIT_ERROR_INFO(p, EC_INVALID, prev_func);
-
-                    return EC_INVALID;
-                }
-            }
-            fj_parser_json_cur_ptr(p) = non_digit;
-        } else {
-            fj_parser_json_advance_cur(p, fj_parser_json_left_chars(p));
+    const auto *start = fj_parser_json_cur_ptr(parser);
+    if ( __FJ__UNLIKELY(fj_parser_json_cur_char(parser) == '-') ) {
+        fj_parser_json_advance_cur(parser, 1);
+        if ( __FJ__UNLIKELY(!fj_is_digit_char_map[fj_parser_json_cur_uchar(parser)]) ) {
+            __FJ__INIT_ERROR_INFO(parser, FJ_INVALID, prev_func);
+            return FJ_INVALID;
         }
-    } else {
-        __FJ__INIT_ERROR_INFO(p, EC_INVALID, prev_func);
-        return EC_INVALID;
+    }
+    if ( __FJ__UNLIKELY(fj_parser_json_cur_ptr(parser)[0] == '0'
+        && fj_is_digit_char_map[fj_parser_json_cur_uptr(parser)[1]]) )
+    {
+        __FJ__INIT_ERROR_INFO(parser, FJ_INVALID, prev_func);
+        return FJ_INVALID;
+    }
+
+    __FJ__ITERATE_WHILE(parser, 0, fj_is_digit_char_map);
+    if ( __FJ__UNLIKELY(fj_parser_json_cur_char(parser) == '.') ) {
+        if ( __FJ__UNLIKELY(!fj_is_digit_char_map[fj_parser_json_cur_uptr(parser)[1]]) ) {
+            __FJ__INIT_ERROR_INFO(parser, FJ_INVALID, prev_func);
+            return FJ_INVALID;
+        }
+        fj_parser_json_increment_cur(parser);
+
+        __FJ__ITERATE_WHILE(parser, 0, fj_is_digit_char_map);
+    }
+
+    if ( __FJ__UNLIKELY(fj_parser_json_cur_char(parser) == 'e'
+            || fj_parser_json_cur_char(parser) == 'E') ) {
+        fj_parser_json_advance_cur(parser,
+            1 + static_cast<unsigned>(fj_parser_json_cur_ptr(parser)[1] == '-'
+                || fj_parser_json_cur_ptr(parser)[1] == '+'));
+        if ( __FJ__UNLIKELY(!fj_is_digit_char_map[fj_parser_json_cur_uchar(parser)]) ) {
+            __FJ__INIT_ERROR_INFO(parser, FJ_INVALID, prev_func);
+            return FJ_INVALID;
+        }
+        __FJ__ITERATE_WHILE(parser, 0, fj_is_digit_char_map);
     }
 
     __FJ__CONSTEXPR_IF( ParseMode ) {
         *value = start;
-        *vlen = fj_parser_json_cur_ptr(p) - start;
+        *vlen = fj_parser_json_cur_ptr(parser) - start;
     }
 
-    return EC_OK;
+    return FJ_OK;
 }
 
 /*************************************************************************************************/
+// array
 
 template<bool ParseMode, bool DespacedJson>
 inline error_code parse_value(
      const char *prev_func
-    ,parser *p
+    ,parser *parser
     ,const char **value
     ,std::size_t *vlen
     ,token_type *toktype
     ,token *parent
-);
+) noexcept;
 
 template<bool ParseMode, bool DespacedJson>
-inline error_code parse_array(
-     const char *prev_func
-    ,parser *p
-    ,const char **/*value*/
-    ,std::size_t */*vlen*/
-    ,token_type */*tokt*/
-    ,token *parent)
-{
+inline error_code parse_array(const char *prev_func, parser *parser, token *parent) noexcept {
+    __FJ__ANALYZE__BLOCK(parser, ParseMode, parse_array);
     __FJ__CONSTEXPR_IF ( ParseMode ) {
-        if ( fj_parser_tokens_no_free(p) ) {
-            __FJ__INIT_ERROR_INFO(p, EC_NO_FREE_TOKENS, prev_func);
-
-            return p->error.code;
+        if ( fj_parser_tokens_no_free(parser) ) {
+            __FJ__INIT_ERROR_INFO(parser, FJ_NO_FREE_TOKENS, prev_func);
+            return FJ_NO_FREE_TOKENS;
         }
     }
 
-    auto *startarr = fj_parser_tokens_increment_cur(p);
+    auto *startarr = fj_parser_tokens_increment_cur(parser);
     __FJ__CONSTEXPR_IF( ParseMode ) {
         startarr->type = FJ_TYPE_ARRAY;
         startarr->flags = 1;
         startarr->parent = parent;
         if ( startarr->parent ) {
-            __FJ__CHECK_OVERFLOW(parent->childs, FJ_CHILDS_TYPE, EC_CHILDS_OVERFLOW);
+            __FJ__CHECK_OVERFLOW(parent->childs, fj_childs_type, FJ_CHILDS_OVERFLOW);
             ++parent->childs;
         }
     }
 
-    __FJ__CONSTEXPR_IF( !DespacedJson ) {
-        fj_parser_json_cur_ptr(p) = fj_skip_ws<ParseMode>(p);
-    }
-    while ( fj_parser_json_cur_char(p) != ']' ) {
+    while ( __FJ__LIKELY(fj_parser_json_cur_char(parser) != ']') ) {
         __FJ__CONSTEXPR_IF ( ParseMode ) {
-            if ( fj_parser_tokens_no_free(p) ) {
-                __FJ__INIT_ERROR_INFO(p, EC_NO_FREE_TOKENS, prev_func);
-
-                return p->error.code;
+            if ( fj_parser_tokens_no_free(parser) ) {
+                __FJ__INIT_ERROR_INFO(parser, FJ_NO_FREE_TOKENS, prev_func);
+                return FJ_NO_FREE_TOKENS;
             }
         }
 
-        auto *current_token = fj_parser_tokens_cur_ptr(p);
+        auto *current_token = fj_parser_tokens_cur_ptr(parser);
         __FJ__CONSTEXPR_IF( ParseMode ) {
             *current_token = token{};
         }
-        char current_ch = fj_parser_json_cur_char(p);
-        if ( current_ch != '{' && current_ch != '[' ) {
-            fj_parser_tokens_increment_cur(p);
-
+        auto ch = fj_parser_json_cur_uchar(parser);
+        __FJ__SKIP_WHITESPACE(parser);
+        if ( __FJ__LIKELY(ch != '{' && ch != '[') ) {
+            fj_parser_tokens_increment_cur(parser);
             __FJ__CONSTEXPR_IF( ParseMode ) {
                 current_token->parent = startarr;
-                __FJ__CHECK_OVERFLOW(startarr->childs, FJ_CHILDS_TYPE, EC_CHILDS_OVERFLOW);
+                __FJ__CHECK_OVERFLOW(startarr->childs, fj_childs_type, FJ_CHILDS_OVERFLOW);
                 ++startarr->childs;
             }
         }
 
         std::size_t vlen = 0;
+        token_type tok_type;
         auto ec = parse_value<ParseMode, DespacedJson>(
              __func__
-            ,p
+            ,parser
             ,&(current_token->val)
             ,&vlen
-            ,&(current_token->type)
+            ,&tok_type
             ,startarr
         );
-        if ( ec != EC_OK ) {
+        if ( __FJ__UNLIKELY(ec != FJ_OK) ) {
             return ec;
         }
 
         __FJ__CONSTEXPR_IF( ParseMode ) {
+            current_token->type = tok_type;
             startarr->flags = (startarr->flags == 0)
                 ? startarr->flags
                 : fj_is_simple_type_macro(current_token->type)
             ;
-            __FJ__CHECK_OVERFLOW(vlen, FJ_VLEN_TYPE, EC_VLEN_OVERFLOW);
-            current_token->vlen = static_cast<FJ_VLEN_TYPE>(vlen);
+            __FJ__CHECK_OVERFLOW(vlen, fj_vlen_type, FJ_VLEN_OVERFLOW);
+            current_token->vlen = static_cast<fj_vlen_type>(vlen);
         }
-
         __FJ__CONSTEXPR_IF( !DespacedJson ) {
-            fj_parser_json_cur_ptr(p) = fj_skip_ws<ParseMode>(p);
+            __FJ__SKIP_WHITESPACE(parser);
         }
-        if ( fj_parser_json_cur_char(p) == ',' ) {
-            fj_parser_json_increment_cur(p);
-            if ( fj_parser_json_cur_char(p) == ']' ) {
-                __FJ__INIT_ERROR_INFO(p, EC_INVALID, prev_func);
-
-                return EC_INVALID;
+        if ( __FJ__LIKELY(fj_parser_json_cur_char(parser) == ',') ) {
+            fj_parser_json_increment_cur(parser);
+            if ( __FJ__UNLIKELY(0 == fj_parser_json_left_chars(parser)) ) {
+                __FJ__INIT_ERROR_INFO(parser, FJ_INCOMPLETE, prev_func);
+                return FJ_INCOMPLETE;
             }
-        } else if ( fj_parser_json_cur_char(p) != ']' ) {
-            __FJ__INIT_ERROR_INFO(p, EC_INVALID, prev_func);
-
-            return EC_INVALID;
+            if ( __FJ__UNLIKELY(fj_parser_json_cur_char(parser) == ']') ) {
+                __FJ__INIT_ERROR_INFO(parser, FJ_INVALID, prev_func);
+                return FJ_INVALID;
+            }
+        } else if ( __FJ__UNLIKELY(fj_parser_json_cur_char(parser) != ']') ) {
+            __FJ__INIT_ERROR_INFO(parser, FJ_INVALID, prev_func);
+            return FJ_INVALID;
         }
-
         __FJ__CONSTEXPR_IF( !DespacedJson ) {
-            fj_parser_json_cur_ptr(p) = fj_skip_ws<ParseMode>(p);
+            __FJ__SKIP_WHITESPACE(parser);
         }
     } // while loop
 
-    auto ec = fj_check_and_skip_macro(p, ']');
-    if ( ec != EC_OK ) {
-        __FJ__INIT_ERROR_INFO(p, ec, prev_func);
-
-        return ec;
+    if ( __FJ__UNLIKELY(fj_parser_json_cur_char(parser) != ']') ) {
+        __FJ__INIT_ERROR_INFO(parser, FJ_INVALID, prev_func);
+        return FJ_INVALID;
+    } else {
+        fj_parser_json_increment_cur(parser);
     }
 
     __FJ__CONSTEXPR_IF( ParseMode ) {
-        if ( fj_parser_tokens_no_free(p) ) {
-            __FJ__INIT_ERROR_INFO(p, EC_NO_FREE_TOKENS, prev_func);
-
-            return EC_NO_FREE_TOKENS;
+        if ( __FJ__UNLIKELY(fj_parser_tokens_no_free(parser)) ) {
+            __FJ__INIT_ERROR_INFO(parser, FJ_NO_FREE_TOKENS, prev_func);
+            return FJ_NO_FREE_TOKENS;
         }
 
-        auto *endarr = fj_parser_tokens_increment_cur(p);
+        auto *endarr = fj_parser_tokens_increment_cur(parser);
         *endarr = token{};
         endarr->type = FJ_TYPE_ARRAY_END;
         endarr->parent = startarr;
-        __FJ__CHECK_OVERFLOW(endarr->parent->childs, FJ_CHILDS_TYPE, EC_CHILDS_OVERFLOW);
+        __FJ__CHECK_OVERFLOW(endarr->parent->childs, fj_childs_type, FJ_CHILDS_OVERFLOW);
         ++startarr->childs;
         startarr->end = endarr;
     } else {
-        fj_parser_tokens_increment_cur(p);
+        fj_parser_tokens_increment_cur(parser);
     }
 
-    return EC_OK;
+    return FJ_OK;
 }
 
-template<bool ParseMode, bool DespacedJson>
-inline error_code parse_object(
-     const char *prev_func
-    ,parser *p
-    ,const char **/*value*/
-    ,std::size_t */*vlen*/
-    ,token_type */*tokt*/
-    ,token *parent)
-{
-    __FJ__CONSTEXPR_IF ( ParseMode ) {
-        if ( fj_parser_tokens_no_free(p) ) {
-            __FJ__INIT_ERROR_INFO(p, EC_NO_FREE_TOKENS, prev_func);
+/*************************************************************************************************/
+// object
 
-            return p->error.code;
+template<bool ParseMode, bool DespacedJson>
+inline error_code parse_object(const char *prev_func, parser *parser, token *parent) noexcept {
+    __FJ__ANALYZE__BLOCK(parser, ParseMode, parse_object);
+    __FJ__CONSTEXPR_IF ( ParseMode ) {
+        if ( __FJ__UNLIKELY(fj_parser_tokens_no_free(parser)) ) {
+            __FJ__INIT_ERROR_INFO(parser, FJ_NO_FREE_TOKENS, prev_func);
+            return FJ_NO_FREE_TOKENS;
         }
     }
 
-    __FJ__CONSTEXPR_IF( !DespacedJson ) {
-        fj_parser_json_cur_ptr(p) = fj_skip_ws<ParseMode>(p);
-    }
-    if ( fj_parser_json_cur_char(p) != '}' && fj_parser_json_cur_char(p) != '"' ) {
-        __FJ__INIT_ERROR_INFO(p, EC_INVALID, prev_func);
-        return EC_INVALID;
-    }
-
-    auto *startobj = fj_parser_tokens_increment_cur(p);
+    auto *startobj = fj_parser_tokens_increment_cur(parser);
     __FJ__CONSTEXPR_IF( ParseMode ) {
         startobj->type = FJ_TYPE_OBJECT;
         startobj->flags = 1;
         startobj->parent = parent;
-        if ( startobj->parent ) {
-            __FJ__CHECK_OVERFLOW(parent->childs, FJ_CHILDS_TYPE, EC_CHILDS_OVERFLOW);
+        if ( __FJ__LIKELY(startobj->parent) ) {
+            __FJ__CHECK_OVERFLOW(parent->childs, fj_childs_type, FJ_CHILDS_OVERFLOW);
             ++parent->childs;
         }
     }
 
-    while ( fj_parser_json_cur_char(p) != '}' ) {
+    while ( __FJ__LIKELY(fj_parser_json_cur_uchar(parser) != '}') ) {
         __FJ__CONSTEXPR_IF ( ParseMode ) {
-            if ( fj_parser_tokens_no_free(p) ) {
-                __FJ__INIT_ERROR_INFO(p, EC_NO_FREE_TOKENS, prev_func);
-                return EC_NO_FREE_TOKENS;
+            if ( __FJ__UNLIKELY(fj_parser_tokens_no_free(parser)) ) {
+                __FJ__INIT_ERROR_INFO(parser, FJ_NO_FREE_TOKENS, prev_func);
+                return FJ_NO_FREE_TOKENS;
             }
         }
-
-        auto *current_token = fj_parser_tokens_increment_cur(p);
+        auto *current_token = fj_parser_tokens_increment_cur(parser);
         __FJ__CONSTEXPR_IF( ParseMode ) {
             *current_token = token{};
         }
-        __FJ__CONSTEXPR_IF( !DespacedJson ) {
-            fj_parser_json_cur_ptr(p) = fj_skip_ws<ParseMode>(p);
-        }
-
         std::size_t klen = 0;
+        token_type tok_type;
         auto ec = parse_value<ParseMode, DespacedJson>(
              __func__
-            ,p
+            ,parser
             ,&(current_token->key)
             ,&klen
-            ,&(current_token->type)
-            ,startobj
-        );
-        if ( ec != EC_OK ) {
+            ,&tok_type
+            ,startobj);
+        if ( __FJ__UNLIKELY(ec != FJ_OK) ) {
             return ec;
+        }
+        if ( __FJ__UNLIKELY(tok_type != FJ_TYPE_STRING) ) {
+            __FJ__INIT_ERROR_INFO(parser, FJ_INVALID, prev_func);
+            return FJ_INVALID;
         }
         __FJ__CONSTEXPR_IF( ParseMode ) {
-            __FJ__CHECK_OVERFLOW(klen, FJ_KLEN_TYPE, EC_KLEN_OVERFLOW);
-            current_token->klen = static_cast<FJ_KLEN_TYPE>(klen);
+            current_token->type = tok_type;
+            __FJ__CHECK_OVERFLOW(klen, fj_klen_type, FJ_KLEN_OVERFLOW);
+            current_token->klen = static_cast<fj_klen_type>(klen);
         }
-
         __FJ__CONSTEXPR_IF( !DespacedJson ) {
-            fj_parser_json_cur_ptr(p) = fj_skip_ws<ParseMode>(p);
+            __FJ__SKIP_WHITESPACE(parser);
         }
-        ec = fj_check_and_skip_macro(p, ':');
-        if ( ec != EC_OK ) {
-            __FJ__INIT_ERROR_INFO(p, ec, prev_func);
-
-            return ec;
+        if ( __FJ__UNLIKELY(fj_parser_json_cur_char(parser) != ':') ) {
+            __FJ__INIT_ERROR_INFO(parser, FJ_INVALID, prev_func);
+            return FJ_INVALID;
+        } else {
+            fj_parser_json_increment_cur(parser);
         }
-
-        char ch = DespacedJson ? fj_parser_json_cur_char(p) : fj_current_char_macro(p);
-        if ( ch == '[' || ch == '{' ) {
-            fj_parser_tokens_decrement_cur(p);
+        __FJ__CONSTEXPR_IF( !DespacedJson ) {
+            __FJ__SKIP_WHITESPACE(parser);
+        }
+        if ( __FJ__LIKELY(fj_parser_json_cur_char(parser) != '['
+            && fj_parser_json_cur_char(parser) != '{') ) {
+            __FJ__CONSTEXPR_IF( ParseMode ) {
+                current_token->parent = startobj;
+                __FJ__CHECK_OVERFLOW(startobj->childs, fj_childs_type, FJ_CHILDS_OVERFLOW);
+                ++startobj->childs;
+            }
+            std::size_t vlen = 0;
+            token_type tok_type;
             ec = parse_value<ParseMode, DespacedJson>(
                  __func__
-                ,p
-                ,nullptr
-                ,nullptr
-                ,&(current_token->type)
-                ,startobj
-            );
+                ,parser
+                ,&(current_token->val)
+                ,&vlen
+                ,&tok_type
+                ,startobj);
             __FJ__CONSTEXPR_IF( ParseMode ) {
+                current_token->type = tok_type;
+                __FJ__CHECK_OVERFLOW(vlen, fj_vlen_type, FJ_VLEN_OVERFLOW);
+                current_token->vlen = static_cast<fj_vlen_type>(vlen);
+            }
+        } else {
+            fj_parser_tokens_decrement_cur(parser);
+            token_type tok_type;
+            ec = parse_value<ParseMode, DespacedJson>(
+                 __func__
+                ,parser
+                ,nullptr
+                ,nullptr
+                ,&tok_type
+                ,startobj);
+            __FJ__CONSTEXPR_IF( ParseMode ) {
+                current_token->type = tok_type;
                 startobj->flags = (startobj->flags == 0)
                     ? startobj->flags
                     : fj_is_simple_type_macro(current_token->type)
                 ;
             }
-        } else {
-            __FJ__CONSTEXPR_IF( ParseMode ) {
-                current_token->parent = startobj;
-                __FJ__CHECK_OVERFLOW(startobj->childs, FJ_CHILDS_TYPE, EC_CHILDS_OVERFLOW);
-                ++startobj->childs;
-            }
-
-            std::size_t vlen = 0;
-            ec = parse_value<ParseMode, DespacedJson>(
-                 __func__
-                ,p
-                ,&(current_token->val)
-                ,&vlen
-                ,&(current_token->type)
-                ,startobj
-            );
-            __FJ__CONSTEXPR_IF( ParseMode ) {
-                __FJ__CHECK_OVERFLOW(vlen, FJ_VLEN_TYPE, EC_VLEN_OVERFLOW);
-                current_token->vlen = static_cast<FJ_VLEN_TYPE>(vlen);
-            }
         }
-
-        if ( ec != EC_OK ) {
+        if ( __FJ__UNLIKELY(ec != FJ_OK) ) {
             return ec;
         }
-
-        ch = DespacedJson ? fj_parser_json_cur_char(p) : fj_current_char_macro(p);
-        if ( ch == ',' ) {
-            fj_parser_json_increment_cur(p);
-            if ( fj_parser_json_cur_char(p) == '}' ) {
-                __FJ__INIT_ERROR_INFO(p, EC_INVALID, prev_func);
-
-                return p->error.code;
+        __FJ__CONSTEXPR_IF( !DespacedJson ) {
+            __FJ__SKIP_WHITESPACE(parser);
+        }
+        if ( __FJ__LIKELY(fj_parser_json_cur_char(parser) == ',') ) {
+            fj_parser_json_increment_cur(parser);
+            if ( __FJ__UNLIKELY(0 == fj_parser_json_left_chars(parser)) ) {
+                __FJ__INIT_ERROR_INFO(parser, FJ_INCOMPLETE, prev_func);
+                return FJ_INCOMPLETE;
             }
+            if ( __FJ__UNLIKELY(fj_parser_json_cur_char(parser) == '}') ) {
+                __FJ__INIT_ERROR_INFO(parser, FJ_INVALID, prev_func);
+                return FJ_INVALID;
+            }
+        }
+        __FJ__CONSTEXPR_IF( !DespacedJson ) {
+            __FJ__SKIP_WHITESPACE(parser);
         }
     } // while loop
 
-    auto ec = fj_check_and_skip_macro(p, '}');
-    if ( ec != EC_OK ) {
-        __FJ__INIT_ERROR_INFO(p, ec, prev_func);
-
-        return ec;
+    if ( __FJ__UNLIKELY(fj_parser_json_cur_char(parser) != '}') ) {
+        __FJ__INIT_ERROR_INFO(parser, FJ_INVALID, prev_func);
+        return FJ_INVALID;
+    } else {
+        fj_parser_json_increment_cur(parser);
     }
 
     __FJ__CONSTEXPR_IF( ParseMode ) {
-        if ( fj_parser_tokens_no_free(p) ) {
-            __FJ__INIT_ERROR_INFO(p, EC_NO_FREE_TOKENS, prev_func);
-
-            return p->error.code;
+        if ( __FJ__UNLIKELY(fj_parser_tokens_no_free(parser)) ) {
+            __FJ__INIT_ERROR_INFO(parser, FJ_NO_FREE_TOKENS, prev_func);
+            return FJ_NO_FREE_TOKENS;
         }
-        auto *endobj = fj_parser_tokens_increment_cur(p);
+        auto *endobj = fj_parser_tokens_increment_cur(parser);
         *endobj = token{};
         endobj->type = FJ_TYPE_OBJECT_END;
         endobj->parent = startobj;
-        __FJ__CHECK_OVERFLOW(endobj->parent->childs, FJ_CHILDS_TYPE, EC_CHILDS_OVERFLOW);
+        __FJ__CHECK_OVERFLOW(endobj->parent->childs, fj_childs_type, FJ_CHILDS_OVERFLOW);
         ++endobj->parent->childs;
         startobj->end = endobj;
     } else {
-        fj_parser_tokens_increment_cur(p);
+        fj_parser_tokens_increment_cur(parser);
     }
 
-    return EC_OK;
+    return FJ_OK;
 }
+
+/*************************************************************************************************/
+// value
 
 template<bool ParseMode, bool DespacedJson>
 inline error_code parse_value(
      const char *prev_func
-    ,parser *p
+    ,parser *parser
     ,const char **value
     ,std::size_t *vlen
     ,token_type *toktype
-    ,token *parent)
+    ,token *parent) noexcept
 {
-    using parser_function_type = error_code(*)(
-         const char *
-        ,parser *
-        ,const char **
-        ,std::size_t *
-        ,token_type *
-        ,token *
-    );
+    __FJ__ANALYZE__BLOCK(parser, ParseMode, parse_value);
 
-    __FJ__SIMD_ALIGNED static const std::uint8_t valid_chars[] =
-        {'{', '[', 't', 'f', 'n', '"', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-'};
+    error_code ec = FJ_INVALID;
+    auto ch = fj_parser_json_cur_uchar(parser);
+    if ( __FJ__LIKELY(fj_is_digit_char_map[ch] || ch == '-') ) {
+        ec = parse_number<ParseMode>(prev_func, parser, value, vlen);
+        *toktype = FJ_TYPE_NUMBER;
+        goto parse_value_exit;
+    }
+    if ( __FJ__LIKELY(ch == '"') ) {
+        fj_parser_json_advance_cur(parser, 1);
+        ec = parse_string<ParseMode>(prev_func, parser, value, vlen);
+        *toktype = FJ_TYPE_STRING;
+        goto parse_value_exit;
+    }
+    if ( ch == 't' || ch == 'f' || ch == 'n' ) {
+        const char *start = fj_parser_json_cur_ptr(parser);
+        fj_parser_json_advance_cur(parser, static_cast<unsigned>(ch == 'f'));
+        *toktype = static_cast<token_type>(FJ_TYPE_BOOL + static_cast<unsigned>(ch == 'n'));
+        auto v = *reinterpret_cast<const std::uint32_t *>(fj_parser_json_cur_uptr(parser));
+        int ok0 = 0x65757274 == v;
+        int ok1 = 0x65736C61 == v;
+        int ok2 = 0x6C6C756E == v;
+        if ( ok0 + ok1 + ok2 ) {
+            fj_parser_json_advance_cur(parser, 4);
+            __FJ__CONSTEXPR_IF ( ParseMode ) {
+                *value = start;
+                *vlen = fj_parser_json_cur_ptr(parser) - start;
+            }
+            ec = FJ_OK;
+        } else {
+            ec = FJ_INVALID;
+        }
+        goto parse_value_exit;
+    }
+#if 0
+    if ( /*0x65757274 == *reinterpret_cast<const std::uint32_t *>(fj_parser_json_cur_uptr(parser))*/ ch == 't' ) {
+//        __FJ__CONSTEXPR_IF ( ParseMode ) {
+//            *value = fj_parser_json_cur_ptr(parser);
+//            *vlen = 4;
+//        }
+//        fj_parser_json_advance_cur(parser, 4);
+//        ec = FJ_OK;
 
-    struct handler_item {
-        parser_function_type func;
-        token_type type;
-        int skip_first;
-    };
-    __FJ__SIMD_ALIGNED static const handler_item handlers_array[] = {
-    /* { */  {&parse_object<ParseMode, DespacedJson>, FJ_TYPE_OBJECT, 1}
-    /* [ */ ,{&parse_array<ParseMode, DespacedJson>, FJ_TYPE_ARRAY, 1}
-    /* t */ ,{&parse_expected<ParseMode, expected_type::true_>, FJ_TYPE_BOOL, 0}
-    /* f */ ,{&parse_expected<ParseMode, expected_type::false_>, FJ_TYPE_BOOL, 0}
-    /* n */ ,{&parse_expected<ParseMode, expected_type::null_>, FJ_TYPE_NULL, 0}
-    /* " */ ,{&parse_string<ParseMode>, FJ_TYPE_STRING, 1}
-    /* 1 */ ,{&parse_integer<ParseMode>, FJ_TYPE_NUMBER, 0}
-    /* 2 */ ,{&parse_integer<ParseMode>, FJ_TYPE_NUMBER, 0}
-    /* 3 */ ,{&parse_integer<ParseMode>, FJ_TYPE_NUMBER, 0}
-    /* 4 */ ,{&parse_integer<ParseMode>, FJ_TYPE_NUMBER, 0}
-    /* 5 */ ,{&parse_integer<ParseMode>, FJ_TYPE_NUMBER, 0}
-    /* 6 */ ,{&parse_integer<ParseMode>, FJ_TYPE_NUMBER, 0}
-    /* 7 */ ,{&parse_integer<ParseMode>, FJ_TYPE_NUMBER, 0}
-    /* 8 */ ,{&parse_integer<ParseMode>, FJ_TYPE_NUMBER, 0}
-    /* 9 */ ,{&parse_integer<ParseMode>, FJ_TYPE_NUMBER, 0}
-    /* 0 */ ,{&parse_integer<ParseMode>, FJ_TYPE_NUMBER, 0}
-    /* - */ ,{&parse_integer<ParseMode>, FJ_TYPE_NUMBER, 0}
-    };
-    static_assert(sizeof(handlers_array)/sizeof(handlers_array[0]) == sizeof(valid_chars), "");
+//        ec = parse_keyword<ParseMode, e_keyword_type::true_, 0, 4>
+//            (prev_func, parser, value, vlen);
 
-    error_code ec{EC_INVALID};
-    const char first_char = fj_parser_json_cur_char(p);
-    const auto *pi = std::memchr(valid_chars, first_char, sizeof(valid_chars));
-    if ( pi ) {
-        const auto idx = static_cast<const std::uint8_t *>(pi) - valid_chars;
-        //std::cout << "c=" << first_char << ", idx=" << idx << std::endl;
+        bool ok = std::memcmp(fj_parser_json_cur_ptr(parser), "true", 4) == 0;
+        if ( __FJ__LIKELY(ok) ) {
+            __FJ__CONSTEXPR_IF ( ParseMode ) {
+                *value = fj_parser_json_cur_ptr(parser);
+                *vlen = 4;
+            }
+            fj_parser_json_advance_cur(parser, 4);
+            ec = FJ_OK;
+        } else {
+            ec = FJ_INVALID;
+        }
+        *toktype = FJ_TYPE_BOOL;
+        goto parse_value_exit;
+    }
+    if ( /*0x65736C61 == *reinterpret_cast<const std::uint32_t *>(fj_parser_json_cur_uptr(parser)+1)*/ ch == 'f' ) {
+//        __FJ__CONSTEXPR_IF ( ParseMode ) {
+//            *value = fj_parser_json_cur_ptr(parser);
+//            *vlen = 5;
+//        }
+//        fj_parser_json_advance_cur(parser, 5);
+//        ec = FJ_OK;
 
-        const auto &handler = handlers_array[idx];
-        fj_parser_json_advance_cur(p, handler.skip_first);
-        ec = handler.func(__func__, p, value, vlen, toktype, parent);
-        __FJ__CONSTEXPR_IF( ParseMode ) { *toktype = handler.type; }
-    } else {
-        __FJ__INIT_ERROR_INFO(p, EC_INVALID, prev_func);
+//        ec = parse_keyword<ParseMode, e_keyword_type::false_, 1, 4>
+//            (prev_func, parser, value, vlen);
 
-        return EC_INVALID;
+        bool ok = std::memcmp(fj_parser_json_cur_ptr(parser)+1, "alse", 4) == 0;
+        if ( __FJ__LIKELY(ok) ) {
+            __FJ__CONSTEXPR_IF ( ParseMode ) {
+                *value = fj_parser_json_cur_ptr(parser);
+                *vlen = 5;
+            }
+            fj_parser_json_advance_cur(parser, 5);
+            ec = FJ_OK;
+        } else {
+            ec = FJ_INVALID;
+        }
+        *toktype = FJ_TYPE_BOOL;
+        goto parse_value_exit;
+    }
+    if ( /*0x6C6C756E == *reinterpret_cast<const std::uint32_t *>(fj_parser_json_cur_uptr(parser))*/ ch == 'n' ) {
+//        __FJ__CONSTEXPR_IF ( ParseMode ) {
+//            *value = fj_parser_json_cur_ptr(parser);
+//            *vlen = 4;
+//        }
+//        fj_parser_json_advance_cur(parser, 4);
+//        ec = FJ_OK;
+
+//        ec = parse_keyword<ParseMode, e_keyword_type::null_, 0, 4>
+//            (prev_func, parser, value, vlen);
+
+        bool ok = std::memcmp(fj_parser_json_cur_ptr(parser), "null", 4) == 0;
+        if ( __FJ__LIKELY(ok) ) {
+            __FJ__CONSTEXPR_IF ( ParseMode ) {
+                *value = fj_parser_json_cur_ptr(parser);
+                *vlen = 4;
+            }
+            fj_parser_json_advance_cur(parser, 4);
+            ec = FJ_OK;
+        } else {
+            ec = FJ_INVALID;
+        }
+        *toktype = FJ_TYPE_NULL;
+        goto parse_value_exit;
+    }
+#endif
+    if ( ch == '{' ) {
+        fj_parser_json_advance_cur(parser, 1);
+        __FJ__CONSTEXPR_IF( !DespacedJson ) {
+            __FJ__SKIP_WHITESPACE(parser);
+        }
+        ec = parse_object<ParseMode, DespacedJson>(
+             prev_func
+            ,parser
+            ,parent
+        );
+        *toktype = FJ_TYPE_OBJECT;
+        goto parse_value_exit;
+    }
+    if ( ch == '[' ) {
+        fj_parser_json_advance_cur(parser, 1);
+        __FJ__CONSTEXPR_IF( !DespacedJson ) {
+            __FJ__SKIP_WHITESPACE(parser);
+        }
+        ec = parse_array<ParseMode, DespacedJson>(
+             prev_func
+            ,parser
+            ,parent
+        );
+        *toktype = FJ_TYPE_ARRAY;
+        goto parse_value_exit;
     }
 
+    ec = (ch == UINT8_MAX) ? FJ_INCOMPLETE : FJ_INVALID;
+
+parse_value_exit:
     std::size_t inc = static_cast<unsigned>
-        (fj_parser_tokens_cur_ptr(p) == fj_parser_tokens_beg_ptr(p));
-    fj_parser_tokens_advance_cur(p, inc);
+        (fj_parser_tokens_cur_ptr(parser) == fj_parser_tokens_beg_ptr(parser));
+    fj_parser_tokens_advance_cur(parser, inc);
 
     return ec;
 }
@@ -1637,7 +1485,7 @@ inline error_code parse_value(
 /*************************************************************************************************/
 
 inline void init_parser(
-     parser *p
+     parser *parser
     ,token *toksbeg
     ,token *toksend
     ,const char *strbeg
@@ -1645,7 +1493,7 @@ inline void init_parser(
     ,alloc_fnptr alloc_fn
     ,free_fnptr free_fn
     ,bool dyn_parser
-    ,bool dyn_tokens)
+    ,bool dyn_tokens) noexcept
 {
     // root token
     if ( toksbeg ) {
@@ -1659,22 +1507,22 @@ inline void init_parser(
         toksbeg->end    = nullptr;
     }
 
-    fj_parser_json_beg_ptr(p) = strbeg;
-    fj_parser_json_cur_ptr(p) = strbeg;
-    fj_parser_json_end_ptr(p) = strend;
-    fj_parser_tokens_beg_ptr(p) = toksbeg;
-    fj_parser_tokens_cur_ptr(p) = toksbeg;
-    fj_parser_tokens_end_ptr(p) = toksend;
-    p->alloc_func  = alloc_fn;
-    p->free_func   = free_fn;
-    __FJ__INIT_ERROR_INFO(p, EC_INVALID, "");
-    p->dyn_parser= dyn_parser;
-    p->dyn_tokens= dyn_tokens;
+    fj_parser_json_beg_ptr(parser) = strbeg;
+    fj_parser_json_cur_ptr(parser) = strbeg;
+    fj_parser_json_end_ptr(parser) = strend;
+    fj_parser_tokens_beg_ptr(parser) = toksbeg;
+    fj_parser_tokens_cur_ptr(parser) = toksbeg;
+    fj_parser_tokens_end_ptr(parser) = toksend;
+    parser->alloc_func  = alloc_fn;
+    parser->free_func   = free_fn;
+    __FJ__INIT_ERROR_INFO(parser, FJ_INVALID, nullptr);
+    parser->dyn_parser= dyn_parser;
+    parser->dyn_tokens= dyn_tokens;
 #ifndef FJ_NO_TOPLEV_FJSON
-    p->ref_counter   = 0;
+    parser->ref_counter   = 0;
 #endif // FJ_NO_TOPLEV_FJSON
 #ifdef __FJ__ANALYZE_PARSER
-    std::memset(&(p->pstat), 0, sizeof(p->pstat));
+    std::memset(&(parser->pstat), 0, sizeof(parser->pstat));
 #endif // __FJ__ANALYZE_PARSER
 }
 
@@ -1688,11 +1536,11 @@ inline parser make_parser(
      token *toksbeg
     ,token *toksend
     ,const char *strbeg
-    ,const char *strend)
+    ,const char *strend) noexcept
 {
-    parser p;
+    parser parser;
     details::init_parser(
-         &p
+         &parser
         ,toksbeg
         ,toksend
         ,strbeg
@@ -1703,16 +1551,16 @@ inline parser make_parser(
         ,false
     );
 
-    return p;
+    return parser;
 }
 
 inline parser init_parser(
      alloc_fnptr alloc_fn = &malloc
-    ,free_fnptr free_fn = &free)
+    ,free_fnptr free_fn = &free) noexcept
 {
-    parser p;
+    parser parser;
     details::init_parser(
-         &p
+         &parser
         ,nullptr
         ,nullptr
         ,nullptr
@@ -1723,7 +1571,7 @@ inline parser init_parser(
         ,false
     );
 
-    return p;
+    return parser;
 }
 
 /*************************************************************************************************/
@@ -1735,15 +1583,15 @@ inline parser* alloc_parser(
     ,const char *strbeg
     ,const char *strend
     ,alloc_fnptr alloc_fn = &malloc
-    ,free_fnptr free_fn = &free)
+    ,free_fnptr free_fn = &free) noexcept
 {
-    auto *p = static_cast<parser *>(alloc_fn(sizeof(parser)));
-    if ( !p ) {
+    auto *parser = static_cast<struct parser *>(alloc_fn(sizeof(struct parser)));
+    if ( !parser ) {
         return nullptr;
     }
 
     details::init_parser(
-         p
+         parser
         ,toksbeg
         ,toksend
         ,strbeg
@@ -1754,60 +1602,63 @@ inline parser* alloc_parser(
         ,false
     );
 
-    return p;
+    return parser;
 }
 
 inline std::size_t count_tokens(
      error_info *ei
     ,const char *strbeg
     ,const char *strend
-    ,bool despaced_json = false)
+    ,bool despaced_json = false) noexcept
 {
     if ( strbeg == strend ) {
-        if ( ei ) { ei->code = EC_INVALID; }
+        if ( ei ) { ei->code = FJ_INVALID; }
 
         return 0;
     }
 
     static token fake_token;
-    auto p = make_parser(&fake_token, &fake_token, strbeg, strend);
-    fj_parser_json_cur_ptr((&p)) = details::fj_skip_ws<false>(&p);
+    auto parser = make_parser(&fake_token, &fake_token, strbeg, strend);
+    auto *parser_ptr = &parser;
 
+    __FJ__SKIP_WHITESPACE(parser_ptr);
+    token_type tok_type;
     error_code ec = despaced_json
         ? details::parse_value<false, true>(
              __func__
-            ,&p
+            ,parser_ptr
             ,nullptr
             ,nullptr
-            ,nullptr
+            ,&tok_type
             ,nullptr)
         : details::parse_value<false, false>(
             __func__
-            ,&p
+            ,parser_ptr
             ,nullptr
             ,nullptr
-            ,nullptr
+            ,&tok_type
             ,nullptr)
     ;
 
-    if ( ec == EC_OK ) {
-        if ( fj_parser_json_left_chars((&p)) ) {
-            fj_parser_json_cur_ptr((&p)) = details::fj_skip_ws<false>(&p);
-            if ( fj_parser_json_left_chars((&p)) ) {
-                __FJ__INIT_ERROR_INFO((&p), EC_EXTRA_DATA, "");
-                if ( ei ) { *ei = p.error; }
+    if ( ec == FJ_OK ) {
+        if ( fj_parser_json_left_chars(parser_ptr) ) {
+            __FJ__SKIP_WHITESPACE(parser_ptr);
+            if ( fj_parser_json_left_chars(parser_ptr) ) {
+                __FJ__INIT_ERROR_INFO(parser_ptr, FJ_EXTRA_DATA, nullptr);
+                if ( ei ) { *ei = parser_ptr->error; }
 
                 return 0;
             }
         }
     } else {
-        p.error.code = ec;
-        if ( ei ) { *ei = p.error; }
+        parser_ptr->error.code = ec;
+        if ( ei ) { *ei = parser_ptr->error; }
 
         return 0;
     }
 
-    std::size_t toknum = fj_parser_tokens_cur_ptr((&p)) - fj_parser_tokens_beg_ptr((&p));
+    std::size_t toknum = fj_parser_tokens_cur_ptr(parser_ptr)
+        - fj_parser_tokens_beg_ptr(parser_ptr);
 
     return toknum;
 }
@@ -1817,11 +1668,11 @@ inline parser make_parser(
     ,const char *strend
     ,bool despaced_json = false
     ,alloc_fnptr alloc_fn = &malloc
-    ,free_fnptr free_fn = &free)
+    ,free_fnptr free_fn = &free) noexcept
 {
-    parser p;
+    parser parser;
     details::init_parser(
-         &p
+         &parser
         ,nullptr
         ,nullptr
         ,nullptr
@@ -1833,11 +1684,11 @@ inline parser make_parser(
     );
 
     error_info ei{};
-    ei.code = EC_OK;
+    ei.code = FJ_OK;
     auto toknum = count_tokens(&ei, strbeg, strend, despaced_json);
     if ( ei.code ) {
-        p.error = ei;
-        return p;
+        parser.error = ei;
+        return parser;
     }
 
     auto in_bytes = sizeof(token) * toknum;
@@ -1845,7 +1696,7 @@ inline parser make_parser(
     auto *toksend = toksbeg + toknum;
 
     details::init_parser(
-         &p
+         &parser
         ,toksbeg
         ,toksend
         ,strbeg
@@ -1856,7 +1707,7 @@ inline parser make_parser(
         ,true
     );
 
-    return p;
+    return parser;
 }
 
 inline parser* alloc_parser(
@@ -1864,15 +1715,15 @@ inline parser* alloc_parser(
     ,const char *strend
     ,bool despaced_json = false
     ,alloc_fnptr alloc_fn = &malloc
-    ,free_fnptr free_fn = &free)
+    ,free_fnptr free_fn = &free) noexcept
 {
-    auto *p = static_cast<parser *>(alloc_fn(sizeof(parser)));
-    if ( !p ) {
+    auto *parser = static_cast<struct parser *>(alloc_fn(sizeof(struct parser)));
+    if ( !parser ) {
         return nullptr;
     }
 
     details::init_parser(
-         p
+         parser
         ,nullptr
         ,nullptr
         ,nullptr
@@ -1884,15 +1735,15 @@ inline parser* alloc_parser(
     );
 
     if ( strbeg == strend ) {
-        return p;
+        return parser;
     }
 
     error_info ei{};
-    ei.code = EC_OK;
+    ei.code = FJ_OK;
     auto toknum = count_tokens(&ei, strbeg, strend, despaced_json);
     if ( ei.code ) {
-        p->error = ei;
-        return p;
+        parser->error = ei;
+        return parser;
     }
 
     auto in_bytes = sizeof(token) * toknum;
@@ -1900,7 +1751,7 @@ inline parser* alloc_parser(
     auto *toksend = toksbeg + toknum;
 
     details::init_parser(
-         p
+         parser
         ,toksbeg
         ,toksend
         ,strbeg
@@ -1910,71 +1761,70 @@ inline parser* alloc_parser(
         ,true
         ,true
     );
-    p->error.code = EC_OK;
+    parser->error.code = FJ_OK;
 
-    return p;
+    return parser;
 }
 
-inline void free_parser(parser *p) {
-    if ( p->dyn_tokens && fj_parser_tokens_beg_ptr(p) ) {
-        p->free_func(fj_parser_tokens_beg_ptr(p));
+inline void free_parser(parser *parser) noexcept {
+    if ( parser->dyn_tokens && fj_parser_tokens_beg_ptr(parser) ) {
+        parser->free_func(fj_parser_tokens_beg_ptr(parser));
     }
 
-    fj_parser_tokens_beg_ptr(p) = nullptr;
-    fj_parser_tokens_cur_ptr(p) = nullptr;
-    fj_parser_tokens_end_ptr(p) = nullptr;
-    p->error = {EC_INVALID, "", 0, 0, 0, nullptr, nullptr};
+    fj_parser_tokens_beg_ptr(parser) = nullptr;
+    fj_parser_tokens_cur_ptr(parser) = nullptr;
+    fj_parser_tokens_end_ptr(parser) = nullptr;
+    parser->error = {FJ_INVALID, "", 0, 0, 0, nullptr, nullptr};
 
-    if ( p->dyn_parser ) {
-        p->free_func(p);
+    if ( parser->dyn_parser ) {
+        parser->free_func(parser);
     }
 }
 
 /*************************************************************************************************/
 // parsing
 
-inline std::size_t parse(parser *p, bool despaced_json = false) {
-    if ( fj_parser_json_left_chars(p) == 0 ) {
-        p->error.code = EC_INVALID;
+inline std::size_t parse(parser *parser, bool despaced_json = false) noexcept {
+    if ( fj_parser_json_left_chars(parser) == 0 ) {
+        parser->error.code = FJ_INVALID;
 
         return 0;
     }
 
-    fj_parser_json_cur_ptr(p) = details::fj_skip_ws<false>(p);
-
+    __FJ__SKIP_WHITESPACE(parser);
     std::size_t vlen{};
     token_type type{};
-    p->error.code = despaced_json
+    parser->error.code = despaced_json
         ? details::parse_value<true, true>(
              __func__
-            ,p
-            ,&fj_parser_tokens_beg_ptr(p)->val
+            ,parser
+            ,&fj_parser_tokens_beg_ptr(parser)->val
             ,&vlen
             ,&type
             ,nullptr)
         : details::parse_value<true, false>(
             __func__
-            ,p
-            ,&fj_parser_tokens_beg_ptr(p)->val
+            ,parser
+            ,&fj_parser_tokens_beg_ptr(parser)->val
             ,&vlen
             ,&type
             ,nullptr)
     ;
 
-    if ( p->error.code == EC_OK ) {
-        fj_parser_json_cur_ptr(p) = details::fj_skip_ws<false>(p);
-        if ( fj_parser_json_cur_ptr(p) != fj_parser_json_cur_ptr(p)
-             && fj_parser_json_cur_char(p) != '\0' )
+    if ( parser->error.code == FJ_OK ) {
+        __FJ__SKIP_WHITESPACE(parser);
+        if ( fj_parser_json_cur_ptr(parser) != fj_parser_json_cur_ptr(parser)
+             && fj_parser_json_cur_char(parser) != '\0' )
         {
-            p->error.code = EC_INVALID;
+            parser->error.code = FJ_INVALID;
         }
     }
 
-    fj_parser_tokens_beg_ptr(p)->type = type;
-    assert(vlen <= std::numeric_limits<FJ_VLEN_TYPE>::max());
-    fj_parser_tokens_beg_ptr(p)->vlen = static_cast<FJ_VLEN_TYPE>(vlen);
+    fj_parser_tokens_beg_ptr(parser)->type = type;
+    assert(vlen <= std::numeric_limits<fj_vlen_type>::max());
+    fj_parser_tokens_beg_ptr(parser)->vlen = static_cast<fj_vlen_type>(vlen);
 
-    return fj_parser_tokens_cur_ptr(p) - fj_parser_tokens_beg_ptr(p);
+    return fj_parser_tokens_cur_ptr(parser) - fj_parser_tokens_beg_ptr(parser);
 }
 
 // returns the num of tokens
@@ -1983,11 +1833,11 @@ inline std::size_t parse(
     ,token *tokend
     ,const char *strbeg
     ,const char *strend
-    ,bool despaced_json = false)
+    ,bool despaced_json = false) noexcept
 {
-    auto p = make_parser(tokbeg, tokend, strbeg, strend);
+    auto parser = make_parser(tokbeg, tokend, strbeg, strend);
 
-    return parse(&p, despaced_json);
+    return parse(&parser, despaced_json);
 }
 
 // returns the dyn-allocated parser
@@ -1996,68 +1846,68 @@ inline parser* parse(
     ,const char *strend
     ,bool despaced_json = false
     ,alloc_fnptr alloc_fn = &malloc
-    ,free_fnptr free_fn = &free)
+    ,free_fnptr free_fn = &free) noexcept
 {
-    auto *p = alloc_parser(strbeg, strend, despaced_json, alloc_fn, free_fn);
-    if ( p->error.code != EC_OK ) {
-        return p;
+    auto *parser = alloc_parser(strbeg, strend, despaced_json, alloc_fn, free_fn);
+    if ( parser->error.code != FJ_OK ) {
+        return parser;
     }
 
-    parse(p);
+    parse(parser, despaced_json);
 
-    return p;
+    return parser;
 }
 
 /*************************************************************************************************/
 // parser state
 
-inline bool is_valid(const parser *p) {
-    return p && p->error.code == EC_OK;
+inline bool is_valid(const parser *parser) noexcept {
+    return parser->error.code == FJ_OK;
 }
 
-inline error_code get_error(const parser *p) {
-    return p->error.code;
+inline error_code get_error(const parser *parser) noexcept {
+    return parser->error.code;
 }
 
-inline const char* get_error_message(const parser *p) {
-    return error_message(p->error);
+inline const char* get_error_message(const parser *parser) noexcept {
+    return error_message(parser->error);
 }
 
-inline std::size_t num_tokens(const parser *p) {
-    return fj_parser_tokens_cur_ptr(p) - fj_parser_tokens_beg_ptr(p);
+inline std::size_t num_tokens(const parser *parser) noexcept {
+    return fj_parser_tokens_cur_ptr(parser) - fj_parser_tokens_beg_ptr(parser);
 }
 
-inline std::size_t num_childs(const parser *p) {
-    return (!fj_is_simple_type_macro(fj_parser_tokens_beg_ptr(p)->type))
-       ? fj_parser_tokens_beg_ptr(p)->childs - 1
-       : static_cast<std::size_t>(fj_parser_tokens_beg_ptr(p)->type != FJ_TYPE_INVALID)
+inline std::size_t num_childs(const parser *parser) noexcept {
+    return (!fj_is_simple_type_macro(fj_parser_tokens_beg_ptr(parser)->type))
+       ? fj_parser_tokens_beg_ptr(parser)->childs - 1
+       : static_cast<std::size_t>(fj_parser_tokens_beg_ptr(parser)->type != FJ_TYPE_INVALID)
     ;
 }
 
-inline bool is_empty(const parser *p) {
-    return p == nullptr || fj_parser_tokens_beg_ptr(p) == fj_parser_tokens_end_ptr(p);
+inline bool is_empty(const parser *parser) noexcept {
+    return fj_parser_tokens_beg_ptr(parser) == fj_parser_tokens_end_ptr(parser);
 }
 
-inline bool is_array(const parser *p)
-{ return fj_parser_tokens_beg_ptr(p)->type == FJ_TYPE_ARRAY; }
+inline bool is_array(const parser *parser) noexcept
+{ return fj_parser_tokens_beg_ptr(parser)->type == FJ_TYPE_ARRAY; }
 
-inline bool is_object(const parser *p)
-{ return fj_parser_tokens_beg_ptr(p)->type == FJ_TYPE_OBJECT; }
+inline bool is_object(const parser *parser) noexcept
+{ return fj_parser_tokens_beg_ptr(parser)->type == FJ_TYPE_OBJECT; }
 
-inline bool is_null(const parser *p)
-{ return fj_parser_tokens_beg_ptr(p)->type == FJ_TYPE_NULL; }
+inline bool is_null(const parser *parser) noexcept
+{ return fj_parser_tokens_beg_ptr(parser)->type == FJ_TYPE_NULL; }
 
-inline bool is_bool(const parser *p)
-{ return fj_parser_tokens_beg_ptr(p)->type == FJ_TYPE_BOOL; }
+inline bool is_bool(const parser *parser) noexcept
+{ return fj_parser_tokens_beg_ptr(parser)->type == FJ_TYPE_BOOL; }
 
-inline bool is_number(const parser *p)
-{ return fj_parser_tokens_beg_ptr(p)->type == FJ_TYPE_NUMBER; }
+inline bool is_number(const parser *parser) noexcept
+{ return fj_parser_tokens_beg_ptr(parser)->type == FJ_TYPE_NUMBER; }
 
-inline bool is_string(const parser *p)
-{ return fj_parser_tokens_beg_ptr(p)->type == FJ_TYPE_STRING; }
+inline bool is_string(const parser *parser) noexcept
+{ return fj_parser_tokens_beg_ptr(parser)->type == FJ_TYPE_STRING; }
 
-inline bool is_simple_type(const parser *p)
-{ return fj_is_simple_type_macro(fj_parser_tokens_beg_ptr(p)->type); }
+inline bool is_simple_type(const parser *parser) noexcept
+{ return fj_is_simple_type_macro(fj_parser_tokens_beg_ptr(parser)->type); }
 
 /*************************************************************************************************/
 // dump for parser
@@ -2066,7 +1916,7 @@ inline void dump_tokens(
      std::FILE *stream
     ,const char *caption
     ,const parser *parser
-    ,std::size_t indent = 3)
+    ,std::size_t indent = 3) noexcept
 {
     std::fprintf(stream, "%s:\n", caption);
     return details::dump_tokens_impl(
@@ -2086,36 +1936,38 @@ struct iterator {
     token *cur;
     token *end;
 
-    string_view key() const { return {cur->key, cur->klen}; }
-    string_view value() const { return {cur->val, cur->vlen}; }
-    std::size_t childs() const { return cur->childs; }
-    const token* parent() const { return cur->parent; }
+    string_view key() const noexcept { return {cur->key, cur->klen}; }
+    string_view value() const noexcept { return {cur->val, cur->vlen}; }
+    std::size_t childs() const noexcept { return cur->childs; }
+    const token* parent() const noexcept { return cur->parent; }
 
-    token_type type() const { return cur->type; }
-    const char* type_name() const { return flatjson::type_name(type()); }
-    bool is_valid() const { return cur && type() != FJ_TYPE_INVALID; }
-    bool is_array() const { return type() == FJ_TYPE_ARRAY; }
-    bool is_object() const { return type() == FJ_TYPE_OBJECT; }
-    bool is_null() const { return type() == FJ_TYPE_NULL; }
-    bool is_bool() const { return type() == FJ_TYPE_BOOL; }
-    bool is_number() const { return type() == FJ_TYPE_NUMBER; }
-    bool is_string() const { return type() == FJ_TYPE_STRING; }
-    bool is_simple_type() const { return fj_is_simple_type_macro(type()); }
+    token_type type() const noexcept { return cur->type; }
+    const char* type_name() const noexcept { return flatjson::type_name(type()); }
+    bool is_valid() const noexcept { return cur && type() != FJ_TYPE_INVALID; }
+    bool is_array() const noexcept { return type() == FJ_TYPE_ARRAY; }
+    bool is_object() const noexcept { return type() == FJ_TYPE_OBJECT; }
+    bool is_null() const noexcept { return type() == FJ_TYPE_NULL; }
+    bool is_bool() const noexcept { return type() == FJ_TYPE_BOOL; }
+    bool is_number() const noexcept { return type() == FJ_TYPE_NUMBER; }
+    bool is_string() const noexcept { return type() == FJ_TYPE_STRING; }
+    bool is_simple_type() const noexcept { return fj_is_simple_type_macro(type()); }
 
-    string_view to_string_view() const { return value(); }
-    std::string to_string() const { auto s = to_string_view(); return {s.data(), s.size()}; }
+    string_view to_string_view() const noexcept { return value(); }
+    std::string to_string() const noexcept
+    { auto s = to_string_view(); return {s.data(), s.size()}; }
 
     template<typename T>
-    T to() const { auto s = to_string_view(); return details::conv_to(s.data(), s.size(), T{}); }
-    bool to_bool() const { return to<bool>(); }
-    std::uint32_t to_uint() const { return to<std::uint32_t>(); }
-    std::int32_t to_int() const { return to<std::int32_t>(); }
-    std::uint64_t to_uint64() const { return to<std::uint64_t>(); }
-    std::int64_t to_int64() const { return to<std::int64_t>(); }
-    double to_double() const { return to<double>(); }
-    float to_float() const { return to<float>(); }
+    T to() const noexcept
+    { auto s = to_string_view(); return details::conv_to(s.data(), s.size(), T{}); }
+    bool to_bool() const noexcept { return to<bool>(); }
+    std::uint32_t to_uint() const noexcept { return to<std::uint32_t>(); }
+    std::int32_t to_int() const noexcept { return to<std::int32_t>(); }
+    std::uint64_t to_uint64() const noexcept { return to<std::uint64_t>(); }
+    std::int64_t to_int64() const noexcept { return to<std::int64_t>(); }
+    double to_double() const noexcept { return to<double>(); }
+    float to_float() const noexcept { return to<float>(); }
 
-    std::size_t members() const {
+    std::size_t members() const noexcept {
         return (!is_simple_type())
            ? childs() - 1
            : static_cast<std::size_t>(type() != FJ_TYPE_INVALID)
@@ -2128,13 +1980,13 @@ inline void dump_tokens(
      std::FILE *stream
     ,const char *caption
     ,const iterator &it
-    ,std::size_t indent = 3)
+    ,std::size_t indent = 3) noexcept
 {
     std::fprintf(stream, "%s:\n", caption);
     return details::dump_tokens_impl(stream, it.beg, it.cur, it.end, indent);
 }
 
-inline iterator iter_begin(const parser *p) {
+inline iterator iter_begin(const parser *p) noexcept {
     return {
          fj_parser_tokens_beg_ptr(p)
         ,fj_parser_tokens_beg_ptr(p)
@@ -2142,7 +1994,7 @@ inline iterator iter_begin(const parser *p) {
     };
 }
 
-inline iterator iter_end(const parser *p) {
+inline iterator iter_end(const parser *p) noexcept {
     return {
          fj_parser_tokens_cur_ptr(p)-1
         ,fj_parser_tokens_cur_ptr(p)-1
@@ -2150,7 +2002,7 @@ inline iterator iter_end(const parser *p) {
     };
 }
 
-inline iterator iter_begin(const iterator &it) {
+inline iterator iter_begin(const iterator &it) noexcept {
     if ( !it.is_simple_type() ) {
         return {it.cur, it.cur, it.cur->end};
     }
@@ -2158,7 +2010,7 @@ inline iterator iter_begin(const iterator &it) {
     return {it.cur, it.cur, it.cur->parent->end};
 }
 
-inline iterator iter_end(const iterator &it) {
+inline iterator iter_end(const iterator &it) noexcept {
     if ( !it.is_simple_type() ) {
         return {it.cur->end, it.cur->end, it.cur->end};
     }
@@ -2166,13 +2018,13 @@ inline iterator iter_end(const iterator &it) {
     return {it.end, it.end, it.end};
 }
 
-inline bool iter_equal(const iterator &l, const iterator &r)
+inline bool iter_equal(const iterator &l, const iterator &r) noexcept
 { return l.cur == r.cur; }
 
-inline bool iter_not_equal(const iterator &l, const iterator &r)
+inline bool iter_not_equal(const iterator &l, const iterator &r) noexcept
 { return !iter_equal(l, r); }
 
-inline std::size_t iter_members(const iterator &it) {
+inline std::size_t iter_members(const iterator &it) noexcept {
     if ( it.is_simple_type() ) {
         return 0;
     }
@@ -2180,7 +2032,7 @@ inline std::size_t iter_members(const iterator &it) {
     return it.cur->childs - 1;
 }
 
-inline iterator iter_next(const iterator &it) {
+inline iterator iter_next(const iterator &it) noexcept {
     assert(it.cur != it.end);
 
     auto next = it.cur + 1;
@@ -2194,7 +2046,7 @@ inline iterator iter_next(const iterator &it) {
     return {it.beg, next, it.end};
 }
 
-inline std::size_t iter_distance(const iterator &from, const iterator &to) {
+inline std::size_t iter_distance(const iterator &from, const iterator &to) noexcept {
     assert(from.cur->parent == to.cur->parent);
 
     if ( from.cur->parent->flags == 1 ) {
@@ -2212,7 +2064,12 @@ inline std::size_t iter_distance(const iterator &from, const iterator &to) {
 namespace details {
 
 // find by key name
-inline iterator iter_find(const char *key, std::size_t klen, const iterator &beg, const iterator &end) {
+inline iterator iter_find(
+     const char *key
+    ,std::size_t klen
+    ,const iterator &beg
+    ,const iterator &end) noexcept
+{
     if ( beg.cur->parent->type != FJ_TYPE_OBJECT ) {
         return end;
     }
@@ -2260,7 +2117,7 @@ inline iterator iter_find(const char *key, std::size_t klen, const iterator &beg
 } // ns details
 
 // at by key name, from the parser
-inline iterator iter_at(const char *key, std::size_t klen, const parser *p) {
+inline iterator iter_at(const char *key, std::size_t klen, const parser *p) noexcept {
     bool is_simple = fj_is_simple_type_macro(fj_parser_tokens_beg_ptr(p)->type);
     const iterator beg = {
          fj_parser_tokens_beg_ptr(p)
@@ -2273,7 +2130,7 @@ inline iterator iter_at(const char *key, std::size_t klen, const parser *p) {
 }
 
 template<typename T, typename = typename enable_if_const_char_ptr<T>::type>
-iterator iter_at(T key, const parser *p) {
+iterator iter_at(T key, const parser *p) noexcept {
     bool is_simple = fj_is_simple_type_macro(fj_parser_tokens_beg_ptr(p)->type);
     const iterator beg = {
          fj_parser_tokens_beg_ptr(p)
@@ -2286,7 +2143,7 @@ iterator iter_at(T key, const parser *p) {
 }
 
 template<std::size_t N>
-iterator iter_at(const char (&key)[N], const parser *p) {
+iterator iter_at(const char (&key)[N], const parser *p) noexcept {
     bool is_simple = fj_is_simple_type_macro(fj_parser_tokens_beg_ptr(p)->type);
     const iterator beg = {
          fj_parser_tokens_beg_ptr(p)
@@ -2299,7 +2156,7 @@ iterator iter_at(const char (&key)[N], const parser *p) {
 }
 
 // at by key name, from the iterators
-inline iterator iter_at(const char *key, std::size_t klen, const iterator &it) {
+inline iterator iter_at(const char *key, std::size_t klen, const iterator &it) noexcept {
     const iterator beg = {
          it.beg
         ,it.cur + static_cast<std::size_t>(!it.is_simple_type())
@@ -2311,7 +2168,7 @@ inline iterator iter_at(const char *key, std::size_t klen, const iterator &it) {
 }
 
 template<typename T, typename = typename enable_if_const_char_ptr<T>::type>
-iterator iter_at(T key, const iterator &it) {
+iterator iter_at(T key, const iterator &it) noexcept {
     const iterator beg = {
          it.beg
         ,it.cur + static_cast<std::size_t>(!it.is_simple_type())
@@ -2323,7 +2180,7 @@ iterator iter_at(T key, const iterator &it) {
 }
 
 template<std::size_t N>
-iterator iter_at(const char (&key)[N], const iterator &it) {
+iterator iter_at(const char (&key)[N], const iterator &it) noexcept {
     const iterator beg = {
          it.beg
         ,it.cur + static_cast<std::size_t>(!it.is_simple_type())
@@ -2337,7 +2194,7 @@ iterator iter_at(const char (&key)[N], const iterator &it) {
 namespace details {
 
 // find by index
-inline iterator iter_find(std::size_t idx, const iterator &beg, const iterator &end) {
+inline iterator iter_find(std::size_t idx, const iterator &beg, const iterator &end) noexcept {
     if ( beg.cur->parent->type != FJ_TYPE_ARRAY ) {
         return end;
     }
@@ -2387,7 +2244,7 @@ inline iterator iter_find(std::size_t idx, const iterator &beg, const iterator &
 } // ns details
 
 // at by index, from a parser
-inline iterator iter_at(std::size_t idx, const parser *p) {
+inline iterator iter_at(std::size_t idx, const parser *p) noexcept {
     bool is_simple = fj_is_simple_type_macro(fj_parser_tokens_beg_ptr(p)->type);
     const iterator beg = {
          fj_parser_tokens_beg_ptr(p)
@@ -2400,7 +2257,7 @@ inline iterator iter_at(std::size_t idx, const parser *p) {
 }
 
 // at by index, from a iterator
-inline iterator iter_at(std::size_t idx, const iterator &it) {
+inline iterator iter_at(std::size_t idx, const iterator &it) noexcept {
     const iterator beg = {
          it.beg
         ,it.cur + static_cast<std::size_t>(!it.is_simple_type())
@@ -2454,7 +2311,7 @@ std::size_t walk_through_tokens(
         ,std::size_t total_bytes
         ,int *ec
     )
-    ,int *ec)
+    ,int *ec) noexcept
 {
     static const char indent_str[] = "                                                                                ";
     std::size_t indent_scope = 0;
@@ -2638,7 +2495,7 @@ inline std::size_t walk_through_keys(
      iterator it
     ,const iterator &end
     ,void *userdata
-    ,void(*cb)(void *userdata, const char *ptr, std::size_t len))
+    ,void(*cb)(void *userdata, const char *ptr, std::size_t len)) noexcept
 {
     std::size_t cnt{};
 
@@ -2661,7 +2518,7 @@ inline std::size_t walk_through_keys(
 
 } // ns details
 
-inline std::vector<string_view> get_keys(const iterator &it, const iterator &end) {
+inline std::vector<string_view> get_keys(const iterator &it, const iterator &end) noexcept {
     auto num = details::walk_through_keys(it, end, nullptr, nullptr);
     std::vector<string_view> res;
     res.reserve(num);
@@ -2697,7 +2554,7 @@ enum class compare_result {
     ,shorter // the right JSON are shorter.
 };
 
-inline const char* compare_result_string(compare_result r) {
+inline const char* compare_result_string(compare_result r) noexcept {
     switch ( r ) {
         case compare_result::equal: return "equal";
         case compare_result::type: return "tokens types do not match";
@@ -2714,6 +2571,10 @@ inline const char* compare_result_string(compare_result r) {
     return nullptr;
 }
 
+/*************************************************************************************************/
+
+namespace details {
+
 inline compare_result compare_impl(
      iterator *left_diff_ptr
     ,iterator *right_diff_ptr
@@ -2721,7 +2582,7 @@ inline compare_result compare_impl(
     ,const iterator &left_end
     ,const iterator &right_beg
     ,const iterator &right_end
-    ,compare_mode cmpmode = compare_mode::markup_only)
+    ,compare_mode cmpmode = compare_mode::markup_only) noexcept
 {
     const bool in_array = left_beg.parent()->type == FJ_TYPE_ARRAY;
     const bool only_simple = left_beg.parent()->flags;
@@ -2817,12 +2678,16 @@ inline compare_result compare_impl(
     return compare_result::equal;
 }
 
+} // ns details
+
+/*************************************************************************************************/
+
 inline compare_result compare(
      iterator *left_diff_ptr
     ,iterator *right_diff_ptr
     ,const parser *left_parser
     ,const parser *right_parser
-    ,compare_mode cmpr = compare_mode::markup_only)
+    ,compare_mode cmpr = compare_mode::markup_only) noexcept
 {
     auto ltokens = fj_parser_tokens_cur_ptr(left_parser) - fj_parser_tokens_beg_ptr(left_parser);
     auto rtokens = fj_parser_tokens_cur_ptr(right_parser) - fj_parser_tokens_beg_ptr(right_parser);
@@ -2866,10 +2731,10 @@ inline compare_result compare(
     }
 
     return left_beg.is_array()
-        ? compare_impl(left_diff_ptr, right_diff_ptr
+        ? details::compare_impl(left_diff_ptr, right_diff_ptr
             ,iter_next(left_beg), left_end
             ,iter_next(right_beg), right_end, cmpr)
-        : compare_impl(left_diff_ptr, right_diff_ptr
+        : details::compare_impl(left_diff_ptr, right_diff_ptr
             ,iter_next(left_beg), left_end
             ,iter_next(right_beg), right_end, cmpr)
     ;
@@ -2891,18 +2756,18 @@ struct fjson {
         using reference = value_type &;
         using const_reference = const value_type &;
 
-        explicit const_iterator(iterator it)
+        explicit const_iterator(iterator it) noexcept
             :m_it{std::move(it)}
         {}
 
-        const_pointer operator->() const { return &m_it; }
-        const_iterator& operator++() { m_it = iter_next(m_it); return *this; }
-        const_iterator operator++(int) { const_iterator tmp{*this}; ++(*this); return tmp; }
-        reference operator* () { return m_it; }
-        const_reference operator* () const { return m_it; }
-        friend bool operator== (const const_iterator &l, const const_iterator &r)
+        const_pointer operator->() const noexcept { return &m_it; }
+        const_iterator& operator++() noexcept { m_it = iter_next(m_it); return *this; }
+        const_iterator operator++(int) noexcept { const_iterator tmp{*this}; ++(*this); return tmp; }
+        reference operator* () noexcept { return m_it; }
+        const_reference operator* () const noexcept { return m_it; }
+        friend bool operator== (const const_iterator &l, const const_iterator &r) noexcept
         { return iter_equal(l.m_it, r.m_it); }
-        friend bool operator!= (const const_iterator &l, const const_iterator &r)
+        friend bool operator!= (const const_iterator &l, const const_iterator &r) noexcept
         { return !operator==(l, r); }
 
         iterator m_it;
@@ -2912,7 +2777,7 @@ private:
     struct intrusive_ptr {
         using deleter_fn_ptr = void(*)(parser *);
 
-        intrusive_ptr(bool manage, parser *parser, deleter_fn_ptr free_fn)
+        intrusive_ptr(bool manage, parser *parser, deleter_fn_ptr free_fn) noexcept
             :m_manage{manage}
             ,m_parser{parser}
             ,m_free_fn{free_fn}
@@ -2921,7 +2786,7 @@ private:
                 fj_parser_refcnt_increment(m_parser);
             }
         }
-        virtual ~intrusive_ptr() {
+        virtual ~intrusive_ptr() noexcept {
             if ( m_manage && m_parser ) {
                 auto refcnt = fj_parser_refcnt_decrement(m_parser);
                 if ( !refcnt ) {
@@ -2929,7 +2794,7 @@ private:
                 }
             }
         }
-        intrusive_ptr(const intrusive_ptr &other)
+        intrusive_ptr(const intrusive_ptr &other) noexcept
             :m_manage{other.m_manage}
             ,m_parser{other.m_parser}
             ,m_free_fn{other.m_free_fn}
@@ -2938,7 +2803,7 @@ private:
                 fj_parser_refcnt_increment(m_parser);
             }
         }
-        intrusive_ptr(intrusive_ptr &&other)
+        intrusive_ptr(intrusive_ptr &&other) noexcept
             :m_manage{other.m_manage}
             ,m_parser{other.m_parser}
             ,m_free_fn{other.m_free_fn}
@@ -2947,7 +2812,7 @@ private:
             other.m_parser  = nullptr;
             other.m_free_fn = nullptr;
         }
-        intrusive_ptr& operator= (const intrusive_ptr &r) {
+        intrusive_ptr& operator= (const intrusive_ptr &r) noexcept {
             m_manage  = r.m_manage;
             m_parser  = r.m_parser;
             m_free_fn = r.m_free_fn;
@@ -2958,7 +2823,7 @@ private:
 
             return *this;
         }
-        intrusive_ptr& operator= (intrusive_ptr &&r) {
+        intrusive_ptr& operator= (intrusive_ptr &&r) noexcept {
             m_manage    = r.m_manage;
             m_parser    = r.m_parser;
             m_free_fn   = r.m_free_fn;
@@ -2969,13 +2834,13 @@ private:
             return *this;
         }
 
-        explicit operator bool()       const { return m_parser != nullptr; }
-        const parser* get()         const { return m_parser; }
-        parser*       get()               { return m_parser; }
-        const parser* operator-> () const { return m_parser; }
-        parser*       operator-> ()       { return m_parser; }
-        const parser& operator*  () const { return *m_parser; }
-        parser&       operator*  ()       { return *m_parser; }
+        explicit operator bool()    const noexcept { return m_parser != nullptr; }
+        const parser* get()         const noexcept { return m_parser; }
+        parser*       get()               noexcept { return m_parser; }
+        const parser* operator-> () const noexcept { return m_parser; }
+        parser*       operator-> ()       noexcept { return m_parser; }
+        const parser& operator*  () const noexcept { return *m_parser; }
+        parser&       operator*  ()       noexcept { return *m_parser; }
 
     private:
         bool m_manage;
@@ -2984,24 +2849,24 @@ private:
     };
 
 public:
-    const_iterator begin()  const { return const_iterator{m_beg}; }
-    const_iterator end()    const { return const_iterator{m_end}; }
-    const_iterator cbegin() const { return const_iterator{m_beg}; }
-    const_iterator cend()   const { return const_iterator{m_end}; }
+    const_iterator begin()  const noexcept { return const_iterator{m_beg}; }
+    const_iterator end()    const noexcept { return const_iterator{m_end}; }
+    const_iterator cbegin() const noexcept { return const_iterator{m_beg}; }
+    const_iterator cend()   const noexcept { return const_iterator{m_end}; }
 
-    fjson(const fjson &) = default;
-    fjson& operator= (const fjson &) = default;
-    fjson(fjson &&) = default;
-    fjson& operator= (fjson &&) = default;
+    fjson(const fjson &) noexcept = default;
+    fjson& operator= (const fjson &) noexcept = default;
+    fjson(fjson &&) noexcept = default;
+    fjson& operator= (fjson &&) noexcept = default;
 
-    fjson()
+    fjson() noexcept
         :m_parser{false, nullptr, nullptr}
         ,m_beg{}
         ,m_end{}
     {}
 
     // construct using user-provided already initialized parser
-    fjson(parser *p)
+    fjson(parser *p) noexcept
         :m_parser{false, p, [](parser *){}}
         ,m_beg{iter_begin(p)}
         ,m_end{iter_end(p)}
@@ -3016,7 +2881,7 @@ public:
         ,token *toksend
         ,const char *strbeg
         ,const char *strend
-    )
+    ) noexcept
         :m_parser{
              false
             ,(*p = make_parser(toksbeg, toksend, strbeg, strend), p)
@@ -3038,7 +2903,7 @@ public:
         ,token *toksend
         ,const char *strbeg
         ,const char *strend
-    )
+    ) noexcept
         :m_parser{true, alloc_parser(toksbeg, toksend, strbeg, strend), free_parser}
         ,m_beg{}
         ,m_end{}
@@ -3058,7 +2923,7 @@ public:
         ,bool despaced_json = false
         ,alloc_fnptr alloc_fn = &malloc
         ,free_fnptr free_fn = &free
-    )
+    ) noexcept
         :m_parser{
              true
             ,(*p = make_parser(strbeg, strend, despaced_json, alloc_fn, free_fn), p)
@@ -3081,7 +2946,7 @@ public:
         ,bool despaced_json = false
         ,alloc_fnptr alloc_fn = &malloc
         ,free_fnptr free_fn = &free
-    )
+    ) noexcept
         :m_parser{true
             ,alloc_parser(strbeg, strend, despaced_json, alloc_fn, free_fn)
             ,free_parser}
@@ -3098,62 +2963,62 @@ public:
     virtual ~fjson() = default;
 
 private:
-    fjson(intrusive_ptr p, iterator beg, iterator end)
+    fjson(intrusive_ptr p, iterator beg, iterator end) noexcept
         :m_parser{std::move(p)}
         ,m_beg{std::move(beg)}
         ,m_end{std::move(end)}
     {}
 
 public:
-    bool is_valid() const { return m_parser && flatjson::is_valid(m_parser.get()); }
-    int error() const { return m_parser->error.code; }
-    const char* error_string() const { return flatjson::error_message(m_parser->error); }
+    bool is_valid() const noexcept { return m_parser && flatjson::is_valid(m_parser.get()); }
+    int error() const noexcept { return m_parser->error.code; }
+    const char* error_string() const noexcept { return flatjson::error_message(m_parser->error); }
 
     // number of direct childs for OBJECT/ARRAY, or 1 for a valid SIMPLE type
-    std::size_t size() const { return m_beg.members(); }
-    std::size_t members() const { return m_beg.members(); }
-    bool is_empty() const { return size() == 0; }
+    std::size_t size() const noexcept { return m_beg.members(); }
+    std::size_t members() const noexcept { return m_beg.members(); }
+    bool is_empty() const noexcept { return size() == 0; }
 
     // total number of tokens
-    std::size_t tokens() const
+    std::size_t tokens() const noexcept
     { return fj_parser_tokens_cur_ptr(m_parser) - fj_parser_tokens_beg_ptr(m_parser); }
 
-    token_type type() const { return m_beg.type(); }
-    const char* type_name() const { return m_beg.type_name(); }
+    token_type type() const noexcept { return m_beg.type(); }
+    const char* type_name() const noexcept { return m_beg.type_name(); }
 
-    bool is_array() const { return m_beg.is_array(); }
-    bool is_object() const { return m_beg.is_object(); }
-    bool is_null() const { return m_beg.is_null(); }
-    bool is_bool() const { return m_beg.is_bool(); }
-    bool is_number() const { return m_beg.is_number(); }
-    bool is_string() const { return m_beg.is_string(); }
-    bool is_simple_type() const { return m_beg.is_simple_type(); }
+    bool is_array() const noexcept { return m_beg.is_array(); }
+    bool is_object() const noexcept { return m_beg.is_object(); }
+    bool is_null() const noexcept { return m_beg.is_null(); }
+    bool is_bool() const noexcept { return m_beg.is_bool(); }
+    bool is_number() const noexcept { return m_beg.is_number(); }
+    bool is_string() const noexcept { return m_beg.is_string(); }
+    bool is_simple_type() const noexcept { return m_beg.is_simple_type(); }
 
-    string_view to_string_view() const { return m_beg.to_string_view(); }
-    std::string to_string() const { return m_beg.to_string(); }
+    string_view to_string_view() const noexcept { return m_beg.to_string_view(); }
+    std::string to_string() const noexcept { return m_beg.to_string(); }
     template<typename T>
-    T to() const { return m_beg.template to<T>(); }
-    bool to_bool() const { return m_beg.to_bool(); }
-    std::uint32_t to_uint() const { return m_beg.to_uint(); }
-    std::int32_t to_int() const { return m_beg.to_int(); }
-    std::uint64_t to_uint64() const { return m_beg.to_uint64(); }
-    std::int64_t to_int64() const { return m_beg.to_int64(); }
-    double to_double() const { return m_beg.to_double(); }
-    float to_float() const { return m_beg.to_float(); }
+    T to() const noexcept { return m_beg.template to<T>(); }
+    bool to_bool() const noexcept { return m_beg.to_bool(); }
+    std::uint32_t to_uint() const noexcept { return m_beg.to_uint(); }
+    std::int32_t to_int() const noexcept { return m_beg.to_int(); }
+    std::uint64_t to_uint64() const noexcept { return m_beg.to_uint64(); }
+    std::int64_t to_int64() const noexcept { return m_beg.to_int64(); }
+    double to_double() const noexcept { return m_beg.to_double(); }
+    float to_float() const noexcept { return m_beg.to_float(); }
 
     template<std::size_t N>
-    bool contains(const char (&key)[N]) const { return contains(key, N-1); }
+    bool contains(const char (&key)[N]) const noexcept { return contains(key, N-1); }
     template<typename T, typename = typename enable_if_const_char_ptr<T>::type>
-    bool contains(T key) const { return contains(key, std::strlen(key)); }
-    bool contains(const char *key, std::size_t len) const
+    bool contains(T key) const noexcept { return contains(key, std::strlen(key)); }
+    bool contains(const char *key, std::size_t len) const noexcept
     { auto it = iter_at(key, len, m_beg); return iter_not_equal(it, m_end); }
 
     // for objects
     template<std::size_t N>
-    fjson at(const char (&key)[N]) const { return at(key, N-1); }
+    fjson at(const char (&key)[N]) const noexcept { return at(key, N-1); }
     template<typename T, typename = typename enable_if_const_char_ptr<T>::type>
-    fjson at(T key) const { return at(key, std::strlen(key)); }
-    fjson at(const char *key, std::size_t len) const {
+    fjson at(T key) const noexcept { return at(key, std::strlen(key)); }
+    fjson at(const char *key, std::size_t len) const noexcept {
         auto it = iter_at(key, len, m_beg);
         if ( iter_equal(it, m_end) ) {
             return {m_parser, m_end, m_end};
@@ -3162,7 +3027,7 @@ public:
         return {m_parser, it, iter_end(it)};
     }
     // for arrays
-    fjson at(std::size_t idx) const {
+    fjson at(std::size_t idx) const noexcept {
         auto it = iter_at(idx, m_beg);
         if ( iter_equal(it, m_end) ) {
             return {m_parser, m_end, m_end};
@@ -3172,23 +3037,23 @@ public:
     }
 
     // get a fjson object at iterator position
-    fjson at(const const_iterator &it) const
+    fjson at(const const_iterator &it) const noexcept
     { return {m_parser, iter_begin(it.m_it), iter_end(it.m_it)}; }
 
     // for arrays
-    fjson operator[](std::size_t idx) const { return at(idx); }
+    fjson operator[](std::size_t idx) const noexcept { return at(idx); }
 
     // for objects
     template<std::size_t N>
-    fjson operator[](const char (&key)[N]) const { return at(key, N-1); }
+    fjson operator[](const char (&key)[N]) const noexcept { return at(key, N-1); }
     template<typename T, typename = typename enable_if_const_char_ptr<T>::type>
-    fjson operator[](T key) const { return at(key, std::strlen(key)); }
+    fjson operator[](T key) const noexcept { return at(key, std::strlen(key)); }
 
     // for top level object/array only
-    std::size_t keys_num() const
+    std::size_t keys_num() const noexcept
     { return details::walk_through_keys(m_beg, m_end, nullptr, nullptr); }
     std::vector<string_view>
-    keys() const
+    keys() const noexcept
     { return get_keys(m_beg, m_end); }
 
 private:
@@ -3197,7 +3062,7 @@ private:
     iterator   m_end;
 };
 
-inline std::size_t distance(const fjson::const_iterator &from, const fjson::const_iterator &to) {
+inline std::size_t distance(const fjson::const_iterator &from, const fjson::const_iterator &to) noexcept {
     return iter_distance(from.m_it, to.m_it);
 }
 
@@ -3209,7 +3074,7 @@ inline fjson pparse(
     ,const char *end
     ,bool despaced_json = false
     ,alloc_fnptr alloc_fn = &malloc
-    ,free_fnptr free_fn = &free)
+    ,free_fnptr free_fn = &free) noexcept
 {
     return fjson{beg, end, despaced_json, alloc_fn, free_fn};
 }
@@ -3218,7 +3083,7 @@ inline fjson pparse(
      const char *beg
     ,bool despaced_json = false
     ,alloc_fnptr alloc_fn = &malloc
-    ,free_fnptr free_fn = &free)
+    ,free_fnptr free_fn = &free) noexcept
 {
     const auto *end = beg + std::strlen(beg);
 
@@ -3232,7 +3097,7 @@ inline fjson pparse(
     ,const char *end
     ,bool despaced_json = false
     ,alloc_fnptr alloc_fn = &malloc
-    ,free_fnptr free_fn = &free)
+    ,free_fnptr free_fn = &free) noexcept
 {
     return fjson{p, beg, end, despaced_json, alloc_fn, free_fn};
 }
@@ -3242,7 +3107,7 @@ inline fjson pparse(
     ,const char *beg
     ,bool despaced_json = false
     ,alloc_fnptr alloc_fn = &malloc
-    ,free_fnptr free_fn = &free)
+    ,free_fnptr free_fn = &free) noexcept
 {
     const auto *end = beg + std::strlen(beg);
 
@@ -3255,7 +3120,7 @@ inline fjson pparse(
     ,token *toksbeg
     ,token *toksend
     ,const char *strbeg
-    ,const char *strend)
+    ,const char *strend) noexcept
 {
     return fjson{p, toksbeg, toksend, strbeg, strend};
 }
@@ -3264,7 +3129,7 @@ inline fjson pparse(
      parser *p
     ,token *toksbeg
     ,token *toksend
-    ,const char *beg)
+    ,const char *beg) noexcept
 {
     const auto *end = beg + std::strlen(beg);
 
@@ -3304,39 +3169,39 @@ struct io_vector {
 #   error "UNKNOWN PLATFORM!"
 #endif // OS detection
 
-inline bool file_exists(const char_type *fname);
-inline std::size_t file_size(const char_type *fname, int *ec = nullptr);
-inline std::size_t file_size(file_handle fd, int *ec = nullptr);
-inline std::size_t file_chsize(file_handle fd, std::size_t fsize, int *ec = nullptr);
-inline bool file_handle_valid(file_handle fh);
-inline file_handle file_open(const char_type *fname, int *ec = nullptr);
-inline file_handle file_create(const char_type *fname, int *ec = nullptr);
-inline std::size_t file_read(file_handle fd, void *ptr, std::size_t size, int *ec = nullptr);
-inline std::size_t file_write(file_handle fd, const void *ptr, std::size_t size, int *ec = nullptr);
+inline bool file_exists(const char_type *fname) noexcept;
+inline std::size_t file_size(const char_type *fname, int *ec = nullptr) noexcept;
+inline std::size_t file_size(file_handle fd, int *ec = nullptr) noexcept;
+inline std::size_t file_chsize(file_handle fd, std::size_t fsize, int *ec = nullptr) noexcept;
+inline bool file_handle_valid(file_handle fh) noexcept;
+inline file_handle file_open(const char_type *fname, int *ec = nullptr) noexcept;
+inline file_handle file_create(const char_type *fname, int *ec = nullptr) noexcept;
+inline std::size_t file_read(file_handle fd, void *ptr, std::size_t size, int *ec = nullptr) noexcept;
+inline std::size_t file_write(file_handle fd, const void *ptr, std::size_t size, int *ec = nullptr) noexcept;
 inline std::size_t file_write(
      file_handle fd
     ,const io_vector *iovector
     ,std::size_t num
     ,std::size_t total_bytes
     ,int *ec = nullptr
-);
-inline bool file_close(file_handle fd, int *ec = nullptr);
-inline const void* mmap_for_read(file_handle fd, std::size_t size, int *ec = nullptr);
-inline const void* mmap_for_read(file_handle *fd, std::size_t *fsize, const char_type *fname, int *ec = nullptr);
-inline void* mmap_for_write(file_handle fd, std::size_t size, int *ec = nullptr);
-inline void* mmap_for_write(file_handle *fd, const char_type *fname, std::size_t size, int *ec = nullptr);
-inline bool munmap_file(const void *addr, std::size_t size, int *ec = nullptr);
-inline bool munmap_file_fd(const void *addr, file_handle fd, int *ec = nullptr);
+) noexcept;
+inline bool file_close(file_handle fd, int *ec = nullptr) noexcept;
+inline const void* mmap_for_read(file_handle fd, std::size_t size, int *ec = nullptr) noexcept;
+inline const void* mmap_for_read(file_handle *fd, std::size_t *fsize, const char_type *fname, int *ec = nullptr) noexcept;
+inline void* mmap_for_write(file_handle fd, std::size_t size, int *ec = nullptr) noexcept;
+inline void* mmap_for_write(file_handle *fd, const char_type *fname, std::size_t size, int *ec = nullptr) noexcept;
+inline bool munmap_file(const void *addr, std::size_t size, int *ec = nullptr) noexcept;
+inline bool munmap_file_fd(const void *addr, file_handle fd, int *ec = nullptr) noexcept;
 
 /*************************************************************************************************/
 // implementations
 
 #if defined(__linux__) || defined(__APPLE__)
-bool file_exists(const char_type *fname) {
+bool file_exists(const char_type *fname) noexcept {
     return ::access(fname, 0) == 0;
 }
 
-std::size_t file_size(const char_type *fname, int *ec) {
+std::size_t file_size(const char_type *fname, int *ec) noexcept {
     struct ::stat st;
     if ( ::stat(fname, &st) != 0 ) {
         *ec = errno;
@@ -3346,7 +3211,7 @@ std::size_t file_size(const char_type *fname, int *ec) {
     return st.st_size;
 }
 
-std::size_t file_size(file_handle fd, int *ec) {
+std::size_t file_size(file_handle fd, int *ec) noexcept {
     struct ::stat st;
     if ( ::fstat(fd, &st) != 0 ) {
         if ( ec ) { *ec = errno; }
@@ -3356,7 +3221,7 @@ std::size_t file_size(file_handle fd, int *ec) {
     return st.st_size;
 }
 
-std::size_t file_chsize(file_handle fd, std::size_t fsize, int *ec) {
+std::size_t file_chsize(file_handle fd, std::size_t fsize, int *ec) noexcept {
     if ( ::ftruncate(fd, fsize) != 0 ) {
         if ( ec ) { *ec = errno; }
         return 0;
@@ -3372,11 +3237,11 @@ std::size_t file_chsize(file_handle fd, std::size_t fsize, int *ec) {
     return fsize;
 }
 
-bool file_handle_valid(file_handle fh) {
+bool file_handle_valid(file_handle fh) noexcept {
     return fh != -1;
 }
 
-file_handle file_open(const char_type *fname, int *ec) {
+file_handle file_open(const char_type *fname, int *ec) noexcept {
     int fd = ::open(fname, O_RDONLY);
     if ( fd == -1 ) {
         if ( ec ) { *ec = errno; }
@@ -3386,7 +3251,7 @@ file_handle file_open(const char_type *fname, int *ec) {
     return fd;
 }
 
-file_handle file_create(const char_type *fname, int *ec) {
+file_handle file_create(const char_type *fname, int *ec) noexcept {
     int fd = ::open(fname, O_RDWR|O_CREAT, S_IRUSR|S_IWUSR);
     if ( fd == -1 ) {
         if ( ec ) { *ec = errno; }
@@ -3396,7 +3261,7 @@ file_handle file_create(const char_type *fname, int *ec) {
     return fd;
 }
 
-std::size_t file_read(file_handle fd, void *ptr, std::size_t size, int *ec) {
+std::size_t file_read(file_handle fd, void *ptr, std::size_t size, int *ec) noexcept {
     auto rd = static_cast<std::size_t>(::read(fd, ptr, size));
     if ( rd != size ) {
         if ( ec ) { *ec = errno; }
@@ -3405,7 +3270,7 @@ std::size_t file_read(file_handle fd, void *ptr, std::size_t size, int *ec) {
     return rd;
 }
 
-std::size_t file_write(file_handle fd, const void *ptr, std::size_t size, int *ec) {
+std::size_t file_write(file_handle fd, const void *ptr, std::size_t size, int *ec) noexcept {
     auto wr = static_cast<std::size_t>(::write(fd, ptr, size));
     if ( wr != size ) {
         if ( ec ) { *ec = errno; }
@@ -3419,7 +3284,7 @@ std::size_t file_write(
     ,const io_vector *iovector
     ,std::size_t num
     ,std::size_t total_bytes
-    ,int *ec)
+    ,int *ec) noexcept
 {
     auto wr = ::writev(fd, iovector, num);
     if ( wr == -1 ) {
@@ -3434,7 +3299,7 @@ std::size_t file_write(
     return wr;
 }
 
-bool file_close(file_handle fd, int *ec) {
+bool file_close(file_handle fd, int *ec) noexcept {
     bool ok = ::close(fd) == 0;
     if ( !ok ) {
         if ( ec ) { *ec = errno; }
@@ -3445,7 +3310,7 @@ bool file_close(file_handle fd, int *ec) {
     return true;
 }
 
-const void* mmap_for_read(file_handle fd, std::size_t size, int *ec) {
+const void* mmap_for_read(file_handle fd, std::size_t size, int *ec) noexcept {
     void *addr = ::mmap(nullptr, size, PROT_READ, MAP_SHARED, fd, 0);
     if ( addr == MAP_FAILED ) {
         if ( ec ) { *ec = errno; }
@@ -3463,7 +3328,7 @@ const void* mmap_for_read(file_handle fd, std::size_t size, int *ec) {
     return addr;
 }
 
-const void* mmap_for_read(file_handle *fd, std::size_t *fsize, const char_type *fname, int *ec) {
+const void* mmap_for_read(file_handle *fd, std::size_t *fsize, const char_type *fname, int *ec) noexcept {
     int lec{};
     int lfd = file_open(fname, &lec);
     if ( lec ) {
@@ -3484,7 +3349,7 @@ const void* mmap_for_read(file_handle *fd, std::size_t *fsize, const char_type *
     return addr;
 }
 
-void* mmap_for_write(file_handle fd, std::size_t size, int *ec) {
+void* mmap_for_write(file_handle fd, std::size_t size, int *ec) noexcept {
     void *addr = ::mmap(nullptr, size, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
     if ( addr == MAP_FAILED ) {
         if ( ec ) { *ec = errno; }
@@ -3502,7 +3367,7 @@ void* mmap_for_write(file_handle fd, std::size_t size, int *ec) {
     return addr;
 }
 
-void* mmap_for_write(file_handle *fd, const char_type *fname, std::size_t size, int *ec) {
+void* mmap_for_write(file_handle *fd, const char_type *fname, std::size_t size, int *ec) noexcept {
     int lec{};
     int lfd = file_create(fname, &lec);
     if ( lec ) {
@@ -3528,7 +3393,7 @@ void* mmap_for_write(file_handle *fd, const char_type *fname, std::size_t size, 
     return addr;
 }
 
-bool munmap_file(const void *addr, std::size_t size, int *ec) {
+bool munmap_file(const void *addr, std::size_t size, int *ec) noexcept {
     bool ok = ::munmap(const_cast<void *>(addr), size) == 0;
     if ( !ok ) {
         if ( ec ) { *ec = errno; }
@@ -3539,7 +3404,7 @@ bool munmap_file(const void *addr, std::size_t size, int *ec) {
     return true;
 }
 
-bool munmap_file_fd(const void *addr, file_handle fd, int *ec) {
+bool munmap_file_fd(const void *addr, file_handle fd, int *ec) noexcept {
     int lec{};
     auto fsize = file_size(fd, &lec);
     if ( lec ) {
@@ -3560,14 +3425,14 @@ bool munmap_file_fd(const void *addr, file_handle fd, int *ec) {
 
 #elif defined(WIN32)
 
-bool file_exists(const char_type *fname) {
+bool file_exists(const char_type *fname) noexcept {
     auto attr = ::GetFileAttributes(fname);
 
     return (attr != INVALID_FILE_ATTRIBUTES &&
         !(attr & FILE_ATTRIBUTE_DIRECTORY));
 }
 
-std::size_t file_size(const char_type *fname, int *ec) {
+std::size_t file_size(const char_type *fname, int *ec) noexcept {
     WIN32_FILE_ATTRIBUTE_DATA fad;
     if ( !::GetFileAttributesEx(fname, ::GET_FILEEX_INFO_LEVELS::GetFileExInfoStandard, &fad) ) {
         int lec = ::GetLastError();
@@ -3580,7 +3445,7 @@ std::size_t file_size(const char_type *fname, int *ec) {
     return fsize;
 }
 
-std::size_t file_size(file_handle fd, int *ec) {
+std::size_t file_size(file_handle fd, int *ec) noexcept {
     LARGE_INTEGER fsize;
     if ( !::GetFileSizeEx(fd, &fsize) ) {
         int lec = ::GetLastError();
@@ -3592,7 +3457,7 @@ std::size_t file_size(file_handle fd, int *ec) {
     return static_cast<std::size_t>(fsize.QuadPart);
 }
 
-std::size_t file_chsize(file_handle fd, std::size_t fsize, int *ec) {
+std::size_t file_chsize(file_handle fd, std::size_t fsize, int *ec) noexcept {
     auto ret = ::SetFilePointer(fd, static_cast<LONG>(fsize), nullptr, FILE_BEGIN);
     if ( ret == INVALID_SET_FILE_POINTER ) {
         int lec = ::GetLastError();
@@ -3611,11 +3476,11 @@ std::size_t file_chsize(file_handle fd, std::size_t fsize, int *ec) {
     return fsize;
 }
 
-bool file_handle_valid(file_handle fh) {
+bool file_handle_valid(file_handle fh) noexcept {
     return fh != INVALID_HANDLE_VALUE;
 }
 
-file_handle file_open(const char_type *fname, int *ec) {
+file_handle file_open(const char_type *fname, int *ec) noexcept {
     file_handle fd = ::CreateFile(
          fname
         ,GENERIC_READ
@@ -3635,7 +3500,7 @@ file_handle file_open(const char_type *fname, int *ec) {
     return fd;
 }
 
-file_handle file_create(const char_type *fname, int *ec) {
+file_handle file_create(const char_type *fname, int *ec) noexcept {
     file_handle fd = ::CreateFile(
          fname
         ,GENERIC_READ|GENERIC_WRITE
@@ -3655,7 +3520,7 @@ file_handle file_create(const char_type *fname, int *ec) {
     return fd;
 }
 
-std::size_t file_read(file_handle fd, void *ptr, std::size_t size, int *ec) {
+std::size_t file_read(file_handle fd, void *ptr, std::size_t size, int *ec) noexcept {
     if ( !::ReadFile(fd, ptr, static_cast<DWORD>(size), nullptr, nullptr) ) {
         int lec = ::GetLastError();
         if ( ec ) { *ec = lec; }
@@ -3666,7 +3531,7 @@ std::size_t file_read(file_handle fd, void *ptr, std::size_t size, int *ec) {
     return size;
 }
 
-std::size_t file_write(file_handle fd, const void *ptr, std::size_t size, int *ec) {
+std::size_t file_write(file_handle fd, const void *ptr, std::size_t size, int *ec) noexcept {
     if ( !::WriteFile(fd, ptr, static_cast<DWORD>(size), nullptr, nullptr) ) {
         int lec = ::GetLastError();
         if ( ec ) { *ec = lec; }
@@ -3682,7 +3547,7 @@ std::size_t file_write(
     ,const io_vector *iovector
     ,std::size_t num
     ,std::size_t total_bytes
-    ,int *ec)
+    ,int *ec) noexcept
 {
     for ( const auto *it = iovector, *end = iovector + num; it != end; ++it ) {
         int lec{};
@@ -3697,7 +3562,7 @@ std::size_t file_write(
     return total_bytes;
 }
 
-bool file_close(file_handle fd, int *ec) {
+bool file_close(file_handle fd, int *ec) noexcept {
     if ( !::CloseHandle(fd) ) {
         int lec = ::GetLastError();
         if ( ec ) { *ec = lec; }
@@ -3708,7 +3573,7 @@ bool file_close(file_handle fd, int *ec) {
     return true;
 }
 
-const void* mmap_for_read(file_handle fd, std::size_t /*size*/, int *ec) {
+const void* mmap_for_read(file_handle fd, std::size_t /*size*/, int *ec) noexcept {
     auto map = ::CreateFileMapping(fd, nullptr, PAGE_READONLY, 0, 0, nullptr);
     if ( !map ) {
         int lec = ::GetLastError();
@@ -3730,7 +3595,7 @@ const void* mmap_for_read(file_handle fd, std::size_t /*size*/, int *ec) {
     return addr;
 }
 
-const void* mmap_for_read(file_handle *fd, std::size_t *fsize, const char_type *fname, int *ec) {
+const void* mmap_for_read(file_handle *fd, std::size_t *fsize, const char_type *fname, int *ec) noexcept {
     auto fdd = file_open(fname, ec);
     if ( fdd == INVALID_HANDLE_VALUE ) {
         return nullptr;
@@ -3759,7 +3624,7 @@ const void* mmap_for_read(file_handle *fd, std::size_t *fsize, const char_type *
     return addr;
 }
 
-void* mmap_for_write(file_handle fd, std::size_t /*size*/, int *ec) {
+void* mmap_for_write(file_handle fd, std::size_t /*size*/, int *ec) noexcept {
     auto map = ::CreateFileMapping(fd, nullptr, PAGE_READWRITE, 0, 0, nullptr);
     if ( !map ) {
         int lec = ::GetLastError();
@@ -3781,7 +3646,7 @@ void* mmap_for_write(file_handle fd, std::size_t /*size*/, int *ec) {
     return addr;
 }
 
-void* mmap_for_write(file_handle *fd, const char_type *fname, std::size_t size, int *ec) {
+void* mmap_for_write(file_handle *fd, const char_type *fname, std::size_t size, int *ec) noexcept {
     int lec{};
     auto lfd = file_create(fname, &lec);
     if ( lec ) {
@@ -3807,7 +3672,7 @@ void* mmap_for_write(file_handle *fd, const char_type *fname, std::size_t size, 
     return addr;
 }
 
-bool munmap_file(const void *addr, std::size_t /*size*/, int *ec) {
+bool munmap_file(const void *addr, std::size_t /*size*/, int *ec) noexcept {
     if ( !::UnmapViewOfFile(addr) ) {
         int lec = ::GetLastError();
         if ( ec ) { *ec = lec; }
@@ -3818,7 +3683,7 @@ bool munmap_file(const void *addr, std::size_t /*size*/, int *ec) {
     return true;
 }
 
-bool munmap_file_fd(const void *addr, file_handle fd, int *ec) {
+bool munmap_file_fd(const void *addr, file_handle fd, int *ec) noexcept {
     int lec{};
     if ( !munmap_file(addr, std::size_t{}, &lec) ) {
         if ( ec ) { *ec = lec; }
@@ -3843,7 +3708,7 @@ inline std::size_t serialize(
     ,const iterator &beg
     ,const iterator &end
     ,std::size_t indent = 0
-    ,int *ec = nullptr)
+    ,int *ec = nullptr) noexcept
 {
     static const auto cb = []
     (    void *userdata
@@ -3904,7 +3769,7 @@ inline std::size_t serialize(
     ,const iterator &beg
     ,const iterator &end
     ,std::size_t indent = 0
-    ,int *ec = nullptr)
+    ,int *ec = nullptr) noexcept
 {
     static const auto cb = []
     (    void *userdata
@@ -3973,7 +3838,7 @@ inline std::size_t serialize(
     ,const token *beg
     ,const token *end
     ,std::size_t indent = 0
-    ,int *ec = nullptr)
+    ,int *ec = nullptr) noexcept
 {
     static const auto cb = []
     (    void *userdata
@@ -4057,7 +3922,7 @@ inline std::size_t serialize(
     ,const iterator &beg
     ,const iterator &end
     ,std::size_t indent = 0
-    ,int *ec = nullptr)
+    ,int *ec = nullptr) noexcept
 {
     return serialize(stream, beg.cur, end.end, indent, ec);
 }
@@ -4068,7 +3933,7 @@ inline std::size_t serialize(
     ,char *buf
     ,std::size_t bufsize
     ,std::size_t indent = 0
-    ,int *ec = nullptr)
+    ,int *ec = nullptr) noexcept
 {
     struct tokens_to_buf_userdata {
         char *ptr;
@@ -4139,7 +4004,7 @@ inline std::size_t length_for_string(
      const iterator &beg
     ,const iterator &end
     ,std::size_t indent = 0
-    ,int *ec = nullptr)
+    ,int *ec = nullptr) noexcept
 {
     int lec{};
     std::size_t wr{};
@@ -4175,7 +4040,7 @@ inline std::string to_string(
      const iterator &beg
     ,const iterator &end
     ,std::size_t indent = 0
-    ,int *ec = nullptr)
+    ,int *ec = nullptr) noexcept
 {
     std::string res;
     auto length = length_for_string(beg, end, indent);
@@ -4220,7 +4085,7 @@ inline bool pack_state_iterate(
         ,std::uint32_t parent_off
         ,std::uint32_t childs
         ,std::uint32_t end_off
-    ))
+    )) noexcept
 {
     const auto *prev = fj_parser_tokens_beg_ptr(parser);
     const char *prev_key = nullptr;
@@ -4263,7 +4128,7 @@ inline bool pack_state_iterate(
     return true;
 }
 
-inline std::size_t packed_state_header_size(const parser *parser) {
+inline std::size_t packed_state_header_size(const parser *parser) noexcept {
     std::size_t header_size =
           sizeof(std::uint32_t) // json string length field
         + fj_parser_json_length(parser) // json string
@@ -4284,7 +4149,7 @@ struct pack_state_userdata {
 /*************************************************************************************************/
 // pack/unpack the internal representation for pass to another node/process
 
-inline std::size_t packed_state_size(const parser *parser) {
+inline std::size_t packed_state_size(const parser *parser) noexcept {
     std::size_t header_size = details::packed_state_header_size(parser);
 
     static const auto cb = [](
@@ -4331,7 +4196,7 @@ inline std::size_t packed_state_size(const parser *parser) {
 
 /*************************************************************************************************/
 
-inline std::size_t pack_state(char *dst, std::size_t size, const parser *parser) {
+inline std::size_t pack_state(char *dst, std::size_t size, const parser *parser) noexcept {
     static const auto cb = [](
          void *userdata
         ,std::uint8_t type
@@ -4413,7 +4278,7 @@ inline std::size_t pack_state(char *dst, std::size_t size, const parser *parser)
 
 /*************************************************************************************************/
 
-inline bool unpack_state(parser *parser, char *ptr, std::size_t size) {
+inline bool unpack_state(parser *parser, char *ptr, std::size_t size) noexcept {
     const char *end = ptr + size;
     std::uint32_t json_len{};
     std::memcpy(&json_len, ptr, sizeof(json_len));
@@ -4501,7 +4366,7 @@ inline bool unpack_state(parser *parser, char *ptr, std::size_t size) {
         it->childs = static_cast<decltype(it->childs)>(childs);
         it->end    = (end_off ? it + end_off : nullptr);
     }
-    parser->error.code = EC_OK;
+    parser->error.code = FJ_OK;
 
     return true;
 }
@@ -4521,9 +4386,9 @@ inline bool unpack_state(parser *parser, char *ptr, std::size_t size) {
 // undef internally used macro-vars
 #undef __FJ__FALLTHROUGH
 #undef __FJ__CHECK_OVERFLOW
-#undef FJ_KLEN_TYPE
-#undef FJ_VLEN_TYPE
-#undef FJ_CHILDS_TYPE
+#undef fj_klen_type
+#undef fj_vlen_type
+#undef fj_childs_type
 
 /*************************************************************************************************/
 
