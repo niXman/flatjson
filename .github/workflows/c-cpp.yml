@@ -2,98 +2,118 @@ name: C/C++ CI
 
 on:
   push:
-    branches: [ "master" ]
   pull_request:
-    branches: [ "master" ]
 
 jobs:
-  unix_build: # job id, can be any string
-    name: Unix Build
-    # This job runs on Linux
+  unix_build:
+    name: ${{ matrix.label }}
     strategy:
+      fail-fast: false
       matrix:
         include:
           - os: ubuntu-22.04
-            triplet: x64-linux
+            label: Linux G++ 64-bit
             cc: g++
+            bits: 64
 
           - os: ubuntu-22.04
-            triplet: x32-linux
+            label: Linux G++ 32-bit
             cc: g++
+            bits: 32
 
           - os: macos-latest
-            triplet: x64-osx
+            label: OSX Apple Clang++ 64-bit
             cc: clang++
+            bits: 64
 
+          # The current Apple Clang on GitHub runners does not emit 32-bit code.
           - os: macos-latest
-            triplet: x32-osx
+            label: OSX Apple Clang++ 32-bit
             cc: clang++
+            bits: 32
 
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout
-        uses: actions/checkout@master
+        uses: actions/checkout@v4
+
+      - name: Install 32-bit libstdc++
+        if: matrix.bits == 32 && runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y g++-multilib
+
       - name: Build & Test
         shell: bash
         env:
-          TRIPLET: ${{ matrix.triplet }}
           USE_CC: ${{ matrix.cc }}
+          BITS: ${{ matrix.bits }}
         run: |
-          echo "TRIPLET=$TRIPLET, USE_CC=$USE_CC"
-          cd test
-          CXX=$USE_CC cmake . -DCMAKE_BUILD_TYPE=Release
-          cmake --build .
-          ./flatjson-test
-          cd ../examples/c-style
-          CXX=$USE_CC cmake . -DCMAKE_BUILD_TYPE=Release
-          cmake --build .
-          ./c-style
-          cd ../cpp-style
-          CXX=$USE_CC cmake . -DCMAKE_BUILD_TYPE=Release
-          cmake --build .
-          ./cpp-style
+          set -euo pipefail
+          m32=()
+          if [ "$BITS" = 32 ] && [ "$(uname -s)" = Linux ]; then
+              m32+=(-DCMAKE_CXX_FLAGS=-m32 -DCMAKE_EXE_LINKER_FLAGS=-m32)
+          fi
+          build_and_run() {
+              local dir="$1"
+              local name="$2"
+              CXX="$USE_CC" cmake -S "$dir" -B "$dir/build" -DCMAKE_BUILD_TYPE=Release "${m32[@]}"
+              cmake --build "$dir/build"
+              ( cd "$dir" && ./build/"$name" )
+          }
+          build_and_run test flatjson-test
 
-  vs2019_2022_build: # job id, can be any string
-    name: Visual Studio Build
+  windows_build:
+    name: ${{ matrix.label }}
     strategy:
+      fail-fast: false
       matrix:
         include:
-          - os: windows-latest
-            generator: "Visual Studio 17 2022"
+          - os: windows-2025
+            label: Windows Visual Studio 2026 64-bit
+            generator: Visual Studio 18 2026
             platform: x64
 
-          - os: windows-latest
-            generator: "Visual Studio 17 2022"
-            platform: x32
+          - os: windows-2025
+            label: Windows Visual Studio 2026 32-bit
+            generator: Visual Studio 18 2026
+            platform: Win32
+
+          - os: windows-2022
+            label: Windows Visual Studio 2022 64-bit
+            generator: Visual Studio 17 2022
+            platform: x64
+
+          - os: windows-2022
+            label: Windows Visual Studio 2022 32-bit
+            generator: Visual Studio 17 2022
+            platform: Win32
 
           - os: windows-2019
-            generator: "Visual Studio 16 2019"
+            label: Windows Visual Studio 2019 64-bit
+            generator: Visual Studio 16 2019
             platform: x64
 
           - os: windows-2019
-            generator: "Visual Studio 16 2019"
-            platform: x32
+            label: Windows Visual Studio 2019 32-bit
+            generator: Visual Studio 16 2019
+            platform: Win32
 
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout
-        uses: actions/checkout@master
+        uses: actions/checkout@v4
+
       - name: Build & Test
         shell: bash
         env:
           CMAKE_GENERATOR: ${{ matrix.generator }}
           PLATFORM: ${{ matrix.platform }}
         run: |
-          echo "PLATFORM=$PLATFORM, CMAKE_GENERATOR=\"$CMAKE_GENERATOR\""
-          cd test
-          cmake . -G "$CMAKE_GENERATOR" -DCMAKE_BUILD_TYPE=Release
-          cmake --build .
-          Debug/flatjson-test.exe
-          cd ../examples/c-style
-          cmake . -G "$CMAKE_GENERATOR" -DCMAKE_BUILD_TYPE=Release
-          cmake --build .
-          Debug/c-style.exe
-          cd ../cpp-style
-          cmake . -G "$CMAKE_GENERATOR" -DCMAKE_BUILD_TYPE=Release
-          cmake --build .
-          Debug/cpp-style.exe
+          set -euo pipefail
+          build_and_run() {
+              local dir="$1"
+              local name="$2"
+              cmake -S "$dir" -B "$dir/build" -G "$CMAKE_GENERATOR" -A "$PLATFORM"
+              cmake --build "$dir/build" --config Release
+              ( cd "$dir" && ./build/Release/"$name" )
+          }
+          build_and_run test flatjson-test.exe
