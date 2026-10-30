@@ -24,6 +24,11 @@
 #include <cstdlib>
 #include <cstring>
 
+#if defined(_MSC_VER)
+#   pragma warning(push)
+#   pragma warning(disable: 4244 4267 4127)
+#endif
+
 namespace flatjson {
 
 /*************************************************************************************************/
@@ -2304,5 +2309,9 @@ inline cursor feed(parser *parser, const char *data, std::size_t size) noexcept 
 /*************************************************************************************************/
 
 } // ns flatjson
+
+#if defined(_MSC_VER)
+#   pragma warning(pop)
+#endif
 
 #endif // __FLATJSON__PARSE_HPP

@@ -22,6 +22,11 @@
 #include <cstdint>
 #include <cstring>
 
+#if defined(_MSC_VER)
+#   pragma warning(push)
+#   pragma warning(disable: 4127)
+#endif
+
 namespace flatjson {
 
 /*************************************************************************************************/
@@ -496,5 +501,9 @@ inline bool unpack_state(parser *parser, char *ptr, std::size_t size) noexcept {
 /*************************************************************************************************/
 
 } // ns flatjson
+
+#if defined(_MSC_VER)
+#   pragma warning(pop)
+#endif
 
 #endif // __FLATJSON__STATE_HPP
