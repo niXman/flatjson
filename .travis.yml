@@ -11,8 +11,8 @@ script:
   - cmake -DCMAKE_BUILD_TYPE=Release .
   - cmake --build . --config Release
   - ./flatjson
-  - eval $CXX -std=c++11 -O2 -D__FLATJSON__CHILDS_TYPE=std::uint32_t -UNDEBUG parsetest.cpp -o parsetest
-  - ./parsetest canada.json
-  - ./parsetest citm_catalog.json
-  - ./parsetest jeopardy.json
-  - ./parsetest twitter.json
+  - eval $CXX -std=c++11 -O2 -UNDEBUG parsetest.cpp -o parsetest
+  - ./parsetest assets/canada.json
+  - ./parsetest assets/citm_catalog.json
+  - ./parsetest assets/jeopardy.json
+  - ./parsetest assets/twitter.json

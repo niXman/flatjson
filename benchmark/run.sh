@@ -5,14 +5,14 @@ cmake . -DCMAKE_BUILD_TYPE=Release
 cmake --build .
 [[ $? != 0 ]] && { echo "cmake build error!"; exit 1; }
 
-echo "canada.json" && ./benchmark canada.json
+echo "assets/canada.json" && ./benchmark ../assets/canada.json
 echo
 
-echo "citm_catalog.json" && ./benchmark citm_catalog.json
+echo "assets/citm_catalog.json" && ./benchmark ../assets/citm_catalog.json
 echo
 
-echo "jeopardy.json" && ./benchmark jeopardy.json
+echo "assets/jeopardy.json" && ./benchmark ../assets/jeopardy.json
 echo
 
-echo "twitter.json" && ./benchmark twitter.json
+echo "assets/twitter.json" && ./benchmark ../assets/twitter.json
 

@@ -17,7 +17,6 @@ endif()
 
 add_definitions(
     -UNDEBUG
-    -DFJ_CHILDS_TYPE=std::uint32_t
 )
 
 include_directories(
