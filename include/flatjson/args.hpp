@@ -202,43 +202,43 @@ constexpr bool args_known(const Known &...) noexcept
 
 struct {
     struct json_beg { using type = const char *; type v;
-        json_beg operator= (type v) const noexcept { return {v}; }
+        json_beg operator= (type value) const noexcept { return {value}; }
     } const json_beg{};
     struct json_end { using type = const char *; type v;
-        json_end operator= (type v) const noexcept { return {v}; }
+        json_end operator= (type value) const noexcept { return {value}; }
     }const json_end{};
     struct tokens_beg { using type = token *; type v;
-        tokens_beg operator= (type v) const noexcept { return {v}; }
+        tokens_beg operator= (type value) const noexcept { return {value}; }
     } const toks_beg{};
     struct tokens_end { using type = token *; type v;
-        tokens_end operator= (type v) const noexcept { return {v}; }
+        tokens_end operator= (type value) const noexcept { return {value}; }
     } const toks_end{};
     struct parser { using type = struct flatjson::parser *; type v;
-        parser operator= (type v) const noexcept { return {v}; }
+        parser operator= (type value) const noexcept { return {value}; }
     } const parser{};
     struct mem_fns { struct type { alloc_fnptr alloc; free_fnptr free; } v;
-        mem_fns operator= (type v) const noexcept { return {v}; }
+        mem_fns operator= (type value) const noexcept { return {value}; }
     } const mem_fns{};
     struct chunks_beg { using type = chunk *; type v;
-        chunks_beg operator= (type v) const noexcept { return {v}; }
+        chunks_beg operator= (type value) const noexcept { return {value}; }
     } const chunks_beg{};
     struct chunks_end { using type = chunk *; type v;
-        chunks_end operator= (type v) const noexcept { return {v}; }
+        chunks_end operator= (type value) const noexcept { return {value}; }
     } const chunks_end{};
     struct init_size { using type = std::size_t; type v;
-        init_size operator= (type v) const noexcept { return {v}; }
+        init_size operator= (type value) const noexcept { return {value}; }
     } const init_size{};
     struct despaced { using type = bool; type v;
-        despaced operator= (type v) const noexcept { return {v}; }
+        despaced operator= (type value) const noexcept { return {value}; }
     } const despaced{};
     struct flags { using type = std::uint8_t; type v;
-        flags operator= (type v) const noexcept { return {v}; }
+        flags operator= (type value) const noexcept { return {value}; }
     } const flags{};
     struct error_code { using type = flatjson::error_code *; type v;
-        error_code operator= (type v) const noexcept { return {v}; }
+        error_code operator= (type value) const noexcept { return {value}; }
     } const error_code{};
     struct error_info { using type = flatjson::error_info *; type v;
-        error_info operator= (type v) const noexcept { return {v}; }
+        error_info operator= (type value) const noexcept { return {value}; }
     } const error_info{};
 } static constexpr args;
 

@@ -93,7 +93,11 @@ struct token {
 };
 #pragma pack(pop)
 
+#if defined(_MSC_VER)
+static_assert(sizeof(token) == 20, "");
+#else
 static_assert(sizeof(token) == 16, "");
+#endif
 
 // simple type
 #define fj_is_simple_type_macro(v) \

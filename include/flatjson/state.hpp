@@ -154,6 +154,7 @@ inline void set_token(
     ,std::uint32_t vlen
     ,std::uint32_t parent) noexcept
 {
+    t = token{};
     t.type = type;
     t.vpos = static_cast<std::uint32_t>(vpos);
     t.vlen = vlen;

@@ -348,8 +348,6 @@ inline iterator find(const iterator &beg, const iterator &end, std::size_t idx) 
 
         return end;
     }
-
-    return {};
 }
 
 } // ns details

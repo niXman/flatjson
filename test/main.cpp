@@ -29,7 +29,7 @@
 #include <limits>
 
 #ifdef WIN32
-static const TCHAR dir_separator = '\\';
+static const char dir_separator = '\\';
 #else
 static const char dir_separator = '/';
 #endif // WIN32
@@ -70,8 +70,8 @@ enum class test_cond {
         return std::make_pair(cond, &buf[0]); \
     }() + []()
 
-#define FJ_STRINGIZE_IMPL(x) #x
-#define FJ_STRINGIZE(x) FJ_STRINGIZE_IMPL(x)
+#define FJ_STRINGIZE_IMPL(x, ...) #x
+#define FJ_STRINGIZE(...) FJ_STRINGIZE_IMPL(__VA_ARGS__,)
 
 /*************************************************************************************************/
 
@@ -1704,11 +1704,11 @@ int main() {
             assert(shared.ref_counter == 3u);
             assert(owner["n"].to_int() == -12);
             assert(again["n"].to_int() == -12);
-            flatjson::token toks[4];
+            flatjson::token extra_toks[4];
             flatjson::fjson with_toks{
                  flatjson::args.parser = &shared
-                ,flatjson::args.toks_beg = std::begin(toks)
-                ,flatjson::args.toks_end = std::end(toks)
+                ,flatjson::args.toks_beg = std::begin(extra_toks)
+                ,flatjson::args.toks_end = std::end(extra_toks)
                 ,flatjson::args.json_beg = std::begin(pair)
                 ,flatjson::args.json_end = std::end(pair)
             };
@@ -2436,7 +2436,7 @@ int main() {
 
     test += FJ_TEST(test for parser reuse after failed parse) {
         char json[128]{};
-        std::strcpy(json, "{\"a\":]");
+        std::memcpy(json, "{\"a\":]", sizeof("{\"a\":]"));
         const std::size_t bad_len = std::strlen(json);
 
         flatjson::token toks[32]{};
@@ -2455,7 +2455,7 @@ int main() {
         assert(toknum == 0);
         assert(ec == flatjson::FJ_INVALID);
 
-        std::strcpy(json, "{\"a\":1}");
+        std::memcpy(json, "{\"a\":1}", sizeof("{\"a\":1}"));
         const std::size_t good_len = std::strlen(json);
 
         ec = flatjson::FJ_OK;
