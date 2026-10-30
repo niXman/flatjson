@@ -1,13 +1,13 @@
 # FlatJson
 
-The header-only implementation of an extremely fast zero allocation and zero copying JSON parser.
+The header-only implementation of an extremely fast zero allocation and zero copying JSON parser
 
-[![Forks](https://img.shields.io/github/forks/nixman/flatjson?style=social)](https://github.com/nixman/flatjson)
-[![Stars](https://img.shields.io/github/stars/nixman/flatjson?style=social)](https://github.com/nixman/flatjson)
-[![Release](https://img.shields.io/github/v/release/nixman/flatjson)](https://github.com/nixman/flatjson/releases)
-[![Code size](https://img.shields.io/github/languages/code-size/nixman/flatjson)](https://github.com/nixman/flatjson)
-[![Repo size](https://img.shields.io/github/repo-size/nixman/flatjson)](https://github.com/nixman/flatjson)
-[![CI build status](https://github.com/nixman/flatjson/actions/workflows/c-cpp.yml/badge.svg)](https://github.com/nixman/flatjson/actions/workflows/c-cpp.yml)
+![Forks](https://img.shields.io/github/forks/nixman/flatjson?style=social)
+![Stars](https://img.shields.io/github/stars/nixman/flatjson?style=social)
+![Release](https://img.shields.io/github/v/release/nixman/flatjson)
+![Code size](https://img.shields.io/github/languages/code-size/nixman/flatjson)
+![Repo size](https://img.shields.io/github/repo-size/nixman/flatjson)
+![CI build status](https://github.com/nixman/flatjson/actions/workflows/c-cpp.yml/badge.svg)
 
 ## CI Job Matrix
 
@@ -26,7 +26,7 @@ The header-only implementation of an extremely fast zero allocation and zero cop
 
 ## Usage
 
-One document, with the parser and the token array on the stack. The JSON text is not copied.
+One document, with the parser and the token array on the stack.
 
 ```cpp
 #include <flatjson/flatjson.hpp>

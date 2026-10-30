@@ -48,14 +48,15 @@ jobs:
           BITS: ${{ matrix.bits }}
         run: |
           set -euo pipefail
-          m32=()
+          # macOS /bin/bash is 3.2: with set -u an empty "${array[@]}" is an error.
+          cmake_flags=(-DCMAKE_BUILD_TYPE=Release)
           if [ "$BITS" = 32 ] && [ "$(uname -s)" = Linux ]; then
-              m32+=(-DCMAKE_CXX_FLAGS=-m32 -DCMAKE_EXE_LINKER_FLAGS=-m32)
+              cmake_flags+=(-DCMAKE_CXX_FLAGS=-m32 -DCMAKE_EXE_LINKER_FLAGS=-m32)
           fi
           build_and_run() {
               local dir="$1"
               local name="$2"
-              CXX="$USE_CC" cmake -S "$dir" -B "$dir/build" -DCMAKE_BUILD_TYPE=Release "${m32[@]}"
+              CXX="$USE_CC" cmake -S "$dir" -B "$dir/build" "${cmake_flags[@]}"
               cmake --build "$dir/build"
               ( cd "$dir" && ./build/"$name" )
           }
