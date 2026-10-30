@@ -132,14 +132,14 @@ template<typename K, typename ...Args>
 typename K::type get(const K &k, Args && ...args) {
     constexpr int idx = position<K, Args...>::value;
     static_assert(idx != -1, "looks like that argument is required");
-    return get_arg_impl_variadic<idx != -1>::template get(
+    return get_arg_impl_variadic<idx != -1>::template get<>(
         k, K{}, std::forward<Args>(args)...);
 }
 
 template<typename K, typename Def, typename ...Args>
 typename K::type get(const K &k, Def &&def, Args && ...args) {
     constexpr int idx = position<K, Args...>::value;
-    return get_arg_impl_variadic<idx != -1>::template get(
+    return get_arg_impl_variadic<idx != -1>::template get<>(
         k, std::forward<Def>(def), std::forward<Args>(args)...);
 }
 
