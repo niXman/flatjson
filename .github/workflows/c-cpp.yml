@@ -92,16 +92,6 @@ jobs:
             generator: Visual Studio 17 2022
             platform: Win32
 
-          - os: windows-2019
-            label: Windows Visual Studio 2019 64-bit
-            generator: Visual Studio 16 2019
-            platform: x64
-
-          - os: windows-2019
-            label: Windows Visual Studio 2019 32-bit
-            generator: Visual Studio 16 2019
-            platform: Win32
-
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout

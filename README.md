@@ -21,8 +21,6 @@ The header-only implementation of an extremely fast zero allocation and zero cop
 | Windows       | Visual Studio 2026 | 64-bit |
 | Windows       | Visual Studio 2022 | 32-bit |
 | Windows       | Visual Studio 2022 | 64-bit |
-| Windows       | Visual Studio 2019 | 32-bit |
-| Windows       | Visual Studio 2019 | 64-bit |
 
 ## Usage
 
